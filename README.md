@@ -1,17 +1,26 @@
 # filepath: /patient-registration-system/patient-registration-system/README.md
 
-# Patient Registration System
+# Sistema de Registro de Pacientes
 
-This project is a basic patient registration system with login functionality for doctors, managers, and administrators. It uses a Flask backend and an SQLite database to manage user and patient data.
+Sistema para gerenciamento de prontuários, pacientes e solicitações de cirurgia desenvolvido com Flask.
 
-## Features
+## Funcionalidades
 
-- User authentication for doctors, managers, and administrators
-- Patient registration and management
-- Dashboard for logged-in users
-- Responsive HTML frontend
+- Cadastro e gerenciamento de pacientes
+- Solicitação e agendamento de cirurgias
+- Geração automática de PDFs para solicitações
+- Integração com Google Forms para agendamento
+- Interface responsiva
 
-## Project Structure
+## Tecnologias Utilizadas
+
+- Python 3.x
+- Flask (Framework web)
+- SQLAlchemy (ORM)
+- Bootstrap (Frontend)
+- FillPDF (Preenchimento de formulários PDF)
+
+## Estrutura do Projeto
 
 ```
 patient-registration-system
@@ -47,33 +56,24 @@ patient-registration-system
 └── README.md
 ```
 
-## Installation
+## Como Instalar e Executar
 
-1. Clone the repository:
+1. Clone o repositório:
    ```
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
+   git clone https://github.com/seu-usuario/patient-registration-system.git
    cd patient-registration-system
    ```
-3. Install the required packages:
+
+2. Crie um ambiente virtual e instale as dependências:
    ```
+   python -m venv venv
+   venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-## Usage
+3. Execute o aplicativo:
+   ```
+   flask run
+   ```
 
-1. Set up the database by running the SQL schema:
-   ```
-   sqlite3 database/schema.sql
-   ```
-2. Start the application:
-   ```
-   python src/app.py
-   ```
-3. Access the application in your web browser at `http://localhost:5000`.
-
-## Contributing
-
-Feel free to submit issues or pull requests for improvements or bug fixes.
+4. Acesse o sistema em: http://127.0.0.1:5000
