@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Lista de Pacientes</h1>
+    
+    <div class="mb-3 d-flex justify-content-between">
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Voltar</a>
+        <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary">Novo Paciente</a>
+    </div>
+    
+    {% if patients %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Data de Nascimento</th>
+                <th>CNS</th>
+                <th>Cidade</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td>{{ patient.nome }}</td>
+                <td>{{ patient.data_nascimento.strftime('%d/%m/%Y') }}</td>
+                <td>{{ patient.cns }}</td>
+                <td>{{ patient.cidade }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-info btn-sm">Detalhes</a>
+                    <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-primary btn-sm">Editar</a>
+                    <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-success btn-sm">Solicitar Cirurgia</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">Nenhum paciente cadastrado.</div>
+    {% endif %}
+</div>
+{% endblock %}

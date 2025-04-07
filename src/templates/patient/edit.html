@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Editar Paciente</h1>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="nome">Nome:</label>
+            <input type="text" id="nome" name="nome" value="{{ patient.nome }}" required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="data_nascimento">Data de Nascimento:</label>
+            <input type="date" 
+                   id="data_nascimento" 
+                   name="data_nascimento" 
+                   value="{{ patient.data_nascimento.strftime('%Y-%m-%d') }}"
+                   min="1900-01-01"
+                   max="{{ hoje.strftime('%Y-%m-%d') }}"
+                   required 
+                   class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="cns">CNS:</label>
+            <input type="text" id="cns" name="cns" value="{{ patient.cns }}" 
+                   required pattern="\d{15}" title="CNS deve ter 15 dígitos" class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="nome_mae">Nome da Mãe:</label>
+            <input type="text" id="nome_mae" name="nome_mae" value="{{ patient.nome_mae }}" 
+                   required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="cidade">Cidade:</label>
+            <input type="text" id="cidade" name="cidade" value="{{ patient.cidade }}" 
+                   required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="endereco">Endereço:</label>
+            <input type="text" id="endereco" name="endereco" value="{{ patient.endereco }}" 
+                   required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="estado">Estado (UF):</label>
+            <input type="text" id="estado" name="estado" value="{{ patient.estado }}" 
+                   required maxlength="2" class="form-control">
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" 
+               class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

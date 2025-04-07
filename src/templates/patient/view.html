@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Detalhes do Paciente</h1>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ patient.nome }}</h5>
+            <p class="card-text">
+                <strong>Data de Nascimento:</strong> {{ patient.data_nascimento.strftime('%d/%m/%Y') }}<br>
+                <strong>CNS:</strong> {{ patient.cns }}<br>
+                <strong>Nome da Mãe:</strong> {{ patient.nome_mae }}<br>
+                <strong>Endereço:</strong> {{ patient.endereco }}<br>
+                <strong>Cidade:</strong> {{ patient.cidade }}<br>
+                <strong>Estado:</strong> {{ patient.estado }}
+            </p>
+        </div>
+        <div class="card-footer d-flex gap-2">
+            <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary">Voltar</a>
+            <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-primary">Editar</a>
+            <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-success">
+                Solicitar Cirurgia
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

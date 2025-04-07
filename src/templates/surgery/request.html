@@ -1,0 +1,383 @@
+{# src/templates/surgery/request.html #}
+{% extends "base.html" %}
+
+{% block title %}Solicitar Cirurgia{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Solicitar Cirurgia</h1>
+    <h4>Paciente: {{ patient.nome }}</h4>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Preencha todos os campos obrigatórios (*).
+    </div>
+    
+    <form method="POST" class="surgery-request-form" novalidate>
+        <!-- IMPORTANTE: Adicionar o token CSRF -->
+        {{ form.csrf_token }}
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Dados Clínicos</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        {{ form.peso.label(class="form-label") }}
+                        {{ form.peso(class="form-control", placeholder="Ex: 70.5") }}
+                        {% if form.peso.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.peso.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    {{ form.sinais_sintomas.label(class="form-label") }}
+                    {{ form.sinais_sintomas(class="form-control", rows=3) }}
+                    {% if form.sinais_sintomas.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.sinais_sintomas.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.condicoes_justificativa.label(class="form-label") }}
+                    {{ form.condicoes_justificativa(class="form-control", rows=3) }}
+                    {% if form.condicoes_justificativa.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.condicoes_justificativa.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.resultados_diagnosticos.label(class="form-label") }}
+                    {{ form.resultados_diagnosticos(class="form-control", rows=3) }}
+                    {% if form.resultados_diagnosticos.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.resultados_diagnosticos.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Dados do Procedimento</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group col-md-8">
+                        {{ form.procedimento_solicitado.label(class="form-label") }}
+                        {{ form.procedimento_solicitado(class="form-control") }}
+                        {% if form.procedimento_solicitado.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.procedimento_solicitado.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group col-md-4">
+                        {{ form.codigo_procedimento.label(class="form-label") }}
+                        {{ form.codigo_procedimento(class="form-control", readonly=true) }}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        {{ form.tipo_cirurgia.label(class="form-label") }}
+                        <div>
+                            {% for subfield in form.tipo_cirurgia %}
+                                <div class="form-check form-check-inline">
+                                    {{ subfield(class="form-check-input") }}
+                                    {{ subfield.label(class="form-check-label") }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.tipo_cirurgia.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.tipo_cirurgia.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group col-md-4">
+                        {{ form.data_cirurgia.label(class="form-label") }}
+                        {{ form.data_cirurgia(class="form-control", type="date") }}
+                        {% if form.data_cirurgia.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.data_cirurgia.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group col-md-4">
+                        {{ form.hora_cirurgia.label(class="form-label") }}
+                        {{ form.hora_cirurgia(class="form-control", type="time") }}
+                        {% if form.hora_cirurgia.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.hora_cirurgia.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-check">
+                        {{ form.internar_antes(class="form-check-input") }}
+                        {{ form.internar_antes.label(class="form-check-label") }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Recursos Necessários</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        {{ form.assistente.label(class="form-label") }}
+                        {{ form.assistente(class="form-control") }}
+                        {% if form.assistente.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.assistente.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group col-md-6">
+                        {{ form.aparelhos_especiais.label(class="form-label") }}
+                        {{ form.aparelhos_especiais(class="form-control") }}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        {{ form.reserva_sangue(class="form-check-input") }}
+                        {{ form.reserva_sangue.label(class="form-check-label") }}
+                    </div>
+                    
+                    <div class="form-group col-md-3">
+                        {{ form.quantidade_sangue.label(class="form-label") }}
+                        {{ form.quantidade_sangue(class="form-control", disabled=True) }}
+                    </div>
+                    
+                    <div class="form-group col-md-3">
+                        {{ form.raio_x(class="form-check-input") }}
+                        {{ form.raio_x.label(class="form-check-label") }}
+                    </div>
+                    
+                    <div class="form-group col-md-3">
+                        {{ form.reserva_uti(class="form-check-input") }}
+                        {{ form.reserva_uti.label(class="form-check-label") }}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    {{ form.duracao_prevista.label(class="form-label") }}
+                    {{ form.duracao_prevista(class="form-control", placeholder="Ex: 2 horas") }}
+                    {% if form.duracao_prevista.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.duracao_prevista.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Informações para Internação</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    {{ form.evolucao_internacao.label(class="form-label") }}
+                    {{ form.evolucao_internacao(class="form-control", rows=3) }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.prescricao_internacao.label(class="form-label") }}
+                    {{ form.prescricao_internacao(class="form-control", rows=5) }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.exames_preop.label(class="form-label") }}
+                    {{ form.exames_preop(class="form-control", rows=3) }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.opme.label(class="form-label") }}
+                    {{ form.opme(class="form-control", rows=3) }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Cancelar
+            </a>
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+</div>
+
+<style>
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        border-radius: 8px 8px 0 0;
+        padding: 12px 20px;
+    }
+    
+    .card-body {
+        padding: 20px;
+    }
+    
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: -10px;
+        margin-left: -10px;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+        padding-right: 10px;
+        padding-left: 10px;
+    }
+    
+    .col-md-3 {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+    
+    .col-md-4 {
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+    }
+    
+    .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .col-md-8 {
+        flex: 0 0 66.666667%;
+        max-width: 66.666667%;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+        .form-row > .form-group {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Script para atualizar o código do procedimento quando o procedimento mudar
+    const procedimentoSelect = document.getElementById('procedimento_solicitado');
+    const codigoInput = document.getElementById('codigo_procedimento');
+    
+    // Mapeamento de procedimentos para códigos
+    const codigos = {
+        'Apendicectomia': '0407020039',
+        'Colecistectomia': '0407030077',
+        'Herniorrafia Inguinal': '0407040102',
+        'Laparotomia Exploratória': '0407020098',
+        'Amidalectomia': '0404010032'
+    };
+    
+    procedimentoSelect.addEventListener('change', function() {
+        const selectedProcedimento = procedimentoSelect.value;
+        codigoInput.value = codigos[selectedProcedimento] || '';
+    });
+    
+    // Ativar/desativar campo quantidade de sangue
+    const reservaSangueCheck = document.getElementById('reserva_sangue');
+    const quantidadeSangueInput = document.getElementById('quantidade_sangue');
+    
+    if (reservaSangueCheck && quantidadeSangueInput) {
+        reservaSangueCheck.addEventListener('change', function() {
+            quantidadeSangueInput.disabled = !reservaSangueCheck.checked;
+            if (!reservaSangueCheck.checked) {
+                quantidadeSangueInput.value = '';
+            }
+        });
+    }
+    
+    // Data mínima para agendamento (hoje)
+    const dataCirurgiaInput = document.getElementById('data_cirurgia');
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    dataCirurgiaInput.min = yyyy + '-' + mm + '-' + dd;
+    
+    // Validar formulário antes de enviar
+    const form = document.querySelector('.surgery-request-form');
+    form.addEventListener('submit', function(event) {
+        let hasErrors = false;
+        
+        // Verificar campos obrigatórios
+        const requiredInputs = form.querySelectorAll('[required]');
+        requiredInputs.forEach(function(input) {
+            if (!input.value.trim()) {
+                input.classList.add('is-invalid');
+                hasErrors = true;
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        });
+        
+        // Verificar quantidade de sangue se marcado
+        if (reservaSangueCheck.checked && quantidadeSangueInput.value.trim() === '') {
+            quantidadeSangueInput.classList.add('is-invalid');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
+            event.preventDefault();
+            alert('Por favor, preencha todos os campos obrigatórios.');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Sistema de Registro de Pacientes</h1>
+    
+    <div class="menu-cards">
+        <div class="card">
+            <h3>Pacientes</h3>
+            <ul>
+                <li><a href="{{ url_for('patients.new_patient') }}">Cadastrar Novo Paciente</a></li>
+                <li><a href="{{ url_for('patients.list_patients') }}">Listar Pacientes</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
