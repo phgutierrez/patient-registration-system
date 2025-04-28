@@ -1,16 +1,6 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
-from flask_migrate import Migrate
-
 from src.config import Config
-
-db = SQLAlchemy()
-login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-csrf = CSRFProtect()
-migrate = Migrate()
+from src.extensions import db, login_manager, csrf, migrate
 
 
 def create_app(config_class=Config):

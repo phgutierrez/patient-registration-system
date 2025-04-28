@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from src.models.surgery_request import SurgeryRequest
 from src.models.patient import Patient
-from src.app import db
+from src.extensions import db
 from src.utils.pdf_utils import preencher_formulario_internacao
 from src.forms.surgery_form import SurgeryRequestForm
 from datetime import datetime

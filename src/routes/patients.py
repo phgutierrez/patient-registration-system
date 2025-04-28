@@ -2,7 +2,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required
 from src.models.patient import Patient
-from src.app import db
+from src.extensions import db
 from src.forms.patient_form import PatientForm
 from sqlalchemy.exc import SQLAlchemyError
 

@@ -6,7 +6,6 @@ from flask_login import current_user
 import traceback
 import logging
 from datetime import datetime
-import PyPDF2
 
 # Configurar o logger
 logging.basicConfig(
@@ -22,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_pdf_fields(pdf_path):
-    """Obtém todos os campos do PDF usando PyPDF2 e fillpdfs"""
+    """Obtém todos os campos do PDF usando fillpdfs"""
     fields = {}
     try:
-        # Primeiro tenta com fillpdfs
+        # Tenta com fillpdfs
         fillpdfs_fields = fillpdfs.get_form_fields(str(pdf_path))
         if fillpdfs_fields:
             logger.info("Campos encontrados com fillpdfs:")
@@ -33,39 +32,18 @@ def get_pdf_fields(pdf_path):
                 fields[field] = value
                 logger.info(f"  - {field}: {value}")
 
-        # Depois tenta com PyPDF2
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            for page in reader.pages:
-                if '/Annots' in page:
-                    for annot in page['/Annots']:
-                        obj = annot.get_object()
-                        if '/T' in obj:
-                            field_name = obj['/T']
-                            # Converter de bytes para string se necessário
-                            if isinstance(field_name, bytes):
-                                field_name = field_name.decode('utf-8')
-                            if field_name not in fields:
-                                fields[field_name] = ''
-                                logger.info(
-                                    f"Campo adicional encontrado com PyPDF2: {field_name}")
-                                logger.info(
-                                    f"Tipo do campo: {obj.get('/FT', 'Desconhecido')}")
-                                logger.info(
-                                    f"Valor atual: {obj.get('/V', 'Vazio')}")
-                                logger.info(f"Propriedades do campo: {obj}")
-
         if not fields:
-            logger.warning("Nenhum campo encontrado no PDF!")
+            logger.warning("Nenhum campo encontrado no PDF usando fillpdfs!")
         else:
-            logger.info(f"\nTotal de campos encontrados: {len(fields)}")
+            logger.info(
+                f"\nTotal de campos encontrados com fillpdfs: {len(fields)}")
             logger.info("Lista completa de campos:")
             for field in fields:
                 logger.info(f"  - {field}")
 
         return fields
     except Exception as e:
-        logger.error(f"Erro ao ler campos do PDF: {str(e)}")
+        logger.error(f"Erro ao ler campos do PDF com fillpdfs: {str(e)}")
         logger.error(traceback.format_exc())
         return {}
 
@@ -114,7 +92,7 @@ def preencher_formulario_internacao(patient, surgery_data):
             data_internacao = dia_anterior.strftime("%d/%m/%Y")
             logger.info(f"Internação um dia antes: {data_internacao}")
 
-        # Obter os campos do PDF usando PyPDF2
+        # Obter os campos do PDF usando fillpdfs
         fields = get_pdf_fields(str(template_pdf))
         logger.info(f"\nTotal de campos encontrados: {len(fields)}")
         logger.info("Campos encontrados no PDF:")
@@ -222,8 +200,13 @@ def preencher_formulario_internacao(patient, surgery_data):
             'DataSolicitacao7': datetime.now().strftime("%d/%m/%Y"),
             'DataSolicitacao8': datetime.now().strftime("%d/%m/%Y"),
             'CRM': current_user.crm,  # CRM do usuário logado
-            # 'OPME': surgery_data.opme or '',      # REMOVIDO - Será combinado
-            # 'OPME1': surgery_data.opme or '',     # REMOVIDO - Será combinado
+            # Campos OPME - Adicionados de volta
+            'OPME': surgery_data.opme or '',
+            'OPME1': surgery_data.opme or '',
+            'OPME2': surgery_data.opme or '',
+            'OPME3': surgery_data.opme or '',
+            'MaterialEspecial': surgery_data.opme or '',
+            'MaterialEspecial1': surgery_data.opme or '',
             'Endereco1': patient.endereco or '',
             'Endereco4': patient.endereco or '',
             'Endereco5': patient.endereco or '',
@@ -284,10 +267,10 @@ def preencher_formulario_internacao(patient, surgery_data):
         for field, value in form_data.items():
             logger.info(f"  - {field}: {value}")
 
-        # Preencher o PDF
-        logger.info("Iniciando preenchimento do PDF...")
+        # Preencher o PDF usando fillpdfs
+        logger.info("Iniciando preenchimento do PDF com fillpdfs...")
         fillpdfs.write_fillable_pdf(
-            str(template_pdf), str(output_pdf), form_data)
+            str(template_pdf), str(output_pdf), form_data, flatten=False)
 
         logger.info(f"PDF gerado com sucesso: {output_pdf}")
 
@@ -316,3 +299,158 @@ def verificar_campos_pdf(pdf_path):
         print(f"Erro ao verificar campos: {str(e)}")
         print(traceback.format_exc())
         return None
+
+
+def preencher_formulario_internacao_direto(paciente, cirurgia, dados_medicos):
+    """
+    Preenche o formulário de internação com mapeamento direto usando fillpdfs.
+    """
+    try:
+        # Caminhos dos arquivos
+        template_path = os.path.join(
+            current_app.root_path, 'static', 'Internacao.pdf')
+        output_dir = os.path.join(
+            current_app.root_path, 'static', 'preenchidos')
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Nome do arquivo de saída
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Corrigido para usar ID da cirurgia se disponível, senão timestamp
+        cirurgia_id_str = str(cirurgia.id) if hasattr(
+            cirurgia, 'id') and cirurgia.id else timestamp
+        output_filename = f"Internacao_{paciente.id}_{cirurgia_id_str}_{paciente.nome.replace(' ', '_')}.pdf"
+        output_path = os.path.join(output_dir, output_filename)
+
+        logger.info(
+            "Iniciando preenchimento do formulário de internação (direto com fillpdfs)")
+        logger.info(f"Template: {template_path}")
+        # Corrected f-string to regular string
+        logger.info("Output: {output_path}")
+
+        # Mapeamento EXATO dos campos do PDF (baseado na inspeção)
+        campos_exatos = {
+            "NomePaciente": paciente.nome,
+            "NomePaciente1": paciente.nome,
+            "NomePaciente2": paciente.nome,
+            "NomePaciente3": paciente.nome,
+            "NomePaciente4": paciente.nome,
+            "NomePaciente5": paciente.nome,
+            "NomePaciente6": paciente.nome,
+            "NomePaciente7": paciente.nome,
+            "Nome do Paciente": paciente.nome,
+            "Nome_Paciente": paciente.nome,
+            "Nome": paciente.nome,
+            "Paciente": paciente.nome,
+
+            "Prontuario": str(paciente.prontuario),
+            "Prontuario1": str(paciente.prontuario),
+            "Prontuario2": str(paciente.prontuario),
+            "Prontuario6": str(paciente.prontuario),
+            "Prontuario7": str(paciente.prontuario),
+            "Prontuário": str(paciente.prontuario),
+            "Prontuario#1": str(paciente.prontuario),
+            "Prontuario#2": str(paciente.prontuario),
+
+            "NomeMae": paciente.nome_mae,
+            "NomeMae1": paciente.nome_mae,
+            "NomeMae2": paciente.nome_mae,
+            "NomeMae5": paciente.nome_mae,
+            "Nome da Mãe": paciente.nome_mae,
+            "Nome_Mae": paciente.nome_mae,
+
+            "TelContato": paciente.contato,
+            "TelContato1": paciente.contato,
+            "TelContato2": paciente.contato,
+            "TelContato5": paciente.contato,
+            "TelContato6": paciente.contato,
+
+            "CNS": paciente.cns,
+            "DNascimento": paciente.data_nascimento.strftime('%d/%m/%Y'),
+            "Sexo": "Fem" if paciente.sexo == "F" else "Masc",
+            "SexoDescr": "Feminino" if paciente.sexo == "F" else "Masculino",
+            "SexoDesc": "Feminino" if paciente.sexo == "F" else "Masculino",
+            "Municipio": paciente.cidade,
+
+            "Idade": str(paciente.idade),
+            "Idade1": str(paciente.idade),
+            "Idade3": str(paciente.idade),
+            "Idade4": str(paciente.idade),
+            "Idade6": str(paciente.idade),
+
+            # Endereço
+            "Endereco1": paciente.endereco or "Não informado",
+            "Endereco4": paciente.endereco or "Não informado",
+            "Endereco5": paciente.endereco or "Não informado",
+            "Endereco6": paciente.endereco or "Não informado",
+
+            # Dados cirúrgicos
+            "SinaiseSintomas": dados_medicos.get('sintomas', ''),
+            "JustificativaInternacao": dados_medicos.get('condicoes_justificativas', ''),
+            "ResultadoExames": dados_medicos.get('resultados_exames', ''),
+            "Diagnostico Principal": cirurgia.condicoes_justificativa,
+            "DiagnosticoPrincipal": cirurgia.condicoes_justificativa,
+            "DiagnosticoPrincipal1": cirurgia.condicoes_justificativa,
+
+            "CID1": cirurgia.codigo_procedimento[:4] if cirurgia.codigo_procedimento else '',
+            "CID2": '',
+
+            "Procedimento": cirurgia.procedimento_solicitado,
+            "Procedimento1": cirurgia.procedimento_solicitado,
+            "Procedimento2": cirurgia.procedimento_solicitado,
+            "Procedimento6": cirurgia.procedimento_solicitado,
+            "Procedimento7": cirurgia.procedimento_solicitado,
+            "Procedimento8": cirurgia.procedimento_solicitado,
+
+            "CodigoSUS": cirurgia.codigo_procedimento,
+
+            "DocMedico": current_user.crm,
+            "ProfissionalSolicitante": current_user.full_name,
+            "ProfissionalSolicitante1": current_user.full_name,
+            "ProfissionalSolicitante2": current_user.full_name,
+            "ProfissionalSolicitante6": current_user.full_name,
+
+            "DataCirurgia": cirurgia.data_cirurgia.strftime('%d/%m/%Y'),
+            "HoraCirurgia": cirurgia.hora_cirurgia.strftime('%H:%M'),
+            "Assistente": cirurgia.assistente,
+            "Sangue": "Sim" if cirurgia.reserva_sangue else "Não",
+            "QtdeSangue": str(cirurgia.quantidade_sangue) if cirurgia.reserva_sangue and cirurgia.quantidade_sangue else '',
+            "RaioX": "Sim" if cirurgia.raio_x else "Não",
+            "Duracao": cirurgia.duracao_prevista,
+
+            "DataInternacao": cirurgia.data_cirurgia.strftime('%d/%m/%Y'),
+            "DataInternacao1": cirurgia.data_cirurgia.strftime('%d/%m/%Y'),
+
+            "Peso": str(dados_medicos.get('peso', '')),
+            "Evolucao": cirurgia.evolucao_internacao or '',
+            "Prescricao": cirurgia.prescricao_internacao or '',
+            "ExamesPre": cirurgia.exames_preop or '',
+
+            "DataSolicitacao": datetime.now().strftime('%d/%m/%Y'),
+            "DataSolicitacao4": datetime.now().strftime('%d/%m/%Y'),
+            "DataSolicitacao6": datetime.now().strftime('%d/%m/%Y'),
+            "DataSolicitacao7": datetime.now().strftime('%d/%m/%Y'),
+            "DataSolicitacao8": datetime.now().strftime('%d/%m/%Y'),
+
+            "CRM": current_user.crm if hasattr(current_user, 'crm') else '',
+
+            "AparelhosEspeciais": cirurgia.aparelhos_especiais + (" / OPME: " + cirurgia.opme if cirurgia.opme else ""),
+            "OPME": cirurgia.opme or ''
+        }
+
+        logger.info("\nCampos exatos para preenchimento (fillpdfs):")
+        for campo, valor in campos_exatos.items():
+            logger.info(f"  - {campo} -> {valor}")
+
+        # Preencher o PDF usando fillpdfs
+        logger.info("Iniciando preenchimento do PDF com fillpdfs (direto)...")
+        fillpdfs.write_fillable_pdf(
+            template_path, output_path, campos_exatos, flatten=False)
+
+        logger.info(f"PDF gerado com sucesso: {output_path}")
+        return output_path
+
+    except Exception as e:
+        logger.error(
+            f"Erro ao preencher formulário de internação (direto com fillpdfs): {str(e)}")
+        logger.error(traceback.format_exc())
+        raise

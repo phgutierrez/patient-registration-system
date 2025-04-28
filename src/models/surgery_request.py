@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.app import db
+from src.extensions import db
 
 
 class SurgeryRequest(db.Model):
