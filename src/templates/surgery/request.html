@@ -1,383 +1,403 @@
 {# src/templates/surgery/request.html #}
 {% extends "base.html" %}
 
-{% block title %}Solicitar Cirurgia{% endblock %}
+{% block title %}Solicitar Cirurgia - {{ patient.nome }}{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Solicitar Cirurgia</h1>
-    <h4>Paciente: {{ patient.nome }}</h4>
-    
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i> Preencha todos os campos obrigatórios (*).
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Solicitar Cirurgia</h1>
+        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar para Paciente
+        </a>
     </div>
-    
-    <form method="POST" class="surgery-request-form" novalidate>
-        <!-- IMPORTANTE: Adicionar o token CSRF -->
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Paciente</h5>
+            <p class="card-text"><strong>Nome:</strong> {{ patient.nome }}</p>
+            <p class="card-text"><strong>Prontuário:</strong> {{ patient.prontuario }}</p>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <div>Preencha todos os campos obrigatórios (*).</div>
+    </div>
+
+    <form method="POST" class="needs-validation" novalidate>
         {{ form.csrf_token }}
-        
+
+        <!-- Dados Clínicos -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Dados Clínicos</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-notes-medical me-2"></i>Dados Clínicos</h5>
             </div>
             <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group col-md-6">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         {{ form.peso.label(class="form-label") }}
-                        {{ form.peso(class="form-control", placeholder="Ex: 70.5") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
+                            {{ form.peso(class="form-control" + (" is-invalid" if form.peso.errors else ""),
+                            placeholder="Ex: 70.5 Kg") }}
+                            <span class="input-group-text">Kg</span>
+                        </div>
                         {% if form.peso.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.peso.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block">
+                            {{ form.peso.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
                 </div>
-                
-                <div class="form-group">
+
+                <div class="mb-3">
                     {{ form.sinais_sintomas.label(class="form-label") }}
-                    {{ form.sinais_sintomas(class="form-control", rows=3) }}
+                    {{ form.sinais_sintomas(class="form-control" + (" is-invalid" if form.sinais_sintomas.errors else
+                    ""), rows=3, placeholder="Descreva os sinais e sintomas do paciente") }}
                     {% if form.sinais_sintomas.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.sinais_sintomas.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
+                    <div class="invalid-feedback d-block">
+                        {{ form.sinais_sintomas.errors | join(', ') }}
+                    </div>
                     {% endif %}
                 </div>
-                
-                <div class="form-group">
+
+                <div class="mb-3">
                     {{ form.condicoes_justificativa.label(class="form-label") }}
-                    {{ form.condicoes_justificativa(class="form-control", rows=3) }}
+                    {{ form.condicoes_justificativa(class="form-control" + (" is-invalid" if
+                    form.condicoes_justificativa.errors else ""), rows=3, placeholder="Descreva as condições clínicas e
+                    a justificativa para a cirurgia") }}
                     {% if form.condicoes_justificativa.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.condicoes_justificativa.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
+                    <div class="invalid-feedback d-block">
+                        {{ form.condicoes_justificativa.errors | join(', ') }}
+                    </div>
                     {% endif %}
                 </div>
-                
-                <div class="form-group">
+
+                <div class="mb-3">
                     {{ form.resultados_diagnosticos.label(class="form-label") }}
-                    {{ form.resultados_diagnosticos(class="form-control", rows=3) }}
+                    {{ form.resultados_diagnosticos(class="form-control" + (" is-invalid" if
+                    form.resultados_diagnosticos.errors else ""), rows=3, placeholder="Resultados de exames e
+                    diagnósticos relevantes") }}
                     {% if form.resultados_diagnosticos.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.resultados_diagnosticos.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
+                    <div class="invalid-feedback d-block">
+                        {{ form.resultados_diagnosticos.errors | join(', ') }}
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
+
+        <!-- Dados do Procedimento -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Dados do Procedimento</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Dados do Procedimento</h5>
             </div>
             <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group col-md-8">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
                         {{ form.procedimento_solicitado.label(class="form-label") }}
-                        {{ form.procedimento_solicitado(class="form-control") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-file-signature"></i></span>
+                            {{ form.procedimento_solicitado(id="procedimento_select", class="form-select" + ("
+                            is-invalid" if form.procedimento_solicitado.errors else "")) }}
+                        </div>
                         {% if form.procedimento_solicitado.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.procedimento_solicitado.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block">
+                            {{ form.procedimento_solicitado.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="form-group col-md-4">
+                    <div class="col-md-4 mb-3">
                         {{ form.codigo_procedimento.label(class="form-label") }}
-                        {{ form.codigo_procedimento(class="form-control", readonly=true) }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                            {{ form.codigo_procedimento(id="codigo_sus_input", class="form-control", readonly=true,
+                            placeholder="Código SUS") }}
+                        </div>
+                        <!-- Não costuma ter erro em campo readonly -->
                     </div>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group col-md-4">
-                        {{ form.tipo_cirurgia.label(class="form-label") }}
-                        <div>
+
+                <div class="row align-items-center">
+                    <div class="col-md-4 mb-3">
+                        {{ form.tipo_cirurgia.label(class="form-label d-block") }} <!-- d-block para alinhar -->
+                        <div class="mt-2"> <!-- Espaçamento -->
                             {% for subfield in form.tipo_cirurgia %}
-                                <div class="form-check form-check-inline">
-                                    {{ subfield(class="form-check-input") }}
-                                    {{ subfield.label(class="form-check-label") }}
-                                </div>
+                            <div class="form-check form-check-inline">
+                                {{ subfield(class="form-check-input" + (" is-invalid" if form.tipo_cirurgia.errors else
+                                "")) }}
+                                {{ subfield.label(class="form-check-label") }}
+                            </div>
                             {% endfor %}
                         </div>
                         {% if form.tipo_cirurgia.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.tipo_cirurgia.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block mt-1">
+                            {{ form.tipo_cirurgia.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="form-group col-md-4">
+                    <div class="col-md-4 mb-3">
                         {{ form.data_cirurgia.label(class="form-label") }}
-                        {{ form.data_cirurgia(class="form-control", type="date") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                            {{ form.data_cirurgia(class="form-control" + (" is-invalid" if form.data_cirurgia.errors
+                            else ""), type="date") }}
+                        </div>
                         {% if form.data_cirurgia.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.data_cirurgia.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block">
+                            {{ form.data_cirurgia.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="form-group col-md-4">
+                    <div class="col-md-4 mb-3">
                         {{ form.hora_cirurgia.label(class="form-label") }}
-                        {{ form.hora_cirurgia(class="form-control", type="time") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-clock"></i></span>
+                            {{ form.hora_cirurgia(class="form-control" + (" is-invalid" if form.hora_cirurgia.errors
+                            else ""), type="time") }}
+                        </div>
                         {% if form.hora_cirurgia.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.hora_cirurgia.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block">
+                            {{ form.hora_cirurgia.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <div class="form-check">
-                        {{ form.internar_antes(class="form-check-input") }}
-                        {{ form.internar_antes.label(class="form-check-label") }}
+
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <div class="form-check">
+                            {{ form.internar_antes(class="form-check-input") }}
+                            {{ form.internar_antes.label(class="form-check-label") }}
+                        </div>
+                        <!-- Não costuma ter erro em checkbox simples -->
                     </div>
                 </div>
             </div>
         </div>
-        
+
+        <!-- Recursos Necessários -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Recursos Necessários</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-cogs me-2"></i>Recursos Necessários</h5>
             </div>
             <div class="card-body">
-                <div class="form-row">
-                    <div class="form-group col-md-6">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         {{ form.assistente.label(class="form-label") }}
-                        {{ form.assistente(class="form-control") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user-md"></i></span>
+                            {{ form.assistente(class="form-control" + (" is-invalid" if form.assistente.errors else ""),
+                            placeholder="Nome do cirurgião assistente, se houver") }}
+                        </div>
                         {% if form.assistente.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.assistente.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
+                        <div class="invalid-feedback d-block">
+                            {{ form.assistente.errors | join(', ') }}
+                        </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="form-group col-md-6">
+                    <div class="col-md-6 mb-3">
                         {{ form.aparelhos_especiais.label(class="form-label") }}
-                        {{ form.aparelhos_especiais(class="form-control") }}
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group col-md-3">
-                        {{ form.reserva_sangue(class="form-check-input") }}
-                        {{ form.reserva_sangue.label(class="form-check-label") }}
-                    </div>
-                    
-                    <div class="form-group col-md-3">
-                        {{ form.quantidade_sangue.label(class="form-label") }}
-                        {{ form.quantidade_sangue(class="form-control", disabled=True) }}
-                    </div>
-                    
-                    <div class="form-group col-md-3">
-                        {{ form.raio_x(class="form-check-input") }}
-                        {{ form.raio_x.label(class="form-check-label") }}
-                    </div>
-                    
-                    <div class="form-group col-md-3">
-                        {{ form.reserva_uti(class="form-check-input") }}
-                        {{ form.reserva_uti.label(class="form-check-label") }}
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    {{ form.duracao_prevista.label(class="form-label") }}
-                    {{ form.duracao_prevista(class="form-control", placeholder="Ex: 2 horas") }}
-                    {% if form.duracao_prevista.errors %}
-                        <div class="invalid-feedback d-block">
-                            {% for error in form.duracao_prevista.errors %}
-                                {{ error }}
-                            {% endfor %}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-toolbox"></i></span>
+                            {{ form.aparelhos_especiais(class="form-control", placeholder="Ex: Microscópio, Arco em C")
+                            }}
                         </div>
+                        <!-- Campo opcional, geralmente sem validação obrigatória -->
+                    </div>
+                </div>
+
+                <div class="row align-items-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check">
+                            {{ form.reserva_sangue(class="form-check-input", id="reserva_sangue_check") }}
+                            {{ form.reserva_sangue.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.quantidade_sangue.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-tint"></i></span>
+                            {{ form.quantidade_sangue(class="form-control", placeholder="Unidades",
+                            id="quantidade_sangue_input", disabled=not form.reserva_sangue.data) }}
+                        </div>
+                        <!-- Erros podem ocorrer se for obrigatório quando reserva for marcada -->
+                        {% if form.quantidade_sangue.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.quantidade_sangue.errors | join(', ') }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check">
+                            {{ form.raio_x(class="form-check-input") }}
+                            {{ form.raio_x.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check">
+                            {{ form.reserva_uti(class="form-check-input") }}
+                            {{ form.reserva_uti.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.duracao_prevista.label(class="form-label") }}
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="far fa-clock"></i></span>
+                            {{ form.duracao_prevista(class="form-control" + (" is-invalid" if
+                            form.duracao_prevista.errors else ""), placeholder="Ex: 2 horas 30 minutos") }}
+                        </div>
+                        {% if form.duracao_prevista.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.duracao_prevista.errors | join(', ') }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informações para Internação -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Informações para Internação</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    {{ form.evolucao_internacao.label(class="form-label") }}
+                    {{ form.evolucao_internacao(class="form-control" + (" is-invalid" if form.evolucao_internacao.errors
+                    else ""), rows=3, placeholder="Descreva a evolução prevista ou necessária para a internação") }}
+                    {% if form.evolucao_internacao.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.evolucao_internacao.errors | join(', ') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.prescricao_internacao.label(class="form-label") }}
+                    {{ form.prescricao_internacao(class="form-control" + (" is-invalid" if
+                    form.prescricao_internacao.errors else ""), rows=5, placeholder="Prescrição médica inicial para a
+                    internação (medicamentos, dietas, cuidados)") }}
+                    {% if form.prescricao_internacao.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.prescricao_internacao.errors | join(', ') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.exames_preop.label(class="form-label") }}
+                    {{ form.exames_preop(class="form-control" + (" is-invalid" if form.exames_preop.errors else ""),
+                    rows=3, placeholder="Liste os exames pré-operatórios necessários ou já realizados") }}
+                    {% if form.exames_preop.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.exames_preop.errors | join(', ') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.opme.label(class="form-label") }} <small class="text-muted">(Órteses, Próteses e Materiais
+                        Especiais)</small>
+                    {{ form.opme(class="form-control" + (" is-invalid" if form.opme.errors else ""), rows=3,
+                    placeholder="Liste os OPMEs necessários para a cirurgia") }}
+                    {% if form.opme.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.opme.errors | join(', ') }}
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Informações para Internação</h5>
-            </div>
-            <div class="card-body">
-                <div class="form-group">
-                    {{ form.evolucao_internacao.label(class="form-label") }}
-                    {{ form.evolucao_internacao(class="form-control", rows=3) }}
-                </div>
-                
-                <div class="form-group">
-                    {{ form.prescricao_internacao.label(class="form-label") }}
-                    {{ form.prescricao_internacao(class="form-control", rows=5) }}
-                </div>
-                
-                <div class="form-group">
-                    {{ form.exames_preop.label(class="form-label") }}
-                    {{ form.exames_preop(class="form-control", rows=3) }}
-                </div>
-                
-                <div class="form-group">
-                    {{ form.opme.label(class="form-label") }}
-                    {{ form.opme(class="form-control", rows=3) }}
-                </div>
-            </div>
-        </div>
-        
-        <div class="form-actions">
+
+        <!-- Ações -->
+        <div class="d-flex justify-content-end gap-2 mb-4">
             <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Cancelar
+                <i class="fas fa-times me-1"></i> Cancelar
             </a>
-            {{ form.submit(class="btn btn-primary") }}
+            {{ form.submit(class="btn btn-primary", value="Solicitar Cirurgia") }}
         </div>
     </form>
 </div>
 
-<style>
-    .card {
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 1.5rem;
-    }
-    
-    .card-header {
-        border-radius: 8px 8px 0 0;
-        padding: 12px 20px;
-    }
-    
-    .card-body {
-        padding: 20px;
-    }
-    
-    .form-row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-right: -10px;
-        margin-left: -10px;
-    }
-    
-    .form-group {
-        margin-bottom: 1rem;
-        padding-right: 10px;
-        padding-left: 10px;
-    }
-    
-    .col-md-3 {
-        flex: 0 0 25%;
-        max-width: 25%;
-    }
-    
-    .col-md-4 {
-        flex: 0 0 33.333333%;
-        max-width: 33.333333%;
-    }
-    
-    .col-md-6 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
-    
-    .col-md-8 {
-        flex: 0 0 66.666667%;
-        max-width: 66.666667%;
-    }
-    
-    .form-actions {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-    }
-    
-    @media (max-width: 768px) {
-        .form-row > .form-group {
-            flex: 0 0 100%;
-            max-width: 100%;
-        }
-    }
-</style>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Script para atualizar o código do procedimento quando o procedimento mudar
-    const procedimentoSelect = document.getElementById('procedimento_solicitado');
-    const codigoInput = document.getElementById('codigo_procedimento');
-    
-    // Mapeamento de procedimentos para códigos
-    const codigos = {
-        'Apendicectomia': '0407020039',
-        'Colecistectomia': '0407030077',
-        'Herniorrafia Inguinal': '0407040102',
-        'Laparotomia Exploratória': '0407020098',
-        'Amidalectomia': '0404010032'
-    };
-    
-    procedimentoSelect.addEventListener('change', function() {
-        const selectedProcedimento = procedimentoSelect.value;
-        codigoInput.value = codigos[selectedProcedimento] || '';
-    });
-    
-    // Ativar/desativar campo quantidade de sangue
-    const reservaSangueCheck = document.getElementById('reserva_sangue');
-    const quantidadeSangueInput = document.getElementById('quantidade_sangue');
-    
-    if (reservaSangueCheck && quantidadeSangueInput) {
-        reservaSangueCheck.addEventListener('change', function() {
-            quantidadeSangueInput.disabled = !reservaSangueCheck.checked;
-            if (!reservaSangueCheck.checked) {
-                quantidadeSangueInput.value = '';
-            }
-        });
-    }
-    
-    // Data mínima para agendamento (hoje)
-    const dataCirurgiaInput = document.getElementById('data_cirurgia');
-    const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const yyyy = today.getFullYear();
-    dataCirurgiaInput.min = yyyy + '-' + mm + '-' + dd;
-    
-    // Validar formulário antes de enviar
-    const form = document.querySelector('.surgery-request-form');
-    form.addEventListener('submit', function(event) {
-        let hasErrors = false;
-        
-        // Verificar campos obrigatórios
-        const requiredInputs = form.querySelectorAll('[required]');
-        requiredInputs.forEach(function(input) {
-            if (!input.value.trim()) {
-                input.classList.add('is-invalid');
-                hasErrors = true;
+    document.addEventListener('DOMContentLoaded', function () {
+        const reservaSangueCheck = document.getElementById('reserva_sangue_check');
+        const quantidadeSangueInput = document.getElementById('quantidade_sangue_input');
+
+        function toggleQuantidadeSangue() {
+            if (reservaSangueCheck.checked) {
+                quantidadeSangueInput.disabled = false;
+                quantidadeSangueInput.required = true; // Torna obrigatório se reserva for marcada
             } else {
-                input.classList.remove('is-invalid');
+                quantidadeSangueInput.disabled = true;
+                quantidadeSangueInput.required = false;
+                quantidadeSangueInput.value = ''; // Limpa o valor se desmarcar
             }
-        });
-        
-        // Verificar quantidade de sangue se marcado
-        if (reservaSangueCheck.checked && quantidadeSangueInput.value.trim() === '') {
-            quantidadeSangueInput.classList.add('is-invalid');
-            hasErrors = true;
         }
-        
-        if (hasErrors) {
-            event.preventDefault();
-            alert('Por favor, preencha todos os campos obrigatórios.');
+
+        // Verifica o estado inicial ao carregar a página
+        if (reservaSangueCheck && quantidadeSangueInput) {
+            toggleQuantidadeSangue();
+            reservaSangueCheck.addEventListener('change', toggleQuantidadeSangue);
+        }
+
+        // Adiciona validação Bootstrap ao enviar (opcional, mas recomendado)
+        const form = document.querySelector('.needs-validation');
+        if (form) {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        }
+
+        // --- NOVO SCRIPT: Preencher Código SUS --- 
+        const procedureSelect = document.getElementById('procedimento_select');
+        const codeInput = document.getElementById('codigo_sus_input');
+
+        const procedureMap = {
+            '': '', // Para a opção "Selecione um procedimento"
+            'Epifisiodese femoral proximal in situ': '0408040130',
+            'Osteotomia da Pelve': '0408040157',
+            'Realinhamento do mecanismo extensor do joelho': '0408050128',
+            'Redução Incruenta de Luxação congênita coxofemoral': '0408040181',
+            'Revisão cirúrgica do Pé torto congênito': '0408050349',
+            'Tratamento cirúrgico de luxação coxofemoral congenita': '0408040327',
+            'Tratamento cirúrgico de luxação espontânea / progressiva / paralitica do quadril': '0408040343',
+            'Talectomia': '0408050365',
+            'Tratamento cirúrgico de coalizão tarsal': '0408050446',
+            'Tratamento cirúrgico de pé cavo': '0408050730',
+            'Tratamento cirúrgico de pé plano valgo': '0408050748',
+            'Tratamento cirúrgico de pé torto congênito': '0408050764',
+            'Tratamento cirúrgico de pé torto congênito inveterado': '0408050772',
+            'Tratamento cirúrgico de pseudoartrose congênita da tibia': '0408050853',
+            'Alongamento / Encurtamento miotendinoso': '0408060018',
+            'Osteotomia de ossos longos exceto da mão e do pé': '0408060190',
+            'Ressecção de cisto sinovial': '0408060212',
+            'Retirada de fio ou pino intra-ósseo': '0408060352',
+            'Retirada de Fixador externo': '0408060360',
+            'Retirada de Placa e/ou parafusos': '0408060379',
+            'Transposição / Transferência miotendinosa única': '0408060549',
+            'Neurolise não funcional': '0403020077'
+        };
+
+        function updateSusCode() {
+            if (procedureSelect && codeInput) {
+                const selectedProcedure = procedureSelect.value;
+                codeInput.value = procedureMap[selectedProcedure] || ''; // Busca no mapa ou retorna vazio
+            }
+        }
+
+        if (procedureSelect && codeInput) {
+            procedureSelect.addEventListener('change', updateSusCode);
+            // Atualiza o código ao carregar a página, caso haja valor pré-selecionado
+            updateSusCode();
         }
     });
-});
 </script>
 {% endblock %}

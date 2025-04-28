@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Cadastro de Usuário - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Cadastro de Usuário</h2>
+    <form method="POST" action="{{ url_for('auth.register_user') }}">
+        {{ form.hidden_tag() }} {# Inclui CSRF token e outros campos ocultos #}
+
+        <div class="form-group">
+            {{ form.full_name.label(class="form-label") }}<br>
+            {{ form.full_name(class="form-control", placeholder="Digite seu nome completo") }}
+            {% if form.full_name.errors %}
+            <ul class="errors">
+                {% for error in form.full_name.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.cns.label(class="form-label") }}<br>
+            {{ form.cns(class="form-control", placeholder="Digite seu CNS (opcional)") }}
+            {% if form.cns.errors %}
+            <ul class="errors">
+                {% for error in form.cns.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.crm.label(class="form-label") }}<br>
+            {{ form.crm(class="form-control", placeholder="Digite seu CRM (opcional)") }}
+            {% if form.crm.errors %}
+            <ul class="errors">
+                {% for error in form.crm.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Salvar Informações</button>
+    </form>
+</div>
+
+<style>
+    .container {
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        color: var(--primary);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--secondary);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary);
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+
+    .errors {
+        list-style: none;
+        padding: 0;
+        margin-top: 0.5rem;
+    }
+
+    .errors li {
+        color: var(--danger);
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 1.1rem;
+    }
+</style>
+
+{% endblock %}

@@ -4,170 +4,244 @@
 
 {% block content %}
 <div class="container">
-    <h1>Cadastrar Novo Paciente</h1>
-    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Cadastrar Novo Paciente</h1>
+        <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+    </div>
+
     <div class="alert alert-info">
         <i class="fas fa-info-circle"></i> Preencha todos os campos obrigatórios (*).
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">
-                    <i class="fas fa-exclamation-circle"></i> {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">
+        <i class="fas fa-exclamation-circle"></i> {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
-    
-    <form id="patientForm" method="POST" class="needs-validation" novalidate>
-        <!-- Campo oculto para CSRF -->
+
+    <form id="patientForm" method="POST" class="needs-validation" novalidate autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label for="nome">Nome do Paciente *</label>
-                <input type="text" class="form-control" id="nome" name="nome" required 
-                       data-validate="patient-name">
-                <div class="invalid-feedback">
-                    Por favor, informe o nome completo do paciente.
-                </div>
-                <div id="nameExists" class="text-danger d-none">
-                    <i class="fas fa-exclamation-triangle"></i> Este paciente já está cadastrado no sistema.
-                </div>
+
+        <!-- Dados Pessoais -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-circle"></i> Dados Pessoais
+                </h5>
             </div>
-            
-            <div class="form-group col-md-6">
-                <label for="prontuario">Prontuário *</label>
-                <input type="text" class="form-control" id="prontuario" name="prontuario" required>
-                <small class="form-text text-muted">
-                    <i class="fas fa-info-circle"></i> Número do prontuário interno do CPAM.
-                </small>
-                <div class="invalid-feedback">
-                    Por favor, informe o número do prontuário.
-                </div>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group col-md-4">
-                <label for="data_nascimento">Data de Nascimento *</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="data_nascimento" name="data_nascimento" 
-                           required placeholder="DD/MM/AAAA" maxlength="10">
-                    <div class="input-group-append">
-                        <span class="input-group-text calendar-icon">
-                            <i class="fas fa-calendar-alt"></i>
-                        </span>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="nome" class="form-label">Nome do Paciente *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text" class="form-control" id="nome" name="nome" required
+                                placeholder="Nome completo do paciente">
+                        </div>
+                        <div id="nameExists" class="text-danger d-none mt-2">
+                            <i class="fas fa-exclamation-triangle"></i> Este paciente já está cadastrado no sistema.
+                        </div>
+                        <div class="invalid-feedback-custom" id="nome-feedback">Por favor, informe o nome completo do
+                            paciente.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="prontuario" class="form-label">Prontuário *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-file-medical"></i>
+                            </span>
+                            <input type="text" class="form-control" id="prontuario" name="prontuario" required
+                                placeholder="Número do prontuário">
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Número do prontuário interno do CPAM.
+                        </small>
+                        <div class="invalid-feedback-custom" id="prontuario-feedback">Por favor, informe o número do
+                            prontuário.</div>
                     </div>
                 </div>
-                <div class="invalid-feedback">
-                    Por favor, informe uma data válida no formato DD/MM/AAAA.
-                </div>
-            </div>
-            
-            <div class="form-group col-md-4">
-                <label for="idade">Idade</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="idade" readonly>
-                    <div class="input-group-append">
-                        <span class="input-group-text">anos</span>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="data_nascimento" class="form-label">Data de Nascimento *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-calendar-alt"></i>
+                            </span>
+                            <input type="text" class="form-control" id="data_nascimento" name="data_nascimento" required
+                                placeholder="DD/MM/AAAA" maxlength="10">
+                        </div>
+                        <div class="invalid-feedback-custom" id="data_nascimento-feedback">Por favor, informe uma data
+                            válida no formato DD/MM/AAAA.</div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="idade" class="form-label">Idade</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-calculator"></i>
+                            </span>
+                            <input type="text" class="form-control" id="idade" readonly>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-sync"></i> Calculada automaticamente.
+                        </small>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Sexo *</label>
+                        <div class="gender-options">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="sexo" id="sexo_m" value="M" required>
+                                <label class="form-check-label gender-male" for="sexo_m">
+                                    <i class="fas fa-mars"></i> Masculino
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="sexo" id="sexo_f" value="F">
+                                <label class="form-check-label gender-female" for="sexo_f">
+                                    <i class="fas fa-venus"></i> Feminino
+                                </label>
+                            </div>
+                        </div>
+                        <div class="invalid-feedback-custom" id="sexo-feedback">Por favor, selecione o sexo do paciente.
+                        </div>
                     </div>
                 </div>
-                <small class="form-text text-muted">
-                    <i class="fas fa-sync"></i> Calculada automaticamente.
-                </small>
-            </div>
-            
-            <div class="form-group col-md-4">
-                <label>Sexo *</label>
-                <div class="gender-options">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="sexo" id="sexo_m" value="M" required>
-                        <label class="form-check-label gender-male" for="sexo_m">
-                            <i class="fas fa-mars"></i> Masculino
-                        </label>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="nome_mae" class="form-label">Nome da Mãe *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-female"></i>
+                            </span>
+                            <input type="text" class="form-control" id="nome_mae" name="nome_mae" required
+                                placeholder="Nome completo da mãe">
+                        </div>
+                        <div class="invalid-feedback-custom" id="nome_mae-feedback">Por favor, informe o nome da mãe.
+                        </div>
                     </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="sexo" id="sexo_f" value="F">
-                        <label class="form-check-label gender-female" for="sexo_f">
-                            <i class="fas fa-venus"></i> Feminino
-                        </label>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="cns" class="form-label">CNS *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-id-card"></i>
+                            </span>
+                            <input type="text" class="form-control" id="cns" name="cns" required maxlength="15"
+                                pattern="\d{15}" placeholder="000000000000000">
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Cartão Nacional de Saúde (15 dígitos).
+                        </small>
+                        <div class="invalid-feedback-custom" id="cns-feedback">Por favor, informe o CNS válido (15
+                            dígitos numéricos).</div>
                     </div>
                 </div>
-                <div class="invalid-feedback">
-                    Por favor, selecione o sexo do paciente.
+            </div>
+        </div>
+
+        <!-- Endereço e Contato -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-map-marker-alt"></i> Endereço e Contato
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="endereco" class="form-label">Endereço</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </span>
+                            <input type="text" class="form-control" id="endereco" name="endereco"
+                                placeholder="Rua, Número, Bairro, Complemento">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="cidade" class="form-label">Cidade *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-city"></i>
+                            </span>
+                            <input type="text" class="form-control" id="cidade" name="cidade" required
+                                placeholder="Nome da cidade">
+                        </div>
+                        <div class="invalid-feedback-custom" id="cidade-feedback">Por favor, informe a cidade.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="contato" class="form-label">Contato *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-phone"></i>
+                            </span>
+                            <input type="text" class="form-control" id="contato" name="contato" required
+                                placeholder="(83)99999-9999" maxlength="14">
+                        </div>
+                        <div class="invalid-feedback-custom" id="contato-feedback">Por favor, informe um número de
+                            contato válido no formato (83)99999-9999.</div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label for="nome_mae">Nome da Mãe *</label>
-                <input type="text" class="form-control" id="nome_mae" name="nome_mae" required>
-                <div class="invalid-feedback">
-                    Por favor, informe o nome da mãe.
-                </div>
+
+        <!-- Informações Médicas -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-stethoscope"></i> Informações Médicas
+                </h5>
             </div>
-            
-            <div class="form-group col-md-6">
-                <label for="cns">CNS *</label>
-                <input type="text" class="form-control" id="cns" name="cns" required maxlength="15"
-                       pattern="\d{15}">
-                <small class="form-text text-muted">
-                    <i class="fas fa-id-card"></i> Cartão Nacional de Saúde (15 dígitos).
-                </small>
-                <div class="invalid-feedback">
-                    Por favor, informe o CNS válido (15 dígitos numéricos).
-                </div>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label for="cidade">Cidade *</label>
-                <input type="text" class="form-control" id="cidade" name="cidade" required>
-                <div class="invalid-feedback">
-                    Por favor, informe a cidade.
-                </div>
-            </div>
-            
-            <div class="form-group col-md-6">
-                <label for="contato">Contato *</label>
-                <input type="text" class="form-control" id="contato" name="contato" required
-                       placeholder="(83)99999-9999" maxlength="14">
-                <div class="invalid-feedback">
-                    Por favor, informe um número de contato válido no formato (83)99999-9999.
-                </div>
-            </div>
-        </div>
-        
-        <div class="form-row">
-            <div class="form-group col-md-8">
-                <label for="diagnostico">Diagnóstico *</label>
-                <textarea class="form-control" id="diagnostico" name="diagnostico" rows="3" required></textarea>
-                <div class="invalid-feedback">
-                    Por favor, informe o diagnóstico do paciente.
-                </div>
-            </div>
-            
-            <div class="form-group col-md-4">
-                <label for="cid">CID *</label>
-                <input type="text" class="form-control" id="cid" name="cid" required
-                       placeholder="X999" maxlength="4">
-                <small class="form-text text-muted">
-                    <i class="fas fa-medkit"></i> Formato: X999 (uma letra seguida de três números).
-                </small>
-                <div class="invalid-feedback">
-                    Por favor, informe o CID no formato correto (ex: A123).
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="diagnostico" class="form-label">Diagnóstico *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-file-medical-alt"></i>
+                            </span>
+                            <textarea class="form-control" id="diagnostico" name="diagnostico" rows="3" required
+                                placeholder="Descreva o diagnóstico do paciente"></textarea>
+                        </div>
+                        <div class="invalid-feedback-custom" id="diagnostico-feedback">Por favor, informe o diagnóstico
+                            do paciente.</div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="cid" class="form-label">CID *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-medkit"></i>
+                            </span>
+                            <input type="text" class="form-control" id="cid" name="cid" required placeholder="X999"
+                                maxlength="4">
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Formato: X999 (uma letra seguida de três números).
+                        </small>
+                        <div class="invalid-feedback-custom" id="cid-feedback">Por favor, informe o CID no formato
+                            correto (ex: A123).</div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="form-actions">
-            <button type="button" class="btn btn-secondary" onclick="window.history.back();">
-                <i class="fas fa-arrow-left"></i> Voltar
-            </button>
+
+        <div class="d-flex justify-content-end gap-2">
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save"></i> Cadastrar Paciente
             </button>
@@ -177,332 +251,455 @@
 
 <style>
     .container {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 2rem;
     }
-    
-    h1 {
-        color: var(--primary);
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         margin-bottom: 1.5rem;
+        overflow: hidden;
     }
-    
-    .form-row {
+
+    .card-header {
+        background-color: var(--primary);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-bottom: none;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
         display: flex;
-        flex-wrap: wrap;
-        margin-right: -10px;
-        margin-left: -10px;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 0.5rem;
     }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-        padding-right: 10px;
-        padding-left: 10px;
+
+    .card-body {
+        padding: 1.5rem;
     }
-    
-    .col-md-4 {
-        flex: 0 0 33.333333%;
-        max-width: 33.333333%;
-    }
-    
-    .col-md-6 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
-    
-    .col-md-8 {
-        flex: 0 0 66.666667%;
-        max-width: 66.666667%;
-    }
-    
-    label {
+
+    .form-label {
         font-weight: 500;
         margin-bottom: 0.5rem;
-        display: block;
-    }
-    
-    .form-control {
-        display: block;
-        width: 100%;
-        padding: 0.5rem 0.75rem;
-        font-size: 1rem;
-        line-height: 1.5;
         color: var(--dark);
-        background-color: #fff;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        transition: border-color 0.15s ease-in-out;
     }
-    
+
+    .input-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .input-group-text {
+        background-color: var(--light);
+        border: 1px solid #ced4da;
+        color: var(--primary);
+    }
+
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+
     .form-control:focus {
         border-color: var(--primary);
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.15);
     }
-    
-    .input-group {
-        display: flex;
-    }
-    
-    .input-group-append {
-        margin-left: -1px;
-    }
-    
-    .input-group-text {
-        display: flex;
-        align-items: center;
-        padding: 0.5rem 0.75rem;
-        background-color: #e9ecef;
-        border: 1px solid #ced4da;
-        border-radius: 0 4px 4px 0;
-    }
-    
-    .calendar-icon {
-        cursor: pointer;
-    }
-    
+
     .gender-options {
         display: flex;
-        gap: 20px;
-        padding-top: 0.5rem;
+        gap: 1.5rem;
+        padding: 0.5rem;
     }
-    
+
     .form-check {
-        position: relative;
-        display: flex;
-        align-items: center;
+        margin: 0;
     }
-    
+
     .form-check-input {
         margin-right: 0.5rem;
     }
-    
+
     .gender-male {
         color: #2980b9;
     }
-    
+
     .gender-female {
         color: #e84393;
     }
-    
-    .form-actions {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-    }
-    
-    .alert {
-        padding: 0.75rem 1.25rem;
-        margin-bottom: 1rem;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-    }
-    
-    .alert i {
-        margin-right: 10px;
-    }
-    
-    .alert-info {
-        color: #0c5460;
-        background-color: #d1ecf1;
-    }
-    
-    .alert-danger {
-        color: #721c24;
-        background-color: #f8d7da;
-    }
-    
-    .invalid-feedback {
+
+    .invalid-feedback-custom {
         display: none;
         color: #dc3545;
-        font-size: 80%;
+        font-size: 0.95em;
         margin-top: 0.25rem;
     }
-    
-    .form-text {
-        color: #6c757d;
-        font-size: 80%;
-        margin-top: 0.25rem;
+
+    .form-control.is-invalid,
+    .form-check-input.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, .1);
     }
-    
+
+    .alert {
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .alert-info {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: none;
+    }
+
     @media (max-width: 768px) {
-        .form-row {
-            display: block;
+        .container {
+            padding: 1rem;
         }
-        
-        .col-md-4, .col-md-6, .col-md-8 {
-            max-width: 100%;
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .gender-options {
+            flex-direction: column;
+            gap: 0.5rem;
         }
     }
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar datepicker para data de nascimento
-    const dataNascimentoInput = document.getElementById('data_nascimento');
-    const calendarIcon = document.querySelector('.calendar-icon');
-    const idadeInput = document.getElementById('idade');
-    
-    // Função para validar formato de data
-    function isValidDate(dateString) {
-        if(!/^\d{2}\/\d{2}\/\d{4}$/.test(dateString))
-            return false;
-            
-        const parts = dateString.split('/');
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        const year = parseInt(parts[2], 10);
-        
-        if(year < 1900 || year > new Date().getFullYear())
-            return false;
-            
-        if(month === 0 || month > 12)
-            return false;
-            
-        const monthLength = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        
-        // Adjust for leap years
-        if(year % 400 === 0 || (year % 100 !== 0 && year % 4 === 0))
-            monthLength[1] = 29;
-            
-        return day > 0 && day <= monthLength[month - 1];
-    }
-    
-    // Formatar entrada da data conforme digitação
-    dataNascimentoInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 8) {
-            value = value.substring(0, 8);
-        }
-        
-        if (value.length > 4) {
-            value = value.substring(0, 2) + '/' + value.substring(2, 4) + '/' + value.substring(4);
-        } else if (value.length > 2) {
-            value = value.substring(0, 2) + '/' + value.substring(2);
-        }
-        
-        e.target.value = value;
-        
-        // Calcular idade se a data for válida
-        if (isValidDate(value)) {
-            calcularIdade(value);
-        } else {
-            idadeInput.value = '';
-        }
-    });
-    
-    // Função para calcular idade a partir da data de nascimento
-    function calcularIdade(dataNascimento) {
-        const parts = dataNascimento.split('/');
-        const birthDate = new Date(parts[2], parts[1] - 1, parts[0]);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        
-        idadeInput.value = age;
-    }
-    
-    // Formatar número de contato (83)99999-9999
-    const contatoInput = document.getElementById('contato');
-    contatoInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 11) {
-            value = value.substring(0, 11);
-        }
-        
-        if (value.length > 7) {
-            value = '(' + value.substring(0, 2) + ')' + value.substring(2, 7) + '-' + value.substring(7);
-        } else if (value.length > 2) {
-            value = '(' + value.substring(0, 2) + ')' + value.substring(2);
-        }
-        
-        e.target.value = value;
-    });
-    
-    // Formatar entrada CID (X999)
-    const cidInput = document.getElementById('cid');
-    cidInput.addEventListener('input', function(e) {
-        let value = e.target.value;
-        
-        if (value.length > 0) {
-            // Primeira posição sempre letra maiúscula
-            const firstChar = value.charAt(0).toUpperCase();
-            let restOfString = value.substring(1).replace(/\D/g, '');
-            
-            if (restOfString.length > 3) {
-                restOfString = restOfString.substring(0, 3);
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('patientForm');
+        const fields = [
+            { id: 'nome', feedback: 'nome-feedback' },
+            { id: 'prontuario', feedback: 'prontuario-feedback' },
+            { id: 'data_nascimento', feedback: 'data_nascimento-feedback' },
+            { id: 'sexo_m', feedback: 'sexo-feedback', radio: true },
+            { id: 'sexo_f', feedback: 'sexo-feedback', radio: true },
+            { id: 'nome_mae', feedback: 'nome_mae-feedback' },
+            { id: 'cns', feedback: 'cns-feedback' },
+            { id: 'cidade', feedback: 'cidade-feedback' },
+            { id: 'contato', feedback: 'contato-feedback' },
+            { id: 'diagnostico', feedback: 'diagnostico-feedback' },
+            { id: 'cid', feedback: 'cid-feedback' }
+        ];
+
+        // Limpa mensagens ao carregar
+        fields.forEach(f => {
+            document.getElementById(f.feedback).style.display = 'none';
+            const el = document.getElementById(f.id);
+            if (el) el.classList.remove('is-invalid');
+        });
+
+        // Função para mostrar/ocultar feedback customizado
+        function showFeedback(field, show) {
+            const feedback = document.getElementById(field.feedback);
+            const el = document.getElementById(field.id);
+            if (show) {
+                if (el) el.classList.add('is-invalid');
+                if (feedback) feedback.style.display = 'block';
+            } else {
+                if (el) el.classList.remove('is-invalid');
+                if (feedback) feedback.style.display = 'none';
             }
-            
-            e.target.value = firstChar + restOfString;
         }
-    });
-    
-    // Formatar CNS (15 dígitos)
-    const cnsInput = document.getElementById('cns');
-    cnsInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        
-        if (value.length > 15) {
-            value = value.substring(0, 15);
-        }
-        
-        e.target.value = value;
-    });
-    
-    // Verificar se o paciente já existe
-    const nomeInput = document.getElementById('nome');
-    const nameExistsDiv = document.getElementById('nameExists');
-    
-    nomeInput.addEventListener('blur', function() {
-        if (nomeInput.value.trim() !== '') {
-            // Fazer uma requisição ao servidor para verificar se o paciente já existe
-            fetch(`/api/check-patient?name=${encodeURIComponent(nomeInput.value.trim())}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.exists) {
-                        nameExistsDiv.classList.remove('d-none');
-                        nomeInput.setCustomValidity('Paciente já cadastrado');
+
+        // Validação individual
+        fields.forEach(field => {
+            const el = document.getElementById(field.id);
+            if (!el) return;
+            if (field.radio) {
+                el.addEventListener('change', function () {
+                    const checked = document.querySelector('input[name="sexo"]:checked');
+                    showFeedback(field, !checked);
+                });
+            } else {
+                el.addEventListener('blur', function () {
+                    if (el.value.trim() === '') {
+                        showFeedback(field, false);
+                    } else if (!el.checkValidity()) {
+                        showFeedback(field, true);
                     } else {
-                        nameExistsDiv.classList.add('d-none');
-                        nomeInput.setCustomValidity('');
+                        showFeedback(field, false);
                     }
                 });
-        }
-    });
-    
-    // Validação do formulário ao enviar
-    const form = document.getElementById('patientForm');
-    form.addEventListener('submit', function(event) {
-        if (!form.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            // Destacar campos inválidos
-            Array.from(form.elements).forEach(input => {
-                if (input.type !== 'hidden' && !input.checkValidity()) {
-                    input.classList.add('is-invalid');
+                el.addEventListener('input', function () {
+                    if (el.value.trim() === '' || el.checkValidity()) {
+                        showFeedback(field, false);
+                    }
+                });
+            }
+        });
+
+        // Validação no submit
+        form.addEventListener('submit', function (event) {
+            let isValid = true;
+            fields.forEach(field => {
+                const el = document.getElementById(field.id);
+                if (!el) return;
+                if (field.radio) {
+                    const checked = document.querySelector('input[name="sexo"]:checked');
+                    if (!checked) {
+                        showFeedback(field, true);
+                        isValid = false;
+                    } else {
+                        showFeedback(field, false);
+                    }
                 } else {
-                    input.classList.remove('is-invalid');
+                    if (el.value.trim() === '' || !el.checkValidity()) {
+                        showFeedback(field, true);
+                        isValid = false;
+                    } else {
+                        showFeedback(field, false);
+                    }
                 }
             });
-            
-            // Role até o primeiro campo inválido
-            const firstInvalid = form.querySelector('.is-invalid');
-            if (firstInvalid) {
-                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (!isValid) {
+                event.preventDefault();
+                event.stopPropagation();
             }
+        });
+
+        // Cálculo automático da idade
+        const dataNascimentoInput = document.getElementById('data_nascimento');
+        const idadeInput = document.getElementById('idade');
+
+        function calcularIdadeAnosMeses(dataNasc) {
+            const hoje = new Date();
+            let anos = hoje.getFullYear() - dataNasc.getFullYear();
+            let meses = hoje.getMonth() - dataNasc.getMonth();
+            let dias = hoje.getDate() - dataNasc.getDate();
+
+            // Ajuste para dias negativos (mês ainda não completou)
+            if (dias < 0) {
+                meses--;
+                // Não precisamos calcular os dias exatos, apenas ajustar o mês
+            }
+
+            // Ajuste para meses negativos (aniversário ainda não ocorreu este ano)
+            if (meses < 0) {
+                anos--;
+                meses += 12;
+            }
+
+            return { anos, meses };
         }
-        
-        form.classList.add('was-validated');
+
+        dataNascimentoInput.addEventListener('input', function (e) {
+            // Guarda a posição atual do cursor
+            let cursorPos = e.target.selectionStart;
+            let originalLength = e.target.value.length;
+
+            // Limpa não-dígitos e formata
+            let value = e.target.value.replace(/\D/g, '');
+            let formattedValue = '';
+
+            if (value.length > 0) {
+                formattedValue = value.substring(0, 2);
+            }
+            if (value.length > 2) {
+                formattedValue += '/' + value.substring(2, 4);
+            }
+            if (value.length > 4) {
+                formattedValue += '/' + value.substring(4, 8); // Limita a 8 dígitos (ddmmyyyy)
+            }
+
+            e.target.value = formattedValue;
+
+            // Restaura a posição do cursor de forma inteligente
+            // Se adicionamos um caractere (/), ajusta a posição
+            let newLength = formattedValue.length;
+            if (newLength > originalLength && (cursorPos === 3 || cursorPos === 6)) {
+                cursorPos++;
+            }
+            // Garante que o cursor não vá além do limite
+            if (cursorPos > newLength) {
+                cursorPos = newLength;
+            }
+            // Define a nova posição do cursor
+            e.target.setSelectionRange(cursorPos, cursorPos);
+
+            // --- Lógica de cálculo da idade (adaptada) ---
+            idadeInput.value = ''; // Limpa o campo idade ao digitar
+            const dataStr = formattedValue.trim(); // Usa o valor formatado
+            const feedbackElement = document.getElementById('data_nascimento-feedback');
+
+            if (dataStr.length === 10) {
+                const parts = dataStr.split('/');
+                if (parts.length === 3) {
+                    const dia = parseInt(parts[0], 10);
+                    const mes = parseInt(parts[1], 10) - 1; // Mês é 0-indexado
+                    const ano = parseInt(parts[2], 10);
+
+                    if (dia > 0 && dia <= 31 && mes >= 0 && mes < 12 && ano > 1900 && ano <= new Date().getFullYear()) {
+                        const dataNasc = new Date(ano, mes, dia);
+                        if (dataNasc && dataNasc.getFullYear() === ano && dataNasc.getMonth() === mes && dataNasc.getDate() === dia) {
+                            const { anos, meses } = calcularIdadeAnosMeses(dataNasc);
+                            idadeInput.value = `${anos}a ${meses}m`;
+                            this.classList.remove('is-invalid');
+                            if (feedbackElement) feedbackElement.style.display = 'none';
+                        } else {
+                            this.classList.add('is-invalid');
+                            if (feedbackElement) feedbackElement.style.display = 'block';
+                        }
+                    } else {
+                        this.classList.add('is-invalid');
+                        if (feedbackElement) feedbackElement.style.display = 'block';
+                    }
+                } else {
+                    // Formato inválido mesmo com 10 caracteres
+                    this.classList.add('is-invalid');
+                    if (feedbackElement) feedbackElement.style.display = 'block';
+                }
+            } else if (dataStr !== '') {
+                // Comprimento incorreto e não vazio -> inválido durante a digitação
+                this.classList.add('is-invalid');
+                if (feedbackElement) feedbackElement.style.display = 'block';
+            } else {
+                // Vazio -> válido (ou neutro)
+                this.classList.remove('is-invalid');
+                if (feedbackElement) feedbackElement.style.display = 'none';
+            }
+        });
+
+        // Validação do CNS
+        const cns = document.getElementById('cns');
+        cns.addEventListener('input', function () {
+            if (this.value.trim() === '') {
+                this.classList.remove('is-invalid');
+                const feedback = this.nextElementSibling;
+                if (feedback && feedback.classList.contains('invalid-feedback')) {
+                    feedback.style.display = 'none';
+                }
+                return;
+            }
+
+            this.value = this.value.replace(/\D/g, '');
+            validateField(this);
+        });
+
+        // Validação do contato
+        const contato = document.getElementById('contato');
+        contato.addEventListener('input', function () {
+            if (this.value.trim() === '') {
+                this.classList.remove('is-invalid');
+                const feedback = this.nextElementSibling;
+                if (feedback && feedback.classList.contains('invalid-feedback')) {
+                    feedback.style.display = 'none';
+                }
+                return;
+            }
+
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 0) {
+                this.value = '(' + this.value;
+                if (this.value.length > 3) {
+                    this.value = this.value.substring(0, 3) + ')' + this.value.substring(3);
+                }
+                if (this.value.length > 9) {
+                    this.value = this.value.substring(0, 9) + '-' + this.value.substring(9);
+                }
+            }
+            validateField(this);
+        });
+
+        // Validação do CID
+        const cid = document.getElementById('cid');
+        cid.addEventListener('input', function () {
+            if (this.value.trim() === '') {
+                this.classList.remove('is-invalid');
+                const feedback = this.nextElementSibling;
+                if (feedback && feedback.classList.contains('invalid-feedback')) {
+                    feedback.style.display = 'none';
+                }
+                return;
+            }
+
+            this.value = this.value.toUpperCase();
+            this.value = this.value.replace(/[^A-Z0-9]/g, '');
+            validateField(this);
+        });
+
+        // Verifica se os elementos essenciais foram encontrados
+        const nomeInput = document.getElementById('nome');
+        const nameExistsDiv = document.getElementById('nameExists');
+
+        if (!nomeInput || !nameExistsDiv) {
+            console.error("Erro Crítico: Elemento #nome ou #nameExists não encontrado no DOM!");
+            return; // Interrompe a execução se elementos não existem
+        }
+
+        console.log("[Init] Elementos encontrados. Adicionando listeners.");
+
+        // Função para verificar se o paciente existe
+        function checkPatientExists(nomeValue) { // Recebe o nome já trimado
+            console.log(`[checkPatientExists] Iniciando verificação para nome: '${nomeValue}'`);
+
+            fetch(`/patients/api/check-patient?name=${encodeURIComponent(nomeValue)}`)
+                .then(response => {
+                    console.log(`[checkPatientExists] Resposta da API recebida. Status: ${response.status}`);
+                    if (!response.ok) {
+                        console.error(`[checkPatientExists] Erro na resposta da API: ${response.status} ${response.statusText}`);
+                        response.text().then(text => console.error("[checkPatientExists] Corpo do erro:", text));
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[checkPatientExists] Resposta JSON da API:', data);
+                    if (data.exists) {
+                        console.log('[checkPatientExists] Paciente EXISTE. Mostrando mensagem (removendo d-none).');
+                        nameExistsDiv.classList.remove('d-none');
+                    } else {
+                        console.log('[checkPatientExists] Paciente NÃO existe. Escondendo mensagem (adicionando d-none).');
+                        nameExistsDiv.classList.add('d-none'); // Garante que esconde se não existe
+                    }
+                })
+                .catch(error => {
+                    console.error('[checkPatientExists] Erro no fetch ou processamento JSON:', error);
+                    console.log('[checkPatientExists] Erro. Escondendo mensagem (adicionando d-none).');
+                    nameExistsDiv.classList.add('d-none'); // Garante que esconde em caso de erro
+                });
+        }
+
+        // Verificar ao perder o foco (blur)
+        nomeInput.addEventListener('blur', function () {
+            const nome = nomeInput.value.trim();
+            console.log(`[blur] Campo perdeu foco. Valor trimado: '${nome}'`);
+
+            // 1. SEMPRE esconde a mensagem ao iniciar o blur
+            console.log('[blur] Escondendo mensagem (adicionando d-none).');
+            nameExistsDiv.classList.add('d-none');
+
+            // 2. SÓ verifica se o campo NÃO estiver vazio
+            if (nome === '') {
+                console.log('[blur] Campo está VAZIO. Nenhuma verificação necessária. Mensagem permanece escondida.');
+            } else {
+                console.log('[blur] Campo NÃO está vazio. Chamando checkPatientExists...');
+                checkPatientExists(nome); // Passa o valor trimado
+            }
+        });
+
+        // Esconder a mensagem ao começar ou continuar a digitar
+        nomeInput.addEventListener('input', function () {
+            const nomeAtual = nomeInput.value; // Pega valor atual no input
+            console.log(`[input] Usuário digitando. Valor atual: '${nomeAtual}'. Escondendo mensagem (adicionando d-none).`);
+            nameExistsDiv.classList.add('d-none');
+        });
+
+        // Estado Inicial: Garantir que a mensagem está escondida ao carregar
+        console.log("[Init] Garantindo que a mensagem está escondida no carregamento inicial (adicionando d-none).");
+        nameExistsDiv.classList.add('d-none');
     });
-});
 </script>
 {% endblock %}

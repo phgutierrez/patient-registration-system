@@ -10,15 +10,16 @@ import os
 
 surgery = Blueprint('surgery', __name__)
 
+
 @surgery.route('/patient/<int:patient_id>/surgery/request', methods=['GET', 'POST'])
 @login_required
 def request_surgery(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     form = SurgeryRequestForm()
-    
+
     if form.validate_on_submit():
         try:
-            # Criar nova solicitação de cirurgia a partir dos dados do formulário
+            # Criar nova solicitação de cirurgia
             surgery_request = SurgeryRequest(
                 patient_id=patient.id,
                 peso=form.peso.data,
@@ -43,67 +44,79 @@ def request_surgery(patient_id):
                 exames_preop=form.exames_preop.data,
                 opme=form.opme.data
             )
-            
+
             db.session.add(surgery_request)
-            db.session.commit()
-            
+            # Commit inicial para obter o ID da cirurgia antes de gerar nome do PDF
+            db.session.flush()
+            db.session.refresh(surgery_request)
+            surgery_request_id = surgery_request.id  # Guarda o ID
+
             # Gerar o PDF com os dados da solicitação
             try:
-                pdf_path = preencher_formulario_internacao(patient, surgery_request)
-                
-                # Verificar se o caminho do PDF foi retornado corretamente
+                # Passa o objeto surgery_request com ID para gerar o nome
+                pdf_path = preencher_formulario_internacao(
+                    patient, surgery_request)
+
                 if pdf_path:
-                    # Extrair apenas o nome do arquivo do caminho completo
                     pdf_filename = os.path.basename(pdf_path)
-                    
-                    # Redirecionar para a página de confirmação ao invés do download direto
-                    return redirect(url_for('surgery.confirmation', 
-                                          surgery_id=surgery_request.id,
-                                          pdf_name=pdf_filename))
+                    # Salva o nome do arquivo no banco de dados
+                    surgery_request.pdf_filename = pdf_filename
+                    db.session.commit()  # Commit final com o nome do arquivo
+
+                    # Redirecionar para a página de confirmação
+                    return redirect(url_for('surgery.confirmation',
+                                            surgery_id=surgery_request_id,  # Usa o ID guardado
+                                            pdf_name=pdf_filename))
                 else:
+                    db.session.commit()  # Commita mesmo se o PDF falhar
                     flash('PDF gerado mas o caminho não foi retornado.', 'warning')
                     return redirect(url_for('patients.view_patient', id=patient.id))
             except Exception as e:
-                flash(f'Solicitação registrada, mas houve um erro ao gerar o PDF: {str(e)}', 'warning')
+                db.session.rollback()  # Rollback se a geração do PDF falhar *após* o flush
+                flash(
+                    f'Solicitação registrada, mas houve um erro ao gerar o PDF: {str(e)}', 'warning')
                 print(f"Erro ao gerar PDF: {str(e)}")
                 return redirect(url_for('patients.view_patient', id=patient.id))
-                
+
         except Exception as e:
-            db.session.rollback()
+            db.session.rollback()  # Rollback se o salvamento inicial falhar
             flash(f'Erro ao registrar solicitação: {str(e)}', 'danger')
             print(f"Erro ao salvar solicitação: {str(e)}")
-    
+
     return render_template('surgery/request.html', patient=patient, form=form)
 
 # Nova rota para página de confirmação
+
+
 @surgery.route('/surgery/<int:surgery_id>/confirmation/<path:pdf_name>')
 @login_required
 def confirmation(surgery_id, pdf_name):
     # Verificar se o registro de cirurgia existe
     surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
     patient = Patient.query.get_or_404(surgery_request.patient_id)
-    
-    return render_template('surgery/confirmation.html', 
-                           surgery=surgery_request, 
+
+    return render_template('surgery/confirmation.html',
+                           surgery=surgery_request,
                            patient=patient,
                            pdf_name=pdf_name)
+
 
 @surgery.route('/surgery/<int:surgery_id>/pdf/<path:pdf_name>')
 @login_required
 def download_pdf(surgery_id, pdf_name):
     # Verificar se o registro de cirurgia existe
     surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
-    
+
     # Construir o caminho completo para o arquivo PDF
     from flask import current_app
     from pathlib import Path
-    
+
     base_dir = Path(current_app.root_path)
     pdf_path = base_dir / 'static' / 'preenchidos' / pdf_name
-    
+
     if not os.path.exists(pdf_path):
         flash('O arquivo PDF não foi encontrado.', 'danger')
         return redirect(url_for('patients.view_patient', id=surgery_request.patient_id))
-    
+
     # Enviar o arquivo para download
     return send_file(pdf_path, as_attachment=True, download_name=f"Internacao_{surgery_request.patient_id}.pdf")
