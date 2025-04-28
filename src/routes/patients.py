@@ -14,14 +14,14 @@ patients = Blueprint('patients', __name__, url_prefix='/patients')
 def new_patient():
     if request.method == 'POST':
         nome = request.form.get('nome')
-
+        
         # Verificar se o paciente já existe
         existing_patient = Patient.query.filter(
             Patient.nome.ilike(f'%{nome}%')).first()
         if existing_patient:
             flash('Paciente com nome similar já existe no sistema.', 'danger')
             return render_template('patient/new.html')
-
+        
         # Converter data de nascimento para o formato do Python
         data_nascimento_str = request.form.get('data_nascimento')
         try:
@@ -30,7 +30,7 @@ def new_patient():
         except ValueError:
             flash('Data de nascimento inválida.', 'danger')
             return render_template('patient/new.html')
-
+        
         # Obter endereço (opcional)
         endereco = request.form.get('endereco')
 
@@ -48,7 +48,7 @@ def new_patient():
             diagnostico=request.form.get('diagnostico'),
             cid=request.form.get('cid')
         )
-
+        
         try:
             db.session.add(patient)
             db.session.commit()
@@ -58,7 +58,7 @@ def new_patient():
             db.session.rollback()
             flash(f'Erro ao cadastrar paciente: {str(e)}', 'danger')
             return render_template('patient/new.html')
-
+    
     return render_template('patient/new.html')
 
 
@@ -81,7 +81,7 @@ def view_patient(id):
 def edit_patient(id):
     patient = Patient.query.get_or_404(id)
     form = PatientForm(obj=patient)
-
+    
     if request.method == 'POST' and form.validate_on_submit():
         try:
             patient.nome = form.nome.data
@@ -96,11 +96,11 @@ def edit_patient(id):
             patient.contato = form.contato.data
             patient.diagnostico = form.diagnostico.data
             patient.cid = form.cid.data
-
+            
             db.session.commit()
             flash('Paciente atualizado com sucesso!', 'success')
             return redirect(url_for('patients.view_patient', id=patient.id))
-
+            
         except Exception as e:
             db.session.rollback()
             flash(f'Erro ao atualizar paciente: {str(e)}', 'danger')
