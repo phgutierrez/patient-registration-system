@@ -2,6 +2,36 @@
 setlocal enabledelayedexpansion
 title Sistema de Registro de Pacientes
 
+REM =====================================================
+REM Verificar se Python existe; se nao, instalar 3.11.9
+REM =====================================================
+
+where py >nul 2>nul
+if errorlevel 1 (
+    where python >nul 2>nul
+    if errorlevel 1 (
+        echo Python nao encontrado. Instalando Python 3.11.9 (modo usuario)...
+
+        set "PYTHON_VERSION=3.11.9"
+        set "PYTHON_INSTALLER=python-%PYTHON_VERSION%-amd64.exe"
+        set "PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/%PYTHON_INSTALLER%"
+
+        echo Baixando instalador...
+        curl -L "%PYTHON_URL%" -o "%PYTHON_INSTALLER%"
+        if errorlevel 1 goto :error
+
+        echo Instalando Python 3.11.9 para o usuario atual...
+        "%PYTHON_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+        if errorlevel 1 goto :error
+
+        echo Python instalado com sucesso.
+        del "%PYTHON_INSTALLER%"
+        echo Recarregando ambiente...
+        timeout /t 5 >nul
+    )
+)
+
+
 echo Verificando Python...
 set "PY_CMD="
 
@@ -39,10 +69,6 @@ if exist requirements.txt (
 ) else (
     echo Arquivo requirements.txt nao encontrado; pulando instalacao de dependencias.
 )
-
-echo.
-echo Verificando e inicializando banco de dados...
-python init_db.py || goto :error
 
 echo.
 echo Iniciando o servidor Flask...
