@@ -28,11 +28,11 @@ def init_db():
         print("Criando usuários iniciais...")
         
         users_data = [
-            {'username': 'pedro', 'full_name': 'Pedro Silva', 'cns': None, 'crm': None},
-            {'username': 'andre', 'full_name': 'André Costa', 'cns': None, 'crm': None},
-            {'username': 'brauner', 'full_name': 'Brauner Santos', 'cns': None, 'crm': None},
-            {'username': 'savio', 'full_name': 'Sávio Oliveira', 'cns': None, 'crm': None},
-            {'username': 'laecio', 'full_name': 'Laecio Ferreira', 'cns': None, 'crm': None},
+            {'username': 'pedro', 'full_name': 'Pedro Freitas', 'cns': None, 'crm': None},
+            {'username': 'andre', 'full_name': 'André Cristiano', 'cns': None, 'crm': None},
+            {'username': 'brauner', 'full_name': 'Brauner Cavalcanti', 'cns': None, 'crm': None},
+            {'username': 'savio', 'full_name': 'Sávio Bruno', 'cns': None, 'crm': None},
+            {'username': 'laecio', 'full_name': 'Laecio Damaceno', 'cns': None, 'crm': None},
         ]
         
         for user_data in users_data:
@@ -52,12 +52,11 @@ def init_db():
 ✅ Banco de dados inicializado com sucesso!
 
 Usuários criados:
-- Pedro Silva
-- André Costa
-- Brauner Santos
-- Sávio Oliveira
-- Laecio Ferreira
-
+- Pedro Freitas
+- André Cristiano
+- Brauner Cavalcanti
+- Sávio Bruno
+- Laecio Damaceno
 Senha padrão: 123456
         """)
 
