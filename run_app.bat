@@ -41,6 +41,10 @@ if exist requirements.txt (
 )
 
 echo.
+echo Verificando e inicializando banco de dados...
+python init_db.py || goto :error
+
+echo.
 echo Iniciando o servidor Flask...
 echo Aguarde enquanto o servidor inicia em http://localhost:5000/
 echo.
