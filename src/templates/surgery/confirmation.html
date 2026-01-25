@@ -35,11 +35,17 @@
             
             <div class="text-center mb-4">
                 <a href="{{ url_for('surgery.download_pdf', surgery_id=surgery.id, pdf_name=pdf_name) }}" class="btn btn-primary btn-lg mr-3">
-                    <i class="fas fa-download"></i> Baixar PDF
+                    <i class="fas fa-download"></i> Baixar PDF da Solicitação
                 </a>
                 
+                {% if surgery.reserva_sangue and surgery.pdf_hemocomponente %}
+                <a href="{{ url_for('surgery.download_pdf_hemocomponente', surgery_id=surgery.id, pdf_name=surgery.pdf_hemocomponente) }}" class="btn btn-danger btn-lg mr-3">
+                    <i class="fas fa-print"></i> Imprimir Requisição de Hemocomponente
+                </a>
+                {% endif %}
+                
                 <a href="https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform?usp=pp_url&entry.754547293=&entry.1276090944={{ surgery.procedimento_solicitado|urlencode }}&entry.98670871={{ surgery.data_cirurgia.strftime('%Y-%m-%d')|urlencode }}&entry.1959704951={{ 'Nome: ' + patient.nome + '%0AData de nascimento: ' + patient.data_nascimento.strftime('%d/%m/%Y') + '%0ADiagnóstico: ' + patient.diagnostico + '%0ANº Prontuário: ' + patient.prontuario + '%0AContato: ' + patient.contato|urlencode }}&entry.1331583755=&entry.307251533={{ 'Sim' if surgery.reserva_uti else 'Não'|urlencode }}" target="_blank" class="btn btn-success btn-lg">
-                    <i class="fas fa-calendar-plus"></i> Adicionar na Agenda
+                    <i class="fas fa-calendar-plus"></i> Adicionar à Agenda
                 </a>
             </div>
             

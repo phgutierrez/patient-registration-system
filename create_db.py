@@ -15,6 +15,7 @@ def init_db():
         admin = User(
             username='admin',
             password='admin123',
+            full_name='Administrador',
             role='administrador'
         )
         

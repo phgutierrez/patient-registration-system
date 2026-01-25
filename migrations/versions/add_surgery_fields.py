@@ -10,10 +10,9 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_surgery_fields'
-down_revision = '7c790a63a956'
+down_revision = 'create_patient_tables'
 branch_labels = None
 depends_on = None
-
 
 def upgrade():
     # Adiciona os novos campos para solicitação de cirurgia

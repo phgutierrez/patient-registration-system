@@ -24,27 +24,41 @@ def init_db():
         print("Criando novas tabelas...")
         db.create_all()
         
-        # Criar usuário admin
-        print("Criando usuário administrador...")
+        # Criar usuários iniciais
+        print("Criando usuários iniciais...")
         
-        # Corrigido: fornecendo o parâmetro 'password' necessário
-        admin = User(
-            username='admin',
-            password='admin123',  # Passando a senha diretamente
-            role='administrador'
-        )
-        # Não é necessário chamar set_password() aqui, pois estamos passando a senha no construtor
-        # Se a classe User estiver configurada para realizar o hash da senha no construtor
+        users_data = [
+            {'username': 'pedro', 'full_name': 'Pedro Silva', 'cns': None, 'crm': None},
+            {'username': 'andre', 'full_name': 'André Costa', 'cns': None, 'crm': None},
+            {'username': 'brauner', 'full_name': 'Brauner Santos', 'cns': None, 'crm': None},
+            {'username': 'savio', 'full_name': 'Sávio Oliveira', 'cns': None, 'crm': None},
+            {'username': 'laecio', 'full_name': 'Laecio Ferreira', 'cns': None, 'crm': None},
+        ]
         
-        db.session.add(admin)
+        for user_data in users_data:
+            user = User(
+                username=user_data['username'],
+                password='123456',  # Senha padrão
+                full_name=user_data['full_name'],
+                cns=user_data['cns'],
+                crm=user_data['crm'],
+                role='solicitante'
+            )
+            db.session.add(user)
+        
         db.session.commit()
         
         print("""
 ✅ Banco de dados inicializado com sucesso!
 
-Informações do usuário administrador:
-- Username: admin
-- Senha: admin123
+Usuários criados:
+- Pedro Silva
+- André Costa
+- Brauner Santos
+- Sávio Oliveira
+- Laecio Ferreira
+
+Senha padrão: 123456
         """)
 
 if __name__ == "__main__":

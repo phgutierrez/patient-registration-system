@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from src.models.surgery_request import SurgeryRequest
 from src.models.patient import Patient
 from src.extensions import db
-from src.utils.pdf_utils import preencher_formulario_internacao
+from src.utils.pdf_utils import preencher_formulario_internacao, preencher_requisicao_hemocomponente
 from src.forms.surgery_form import SurgeryRequestForm
 from datetime import datetime
 import os
@@ -57,6 +57,19 @@ def request_surgery(patient_id):
                 pdf_path = preencher_formulario_internacao(
                     patient, surgery_request)
 
+                # Gerar PDF de requisição de hemocomponente se sangue for reservado
+                pdf_hemocomponente = None
+                if surgery_request.reserva_sangue:
+                    try:
+                        pdf_hemocomponente = preencher_requisicao_hemocomponente(
+                            patient, surgery_request)
+                        if pdf_hemocomponente:
+                            hemo_filename = os.path.basename(pdf_hemocomponente)
+                            surgery_request.pdf_hemocomponente = hemo_filename
+                    except Exception as e:
+                        print(f"Aviso: Erro ao gerar PDF de hemocomponente: {str(e)}")
+                        # Não falha a solicitação se o PDF de hemocomponente falhar
+
                 if pdf_path:
                     pdf_filename = os.path.basename(pdf_path)
                     # Salva o nome do arquivo no banco de dados
@@ -101,6 +114,40 @@ def confirmation(surgery_id, pdf_name):
                            pdf_name=pdf_name)
 
 
+@surgery.route('/surgery/debug/test-pdf-generation', methods=['GET'])
+@login_required
+def debug_pdf_generation():
+    """Rota de debug para testar a geração do PDF"""
+    try:
+        # Buscar um paciente e uma cirurgia para teste
+        patient = Patient.query.first()
+        surgery_request = SurgeryRequest.query.first()
+        
+        if not patient or not surgery_request:
+            return "Nenhum paciente ou solicitação de cirurgia encontrado para teste", 404
+        
+        # Tentar gerar o PDF
+        from src.utils.pdf_utils import preencher_formulario_internacao
+        pdf_path = preencher_formulario_internacao(patient, surgery_request)
+        
+        return f"""
+        <h2>Teste de Geração de PDF</h2>
+        <p><strong>Status:</strong> PDF gerado com sucesso!</p>
+        <p><strong>Caminho:</strong> {pdf_path}</p>
+        <p><a href="/static/preenchidos/{os.path.basename(pdf_path)}" target="_blank">Clique aqui para visualizar o PDF</a></p>
+        <p><a href="javascript:history.back()">Voltar</a></p>
+        """
+    except Exception as e:
+        import traceback
+        return f"""
+        <h2>Erro na Geração do PDF</h2>
+        <p><strong>Erro:</strong> {str(e)}</p>
+        <h3>Traceback:</h3>
+        <pre>{traceback.format_exc()}</pre>
+        <p><a href="javascript:history.back()">Voltar</a></p>
+        """
+
+
 @surgery.route('/surgery/<int:surgery_id>/pdf/<path:pdf_name>')
 @login_required
 def download_pdf(surgery_id, pdf_name):
@@ -120,3 +167,30 @@ def download_pdf(surgery_id, pdf_name):
 
     # Enviar o arquivo para download
     return send_file(pdf_path, as_attachment=True, download_name=f"Internacao_{surgery_request.patient_id}.pdf")
+
+
+@surgery.route('/surgery/<int:surgery_id>/pdf-hemocomponente/<path:pdf_name>')
+@login_required
+def download_pdf_hemocomponente(surgery_id, pdf_name):
+    """Rota para download do PDF de requisição de hemocomponente"""
+    # Verificar se o registro de cirurgia existe
+    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+
+    # Verificar se foi solicitado reserva de sangue
+    if not surgery_request.reserva_sangue:
+        flash('Nenhuma reserva de sangue foi solicitada para esta cirurgia.', 'warning')
+        return redirect(url_for('surgery.confirmation', surgery_id=surgery_id, pdf_name=surgery_request.pdf_filename))
+
+    # Construir o caminho completo para o arquivo PDF
+    from flask import current_app
+    from pathlib import Path
+
+    base_dir = Path(current_app.root_path)
+    pdf_path = base_dir / 'static' / 'preenchidos' / pdf_name
+
+    if not os.path.exists(pdf_path):
+        flash('O arquivo PDF de hemocomponente não foi encontrado.', 'danger')
+        return redirect(url_for('surgery.confirmation', surgery_id=surgery_id, pdf_name=surgery_request.pdf_filename))
+
+    # Enviar o arquivo para download
+    return send_file(pdf_path, as_attachment=True, download_name=f"Requisicao_Hemocomponente_{surgery_request.patient_id}.pdf")

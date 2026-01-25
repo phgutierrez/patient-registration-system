@@ -1,10 +1,12 @@
 from datetime import datetime, date
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required
 from src.models.patient import Patient
 from src.extensions import db
 from src.forms.patient_form import PatientForm
 from sqlalchemy.exc import SQLAlchemyError
+import pyodbc
+from pathlib import Path
 
 patients = Blueprint('patients', __name__, url_prefix='/patients')
 
@@ -106,6 +108,57 @@ def edit_patient(id):
             flash(f'Erro ao atualizar paciente: {str(e)}', 'danger')
 
     return render_template('patient/edit.html', patient=patient, form=form)
+
+
+# Rota para buscar dados do banco Access (AMBULATORIO_SERV.accdb)
+@patients.route('/api/search-patient-accdb', methods=['GET'])
+@login_required
+def search_patient_accdb():
+    """Busca dados do paciente no banco Access"""
+    prontuario = request.args.get('prontuario', '').strip()
+    
+    if not prontuario:
+        return jsonify({"error": "Prontuário não fornecido"}), 400
+    
+    try:
+        # Caminho do arquivo Access
+        db_path = Path(current_app.root_path).parent / 'src' / 'static' / 'AMBULATORIO_SERV.accdb'
+        
+        if not db_path.exists():
+            return jsonify({"error": "Banco de dados não encontrado"}), 404
+        
+        # String de conexão para Access
+        conn_str = f'Driver={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={db_path};'
+        
+        try:
+            conn = pyodbc.connect(conn_str)
+            cursor = conn.cursor()
+            
+            # Buscar dados na tabela cadastro_de_pacientes
+            cursor.execute('SELECT * FROM cadastro_de_pacientes WHERE prontuario = ?', prontuario)
+            row = cursor.fetchone()
+            
+            if not row:
+                cursor.close()
+                conn.close()
+                return jsonify({"found": False}), 200
+            
+            # Obter nomes das colunas
+            columns = [description[0] for description in cursor.description]
+            
+            # Converter para dicionário
+            patient_data = dict(zip(columns, row))
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({"found": True, "data": patient_data}), 200
+            
+        except pyodbc.Error as e:
+            return jsonify({"error": f"Erro ao conectar ao banco Access: {str(e)}"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"Erro ao buscar dados: {str(e)}"}), 500
 
 
 # Nova rota para verificar a existência do paciente via API

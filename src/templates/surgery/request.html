@@ -5,11 +5,16 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Solicitar Cirurgia</h1>
-        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Voltar para Paciente
-        </a>
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="mb-0">Solicitar Cirurgia</h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-info" onclick="abrirModelos()">
+                <i class="fas fa-folder-open me-1"></i> Modelos Salvos
+            </button>
+            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar para Paciente
+            </a>
+        </div>
     </div>
 
     <div class="card mb-3">
@@ -313,19 +318,60 @@
         </div>
 
         <!-- Ações -->
-        <div class="d-flex justify-content-end gap-2 mb-4">
-            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                <i class="fas fa-times me-1"></i> Cancelar
-            </a>
-            {{ form.submit(class="btn btn-primary", value="Solicitar Cirurgia") }}
+        <div class="d-flex justify-content-between gap-2 mb-4">
+            <div>
+                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Voltar para o Paciente
+                </a>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-warning" onclick="salvarComoModelo()">
+                    <i class="fas fa-save me-1"></i> Salvar como Modelo
+                </button>
+                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </a>
+                {{ form.submit(class="btn btn-primary", value="Solicitar Cirurgia") }}
+            </div>
         </div>
     </form>
 </div>
 
+<!-- Modal para exibir modelos salvos -->
+<div class="modal fade" id="modelosModal" tabindex="-1" aria-labelledby="modelosModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modelosModalLabel">
+                    <i class="fas fa-folder-open me-2"></i>Modelos Salvos
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modelosList">
+                    <p class="text-muted text-center">Carregando modelos...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let modelosModalInstance = null;
+
     document.addEventListener('DOMContentLoaded', function () {
         const reservaSangueCheck = document.getElementById('reserva_sangue_check');
         const quantidadeSangueInput = document.getElementById('quantidade_sangue_input');
+        const modelosModalEl = document.getElementById('modelosModal');
+
+        // Inicializa modal (Bootstrap 5) sem jQuery
+        if (modelosModalEl && window.bootstrap && bootstrap.Modal) {
+            modelosModalInstance = new bootstrap.Modal(modelosModalEl);
+            modelosModalEl.addEventListener('show.bs.modal', carregarModelos);
+        }
 
         function toggleQuantidadeSangue() {
             if (reservaSangueCheck.checked) {
@@ -398,6 +444,211 @@
             // Atualiza o código ao carregar a página, caso haja valor pré-selecionado
             updateSusCode();
         }
+
     });
+
+    // Função para coletar dados do formulário
+    function coletarDadosFormulario() {
+        const form = document.querySelector('.needs-validation');
+        const formData = new FormData(form);
+        
+        const dados = {
+            peso: formData.get('peso'),
+            sinais_sintomas: formData.get('sinais_sintomas'),
+            condicoes_justificativa: formData.get('condicoes_justificativa'),
+            resultados_diagnosticos: formData.get('resultados_diagnosticos'),
+            procedimento_solicitado: formData.get('procedimento_solicitado'),
+            codigo_procedimento: formData.get('codigo_procedimento'),
+            tipo_cirurgia: formData.get('tipo_cirurgia'),
+            data_cirurgia: formData.get('data_cirurgia'),
+            internar_antes: formData.get('internar_antes') ? true : false,
+            hora_cirurgia: formData.get('hora_cirurgia'),
+            assistente: formData.get('assistente'),
+            aparelhos_especiais: formData.get('aparelhos_especiais'),
+            reserva_sangue: formData.get('reserva_sangue') ? true : false,
+            quantidade_sangue: formData.get('quantidade_sangue'),
+            raio_x: formData.get('raio_x') ? true : false,
+            reserva_uti: formData.get('reserva_uti') ? true : false,
+            duracao_prevista: formData.get('duracao_prevista'),
+            evolucao_internacao: formData.get('evolucao_internacao'),
+            prescricao_internacao: formData.get('prescricao_internacao'),
+            exames_preop: formData.get('exames_preop'),
+            opme: formData.get('opme')
+        };
+        
+        return dados;
+    }
+
+    // Função para salvar modelo
+    function salvarComoModelo() {
+        const nomeModelo = prompt('Digite um nome para o modelo:', '');
+        
+        if (nomeModelo === null) {
+            return; // Cancelado
+        }
+        
+        if (nomeModelo.trim() === '') {
+            alert('Por favor, digite um nome para o modelo.');
+            return;
+        }
+        
+        const dadosModelo = {
+            nome: nomeModelo.trim(),
+            dados: coletarDadosFormulario()
+        };
+        
+        // Salvar no localStorage
+        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        modelos.push(dadosModelo);
+        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
+        
+        alert(`Modelo "${nomeModelo}" salvo com sucesso!`);
+    }
+
+    // Função para abrir modal de modelos
+    function abrirModelos() {
+        const modalEl = document.getElementById('modelosModal');
+        if (!modalEl || !window.bootstrap || !bootstrap.Modal) {
+            console.warn('Bootstrap Modal não disponível.');
+            return;
+        }
+
+        if (!modelosModalInstance) {
+            modelosModalInstance = new bootstrap.Modal(modalEl);
+            modalEl.addEventListener('show.bs.modal', carregarModelos);
+        }
+
+        carregarModelos();
+        modelosModalInstance.show();
+    }
+
+    // Função para carregar modelos
+    function carregarModelos() {
+        const modelosList = document.getElementById('modelosList');
+        const modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        
+        if (modelos.length === 0) {
+            modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo salvo ainda.</p>';
+            return;
+        }
+        
+        let html = '<div class="list-group">';
+        modelos.forEach((modelo, index) => {
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">${modelo.nome}</h6>
+                            <small class="text-muted">Procedimento: ${modelo.dados.procedimento_solicitado || 'N/A'}</small>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${index})">
+                                <i class="fas fa-download me-1"></i>Carregar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${index})">
+                                <i class="fas fa-trash me-1"></i>Deletar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        modelosList.innerHTML = html;
+    }
+
+    // Função para carregar dados de um modelo
+    function carregarModelo(index) {
+        const modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        
+        if (index < 0 || index >= modelos.length) {
+            alert('Modelo não encontrado.');
+            return;
+        }
+        
+        const modelo = modelos[index];
+        const dados = modelo.dados;
+        
+        // Preencher campos de texto
+        document.querySelector('[name="peso"]').value = dados.peso || '';
+        document.querySelector('[name="sinais_sintomas"]').value = dados.sinais_sintomas || '';
+        document.querySelector('[name="condicoes_justificativa"]').value = dados.condicoes_justificativa || '';
+        document.querySelector('[name="resultados_diagnosticos"]').value = dados.resultados_diagnosticos || '';
+        document.querySelector('[name="procedimento_solicitado"]').value = dados.procedimento_solicitado || '';
+        document.querySelector('[name="codigo_procedimento"]').value = dados.codigo_procedimento || '';
+        document.querySelector('[name="data_cirurgia"]').value = dados.data_cirurgia || '';
+        document.querySelector('[name="hora_cirurgia"]').value = dados.hora_cirurgia || '';
+        document.querySelector('[name="assistente"]').value = dados.assistente || '';
+        document.querySelector('[name="aparelhos_especiais"]').value = dados.aparelhos_especiais || '';
+        document.querySelector('[name="quantidade_sangue"]').value = dados.quantidade_sangue || '';
+        document.querySelector('[name="duracao_prevista"]').value = dados.duracao_prevista || '';
+        document.querySelector('[name="evolucao_internacao"]').value = dados.evolucao_internacao || '';
+        document.querySelector('[name="prescricao_internacao"]').value = dados.prescricao_internacao || '';
+        document.querySelector('[name="exames_preop"]').value = dados.exames_preop || '';
+        document.querySelector('[name="opme"]').value = dados.opme || '';
+        
+        // Preencher radio buttons
+        if (dados.tipo_cirurgia) {
+            const tipoField = document.querySelector(`[name="tipo_cirurgia"][value="${dados.tipo_cirurgia}"]`);
+            if (tipoField) {
+                tipoField.checked = true;
+            }
+        }
+        
+        // Preencher checkboxes
+        const internarAntesField = document.querySelector('[name="internar_antes"]');
+        if (internarAntesField) {
+            internarAntesField.checked = dados.internar_antes || false;
+        }
+        const reservaSangueField = document.querySelector('[name="reserva_sangue"]');
+        if (reservaSangueField) {
+            reservaSangueField.checked = dados.reserva_sangue || false;
+        }
+        const raioXField = document.querySelector('[name="raio_x"]');
+        if (raioXField) {
+            raioXField.checked = dados.raio_x || false;
+        }
+        const reservaUtiField = document.querySelector('[name="reserva_uti"]');
+        if (reservaUtiField) {
+            reservaUtiField.checked = dados.reserva_uti || false;
+        }
+        
+        // Disparar evento para atualizar a quantidade de sangue se necessário
+        if (reservaSangueField) {
+            reservaSangueField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Atualizar código SUS
+        const procedureSelect = document.getElementById('procedimento_select');
+        if (procedureSelect) {
+            procedureSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Fechar modal
+        if (modelosModalInstance) {
+            modelosModalInstance.hide();
+        }
+        
+        // Scroll para o topo do formulário
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        alert(`Modelo "${modelo.nome}" carregado com sucesso!`);
+    }
+
+    // Função para deletar modelo
+    function deletarModelo(index) {
+        if (!confirm('Tem certeza que deseja deletar este modelo?')) {
+            return;
+        }
+        
+        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        const nomeModelo = modelos[index].nome;
+        modelos.splice(index, 1);
+        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
+        
+        carregarModelos(); // Recarregar lista
+        alert(`Modelo "${nomeModelo}" deletado com sucesso!`);
+    }
 </script>
 {% endblock %}

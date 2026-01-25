@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 from src.config import Config
 from src.extensions import db, login_manager, csrf, migrate
 
@@ -19,6 +19,10 @@ def create_app(config_class=Config):
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        return redirect(url_for('auth.select_user'))
 
     # Registrar blueprints
     from src.routes.auth import auth

@@ -61,10 +61,14 @@
                             </span>
                             <input type="text" class="form-control" id="prontuario" name="prontuario" required
                                 placeholder="Número do prontuário">
+                            <button class="btn btn-info" type="button" id="btnBuscaAccess" onclick="buscarPacienteAccess()">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> Número do prontuário interno do CPAM.
                         </small>
+                        <div id="searchResult" class="mt-2"></div>
                         <div class="invalid-feedback-custom" id="prontuario-feedback">Por favor, informe o número do
                             prontuário.</div>
                     </div>
@@ -701,5 +705,150 @@
         console.log("[Init] Garantindo que a mensagem está escondida no carregamento inicial (adicionando d-none).");
         nameExistsDiv.classList.add('d-none');
     });
+
+    // Função para buscar paciente no banco Access
+    function buscarPacienteAccess() {
+        const prontuario = document.getElementById('prontuario').value.trim();
+        const searchResult = document.getElementById('searchResult');
+        const btnBusca = document.getElementById('btnBuscaAccess');
+        
+        if (!prontuario) {
+            searchResult.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-circle"></i> Por favor, informe o prontuário.</div>';
+            return;
+        }
+        
+        // Mostrar loading
+        btnBusca.disabled = true;
+        btnBusca.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+        searchResult.innerHTML = '';
+        
+        fetch(`/patients/api/search-patient-accdb?prontuario=${encodeURIComponent(prontuario)}`)
+            .then(response => response.json())
+            .then(data => {
+                btnBusca.disabled = false;
+                btnBusca.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                
+                if (data.found) {
+                    // Paciente encontrado - preencher campos
+                    const patientData = data.data;
+                    
+                    console.log('Dados recebidos do Access:', patientData);
+                    console.log('Chaves disponíveis:', Object.keys(patientData));
+                    
+                    // Função auxiliar para buscar campo case-insensitive
+                    function getFieldValue(obj, fieldNames) {
+                        if (!obj) return null;
+                        if (!Array.isArray(fieldNames)) {
+                            fieldNames = [fieldNames];
+                        }
+                        
+                        for (const fieldName of fieldNames) {
+                            // Tentar encontrar a chave exata primeiro
+                            if (obj[fieldName] !== undefined) {
+                                return obj[fieldName];
+                            }
+                            // Procurar case-insensitive
+                            const keys = Object.keys(obj);
+                            const matchedKey = keys.find(k => k.toLowerCase() === fieldName.toLowerCase());
+                            if (matchedKey) {
+                                return obj[matchedKey];
+                            }
+                        }
+                        return null;
+                    }
+                    
+                    // Preencher campo Nome do Paciente
+                    const nomeValue = getFieldValue(patientData, ['nome do paciente', 'nome', 'nomepaciente', 'nome paciente']);
+                    if (nomeValue) {
+                        const nomeInput = document.getElementById('nome');
+                        nomeInput.value = nomeValue;
+                        nomeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        console.log('Nome preenchido:', nomeValue);
+                    }
+                    
+                    // Preencher campo Data de Nascimento
+                    const dataNascValue = getFieldValue(patientData, ['data nascimento', 'datanascimento', 'data_nascimento', 'data nascimento']);
+                    if (dataNascValue) {
+                        const date = new Date(dataNascValue);
+                        if (!isNaN(date.getTime())) {
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = date.getFullYear();
+                            const dataNascimentoInput = document.getElementById('data_nascimento');
+                            dataNascimentoInput.value = `${day}/${month}/${year}`;
+                            // Disparar evento input para recalcular idade
+                            dataNascimentoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            console.log('Data preenchida:', dataNascimentoInput.value);
+                        }
+                    }
+                    
+                    // Preencher campo Nome da Mãe
+                    const nomeMAEValue = getFieldValue(patientData, ['nome da mae', 'nomemae', 'mae', 'nome mae']);
+                    if (nomeMAEValue) {
+                        document.getElementById('nome_mae').value = nomeMAEValue;
+                        console.log('Nome da mãe preenchido:', nomeMAEValue);
+                    }
+                    
+                    // Preencher campo CNS (NºCartSUS)
+                    const cnsValue = getFieldValue(patientData, ['NºCartSUS', 'ncartsus', 'cns', 'nº cart sus']);
+                    if (cnsValue) {
+                        document.getElementById('cns').value = cnsValue;
+                        console.log('CNS preenchido:', cnsValue);
+                    }
+                    
+                    // Preencher campo Endereço
+                    const enderecoValue = getFieldValue(patientData, ['endereco', 'endereço', 'endereo']);
+                    if (enderecoValue) {
+                        document.getElementById('endereco').value = enderecoValue;
+                        console.log('Endereço preenchido:', enderecoValue);
+                    }
+                    
+                    // Preencher campo Cidade (Municip)
+                    const cidadeValue = getFieldValue(patientData, ['Municip', 'municip', 'cidade', 'municipio']);
+                    if (cidadeValue) {
+                        document.getElementById('cidade').value = cidadeValue;
+                        console.log('Cidade preenchida:', cidadeValue);
+                    }
+                    
+                    // Preencher campo Telefone (Contato)
+                    const telefoneValue = getFieldValue(patientData, ['Telefone', 'telefone', 'contato', 'fone']);
+                    if (telefoneValue) {
+                        document.getElementById('contato').value = telefoneValue;
+                        console.log('Telefone preenchido:', telefoneValue);
+                    }
+                    
+                    // Selecionar radio button de sexo (MAS = M, FEM = F)
+                    const sexoValue = getFieldValue(patientData, ['SEXO', 'sexo', 'genero']);
+                    if (sexoValue) {
+                        const sexoUpperCase = String(sexoValue).toUpperCase();
+                        let sexoCode = '';
+                        
+                        if (sexoUpperCase.includes('MAS')) {
+                            sexoCode = 'M';
+                        } else if (sexoUpperCase.includes('FEM')) {
+                            sexoCode = 'F';
+                        }
+                        
+                        if (sexoCode) {
+                            const sexoRadio = document.getElementById(`sexo_${sexoCode.toLowerCase()}`);
+                            if (sexoRadio) {
+                                sexoRadio.checked = true;
+                                console.log('Sexo selecionado:', sexoCode);
+                            }
+                        }
+                    }
+                    
+                    searchResult.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Paciente encontrado! Campos preenchidos automaticamente.</div>';
+                } else {
+                    searchResult.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Prontuário não encontrado no banco de dados do CPAM.</div>';
+                }
+            })
+            .catch(error => {
+                btnBusca.disabled = false;
+                btnBusca.innerHTML = '<i class="fas fa-search"></i> Buscar';
+                console.error('Erro:', error);
+                searchResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Erro ao buscar dados: ' + error.message + '</div>';
+            });
+    }
 </script>
 {% endblock %}

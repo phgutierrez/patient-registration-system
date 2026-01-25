@@ -42,6 +42,7 @@ class SurgeryRequest(db.Model):
     # Metadados
     status = db.Column(db.String(20), default='Pendente')
     pdf_filename = db.Column(db.String(255), nullable=True)
+    pdf_hemocomponente = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

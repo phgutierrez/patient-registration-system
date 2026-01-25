@@ -14,3 +14,5 @@ email-validator==2.0.0
 python-dateutil==2.8.2
 reportlab==4.0.4
 pytest==7.4.3
+pyodbc==4.0.39
+pandas==2.0.3

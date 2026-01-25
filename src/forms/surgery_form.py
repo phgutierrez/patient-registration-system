@@ -73,6 +73,8 @@ class SurgeryRequestForm(FlaskForm):
 
     assistente = SelectField('Assistente', validators=[DataRequired()],
                              choices=[('', 'Selecione um assistente'),
+                                      ('Dr. Pedro Henrique',
+                                       'Dr. Pedro Henrique'),
                                       ('Dr. Francisco Laecio',
                                        'Dr. Francisco Laecio'),
                                       ('Dr. Brauner Cavalcanti',

@@ -51,3 +51,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# Bancos Access (locais)
+*.accdb
+*.mdb
+src/static/*.accdb
