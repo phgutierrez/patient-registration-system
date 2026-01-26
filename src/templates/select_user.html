@@ -1,27 +1,65 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="select-user-container" style="max-width: 500px; margin: 50px auto; padding: 30px; border: 1px solid #ddd; border-radius: 8px;">
-    <h1 style="text-align: center; margin-bottom: 30px;">Quem está solicitando a cirurgia?</h1>
-    
-    <form method="POST" action="{{ url_for('auth.select_user') }}">
-        <div class="form-group" style="margin-bottom: 20px;">
-            <label for="username" style="display: block; margin-bottom: 10px; font-weight: bold;">Selecione o solicitante:</label>
-            <select id="username" name="username" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px;">
-                <option value="">-- Escolha um solicitante --</option>
-                {% for user in users %}
-                    <option value="{{ user.username }}">{{ user.full_name }}</option>
-                {% endfor %}
-            </select>
+<div class="container" style="max-width: 600px; margin: 4rem auto;">
+    <!-- Card de Seleção -->
+    <div class="card border-0 shadow-lg">
+        <div class="card-header text-center" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 2rem;">
+            <i class="fas fa-user-circle" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
+            <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0;">
+                Identificação do Solicitante
+            </h1>
+            <p style="margin: 0.5rem 0 0 0; font-size: 1rem; opacity: 0.95;">
+                Quem está solicitando a cirurgia?
+            </p>
         </div>
-        
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">
-            Continuar
-        </button>
-    </form>
-    
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="{{ url_for('auth.register_user') }}" style="color: #007bff; text-decoration: none;">Gerenciar solicitantes</a>
+        <div class="card-body p-4">
+            <form method="POST" action="{{ url_for('auth.select_user') }}">
+                <div class="mb-4">
+                    <label for="username" class="form-label" style="font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem; display: block;">
+                        <i class="fas fa-user-md me-2" style="color: #3b82f6;"></i>Selecione o solicitante:
+                    </label>
+                    <select id="username" name="username" required class="form-select" style="padding: 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; transition: all 0.3s ease;">
+                        <option value="" style="color: #94a3b8;">-- Escolha um solicitante --</option>
+                        {% for user in users %}
+                            <option value="{{ user.username }}">{{ user.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 1rem; border-radius: 8px; font-weight: 600; border: none; font-size: 1.1rem; transition: all 0.3s ease;">
+                    <i class="fas fa-arrow-right me-2"></i>Continuar
+                </button>
+            </form>
+            
+            <div class="text-center mt-4 pt-3" style="border-top: 1px solid #e2e8f0;">
+                <a href="{{ url_for('auth.register_user') }}" style="color: #3b82f6; text-decoration: none; font-weight: 600; transition: all 0.3s ease;">
+                    <i class="fas fa-cog me-2"></i>Gerenciar solicitantes
+                </a>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+    .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        outline: none;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+    }
+    
+    .card {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    a:hover {
+        color: #2563eb !important;
+    }
+</style>
 {% endblock %}

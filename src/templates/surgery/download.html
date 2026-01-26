@@ -9,7 +9,7 @@
         <p>A solicitação de cirurgia para o paciente <strong>{{ patient.nome }}</strong> foi registrada.</p>
     </div>
     
-    <div class="card mb-4">
+    <div class="card mb-4 border-0 shadow-sm">
         <div class="card-header">
             <h3>Formulário de Internação</h3>
         </div>
@@ -18,7 +18,7 @@
             <p>Clique no botão abaixo para baixar o formulário:</p>
             
             <a href="{{ url_for('surgery.serve_pdf', pdf_name=pdf_name) }}" class="btn btn-primary">
-                <i class="fas fa-download"></i> Baixar Formulário
+                <i class="fas fa-download me-2"></i>Baixar Formulário
             </a>
         </div>
     </div>

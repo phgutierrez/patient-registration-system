@@ -9,10 +9,10 @@
         <h1 class="mb-0">Solicitar Cirurgia</h1>
         <div class="d-flex gap-2 flex-wrap">
             <button type="button" class="btn btn-info" onclick="abrirModelos()">
-                <i class="fas fa-folder-open me-1"></i> Modelos Salvos
+                <i class="fas fa-folder-open me-1 me-2"></i>Modelos Salvos
             </button>
             <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Voltar para Paciente
+                <i class="fas fa-arrow-left me-2"></i>Voltar para Paciente
             </a>
         </div>
     </div>
@@ -26,16 +26,15 @@
     </div>
 
     <div class="alert alert-info d-flex align-items-center" role="alert">
-        <i class="fas fa-info-circle me-2"></i>
-        <div>Preencha todos os campos obrigatórios (*).</div>
+        <i class="fas fa-info-circle me-2 me-2"></i><div>Preencha todos os campos obrigatórios (*).</div>
     </div>
 
     <form method="POST" class="needs-validation" novalidate>
         {{ form.csrf_token }}
 
         <!-- Dados Clínicos -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0"><i class="fas fa-notes-medical me-2"></i>Dados Clínicos</h5>
             </div>
             <div class="card-body">
@@ -94,8 +93,8 @@
         </div>
 
         <!-- Dados do Procedimento -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Dados do Procedimento</h5>
             </div>
             <div class="card-body">
@@ -183,8 +182,8 @@
         </div>
 
         <!-- Recursos Necessários -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0"><i class="fas fa-cogs me-2"></i>Recursos Necessários</h5>
             </div>
             <div class="card-body">
@@ -267,8 +266,8 @@
         </div>
 
         <!-- Informações para Internação -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Informações para Internação</h5>
             </div>
             <div class="card-body">
@@ -321,15 +320,15 @@
         <div class="d-flex justify-content-between gap-2 mb-4">
             <div>
                 <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-1"></i> Voltar para o Paciente
+                    <i class="fas fa-arrow-left me-1 me-2"></i>Voltar para o Paciente
                 </a>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-3">
                 <button type="button" class="btn btn-warning" onclick="salvarComoModelo()">
-                    <i class="fas fa-save me-1"></i> Salvar como Modelo
+                    <i class="fas fa-save me-1 me-2"></i>Salvar como Modelo
                 </button>
                 <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                    <i class="fas fa-times me-1"></i> Cancelar
+                    <i class="fas fa-times me-1 me-2"></i>Cancelar
                 </a>
                 {{ form.submit(class="btn btn-primary", value="Solicitar Cirurgia") }}
             </div>

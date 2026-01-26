@@ -4,22 +4,25 @@
 
 {% block content %}
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Editar Paciente</h1>
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+        <div class="card-body py-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-0" style="font-size: 2rem; font-weight: 700;">
+                        <i class="fas fa-user-edit me-3"></i>Editar Paciente</h1>
+                </div>
         <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Voltar
+            <i class="fas fa-arrow-left me-2"></i>Voltar
         </a>
     </div>
 
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i> Preencha todos os campos obrigatórios (*).
-    </div>
+    
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
     <div class="alert alert-{{ category }}">
-        <i class="fas fa-exclamation-circle"></i> {{ message }}
+        <i class="fas fa-exclamation-circle me-2"></i>{{ message }}
     </div>
     {% endfor %}
     {% endif %}
@@ -29,10 +32,10 @@
         {{ form.hidden_tag() }}
 
         <!-- Dados Pessoais -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-user-circle"></i> Dados Pessoais
+                    <i class="fas fa-user-circle me-2"></i>Dados Pessoais
                 </h5>
             </div>
             <div class="card-body">
@@ -41,8 +44,7 @@
                         <label for="nome" class="form-label">Nome do Paciente *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-user"></i>
-                            </span>
+                                <i class="fas fa-user me-2"></i></span>
                             {{ form.nome(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="nome-feedback">Por favor, informe o nome completo do
@@ -53,12 +55,11 @@
                         <label for="prontuario" class="form-label">Prontuário *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-file-medical"></i>
-                            </span>
+                                <i class="fas fa-file-medical me-2"></i></span>
                             {{ form.prontuario(class="form-control", required=True) }}
                         </div>
                         <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Número do prontuário interno do CPAM.
+                            <i class="fas fa-info-circle me-2"></i>Número do prontuário interno do CPAM.
                         </small>
                         <div class="invalid-feedback-custom" id="prontuario-feedback">Por favor, informe o número do
                             prontuário.</div>
@@ -70,8 +71,7 @@
                         <label for="data_nascimento" class="form-label">Data de Nascimento *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-calendar-alt"></i>
-                            </span>
+                                <i class="fas fa-calendar-alt me-2"></i></span>
                             {{ form.data_nascimento(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="data_nascimento-feedback">Por favor, informe uma data
@@ -85,14 +85,14 @@
                                 <input class="form-check-input" type="radio" name="sexo" id="sexo_m" value="M" required
                                     {% if form.sexo.data=='M' %}checked{% endif %}>
                                 <label class="form-check-label gender-male" for="sexo_m">
-                                    <i class="fas fa-mars"></i> Masculino
+                                    <i class="fas fa-mars me-2"></i>Masculino
                                 </label>
                             </div>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="sexo" id="sexo_f" value="F" {% if
                                     form.sexo.data=='F' %}checked{% endif %}>
                                 <label class="form-check-label gender-female" for="sexo_f">
-                                    <i class="fas fa-venus"></i> Feminino
+                                    <i class="fas fa-venus me-2"></i>Feminino
                                 </label>
                             </div>
                         </div>
@@ -104,12 +104,11 @@
                         <label for="cns" class="form-label">CNS *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-id-card"></i>
-                            </span>
+                                <i class="fas fa-id-card me-2"></i></span>
                             {{ form.cns(class="form-control", required=True) }}
                         </div>
                         <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Cartão Nacional de Saúde (15 dígitos).
+                            <i class="fas fa-info-circle me-2"></i>Cartão Nacional de Saúde (15 dígitos).
                         </small>
                         <div class="invalid-feedback-custom" id="cns-feedback">Por favor, informe o CNS válido (15
                             dígitos numéricos).</div>
@@ -121,8 +120,7 @@
                         <label for="nome_mae" class="form-label">Nome da Mãe *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-female"></i>
-                            </span>
+                                <i class="fas fa-female me-2"></i></span>
                             {{ form.nome_mae(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="nome_mae-feedback">Por favor, informe o nome da mãe.
@@ -133,10 +131,10 @@
         </div>
 
         <!-- Endereço e Contato -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-map-marker-alt"></i> Endereço e Contato
+                    <i class="fas fa-map-marker-alt me-2"></i>Endereço e Contato
                 </h5>
             </div>
             <div class="card-body">
@@ -145,8 +143,7 @@
                         <label for="endereco" class="form-label">Endereço *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-home"></i>
-                            </span>
+                                <i class="fas fa-home me-2"></i></span>
                             {{ form.endereco(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="endereco-feedback">Por favor, informe o endereço
@@ -159,8 +156,7 @@
                         <label for="cidade" class="form-label">Cidade *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-city"></i>
-                            </span>
+                                <i class="fas fa-city me-2"></i></span>
                             {{ form.cidade(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="cidade-feedback">Por favor, informe a cidade.</div>
@@ -170,8 +166,7 @@
                         <label for="estado" class="form-label">Estado *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-map"></i>
-                            </span>
+                                <i class="fas fa-map me-2"></i></span>
                             {{ form.estado(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="estado-feedback">Por favor, informe o estado.</div>
@@ -183,8 +178,7 @@
                         <label for="contato" class="form-label">Contato *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-phone"></i>
-                            </span>
+                                <i class="fas fa-phone me-2"></i></span>
                             {{ form.contato(class="form-control", required=True) }}
                         </div>
                         <div class="invalid-feedback-custom" id="contato-feedback">Por favor, informe um número de
@@ -195,10 +189,10 @@
         </div>
 
         <!-- Informações Médicas -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-stethoscope"></i> Informações Médicas
+                    <i class="fas fa-stethoscope me-2"></i>Informações Médicas
                 </h5>
             </div>
             <div class="card-body">
@@ -207,8 +201,7 @@
                         <label for="diagnostico" class="form-label">Diagnóstico *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-file-medical-alt"></i>
-                            </span>
+                                <i class="fas fa-file-medical-alt me-2"></i></span>
                             {{ form.diagnostico(class="form-control", required=True, rows="3") }}
                         </div>
                         <div class="invalid-feedback-custom" id="diagnostico-feedback">Por favor, informe o diagnóstico
@@ -219,12 +212,11 @@
                         <label for="cid" class="form-label">CID *</label>
                         <div class="input-group">
                             <span class="input-group-text">
-                                <i class="fas fa-medkit"></i>
-                            </span>
+                                <i class="fas fa-medkit me-2"></i></span>
                             {{ form.cid(class="form-control", required=True) }}
                         </div>
                         <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Formato: X999 (uma letra seguida de três números).
+                            <i class="fas fa-info-circle me-2"></i>Formato: X999 (uma letra seguida de três números).
                         </small>
                         <div class="invalid-feedback-custom" id="cid-feedback">Por favor, informe o CID no formato
                             correto (ex: A123).</div>
@@ -235,7 +227,7 @@
 
         <div class="d-flex justify-content-end gap-2">
             <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Salvar Alterações
+                <i class="fas fa-save me-2"></i>Salvar Alterações
             </button>
         </div>
     </form>

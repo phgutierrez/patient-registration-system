@@ -57,7 +57,7 @@ excludes = [
 pyinstaller_args = [
     'server.py',                          # Arquivo principal
     '--name=PatientRegistration',         # Nome do executável
-    '--onefile',                          # Criar um único arquivo executável
+    '--onedir',                           # Criar pasta com dependências (inicialização mais rápida)
     '--noconsole',                        # Não mostrar console (use --console para debug)
     '--clean',                            # Limpar cache antes de buildar
     '--noconfirm',                        # Não pedir confirmação para sobrescrever
@@ -111,7 +111,7 @@ print("=" * 70)
 print("Iniciando build do executável...")
 print("=" * 70)
 print(f"Nome: PatientRegistration.exe")
-print(f"Modo: One-file (executável único)")
+print(f"Modo: One-dir (pasta com dependências - inicialização rápida)")
 print(f"Servidor: Waitress (produção)")
 print(f"Otimizações: Ativadas")
 print(f"Módulos excluídos: {len(excludes)}")
@@ -123,9 +123,10 @@ PyInstaller.__main__.run(pyinstaller_args)
 print("\n" + "=" * 70)
 print("Build concluído!")
 print("=" * 70)
-print(f"Executável criado em: dist\\PatientRegistration.exe")
-print("\nDicas para reduzir ainda mais o tamanho:")
-print("1. Use UPX (compressor de executáveis): --upx-dir=<caminho_upx>")
-print("2. Remova arquivos .pyc não utilizados")
-print("3. Considere usar --onedir ao invés de --onefile para inicialização mais rápida")
+print(f"Executável criado em: dist\\PatientRegistration\\PatientRegistration.exe")
+print("\nBenefícios do modo --onedir:")
+print("✓ Inicialização mais rápida (não precisa extrair arquivos)")
+print("✓ Melhor desempenho em execuções subsequentes")
+print("✓ Facilita debugging e manutenção")
+print("\nPara distribuir: Envie toda a pasta 'dist\\PatientRegistration'")
 print("=" * 70)
