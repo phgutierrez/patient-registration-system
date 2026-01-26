@@ -55,6 +55,7 @@
             background: linear-gradient(135deg, var(--secondary) 0%, #0f172a 100%);
             color: white;
             padding: 2rem 1.5rem;
+            padding-bottom: 6rem;  /* Espaço para o botão de sair */
             position: fixed;
             height: 100vh;
             overflow-y: auto;
@@ -421,6 +422,14 @@
                 {% endif %}
             </ul>
         </nav>
+        
+        <!-- Botão Sair do Sistema (parte inferior da sidebar) -->
+        <div style="position: absolute; bottom: 2rem; left: 1.5rem; right: 1.5rem;">
+            <button onclick="shutdownServer()" class="btn btn-danger" style="width: 100%; justify-content: center;">
+                <i class="fas fa-power-off"></i>
+                Sair do Sistema
+            </button>
+        </div>
     </aside>
 
     <!-- Main Content -->
@@ -450,6 +459,32 @@
     </main>
 
     <script>
+        // Função para desligar o servidor
+        function shutdownServer() {
+            if (confirm('Deseja realmente sair do sistema? O servidor será finalizado.')) {
+                fetch('{{ url_for("main.shutdown") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;"><div style="text-align: center; padding: 3rem; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1);"><i class="fas fa-check-circle" style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;"></i><h2 style="color: #1e293b; margin-bottom: 1rem;">Sistema Encerrado com Sucesso</h2><p style="color: #64748b; margin-bottom: 0;">Você já pode fechar esta janela.</p></div></div>';
+                        setTimeout(() => {
+                            window.close();
+                        }, 2000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao desligar servidor:', error);
+                    alert('Erro ao tentar desligar o servidor. Por favor, feche a janela manualmente.');
+                });
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function () {
             // Menu Toggle
             const menuToggle = document.getElementById('menuToggle');

@@ -13,6 +13,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+!dist/PatientRegistration.exe
 downloads/
 eggs/
 .eggs/

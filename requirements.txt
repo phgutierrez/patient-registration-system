@@ -16,3 +16,5 @@ reportlab==4.0.4
 pytest==7.4.3
 pyodbc==4.0.39
 pandas==2.0.3
+waitress==2.1.2
+pyinstaller==6.3.0
