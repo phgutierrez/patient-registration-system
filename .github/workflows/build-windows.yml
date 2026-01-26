@@ -50,6 +50,7 @@ jobs:
     - name: Create ZIP archive
       shell: powershell
       run: |
+        # Extract version info
         $ref = "${{ github.ref }}"
         $version = $null
         
