@@ -2,7 +2,7 @@
 # Especificação do PyInstaller para build 32 bits
 
 a = Analysis(
-    ['run.py'],
+    ['wsgi.py'],
     pathex=[],
     binaries=[],
     datas=[
