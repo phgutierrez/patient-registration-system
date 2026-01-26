@@ -50,28 +50,52 @@ jobs:
     - name: Create ZIP archive
       shell: powershell
       run: |
-        # Extrair versão de forma segura
+        # Extrair versão com lógica clara
         $ref = "${{ github.ref }}"
-        $version = $ref -replace '^refs/tags/', ''
-        $version = $version -replace '^refs/heads/', ''
+        $version = $null
         
-        # Valor padrão se vazio
-        if ([string]::IsNullOrEmpty($version) -or $version -eq $ref) {
+        # Se for tag (refs/tags/v1.0.1)
+        if ($ref -match '^refs/tags/') {
+          $version = $ref -replace '^refs/tags/', ''
+        }
+        # Se for branch (refs/heads/teste-exe)
+        elseif ($ref -match '^refs/heads/') {
+          $version = $ref -replace '^refs/heads/', ''
+        }
+        # Se for workflow_dispatch, usar input ou default
+        else {
+          $version = '${{ github.event.inputs.version }}'
+        }
+        
+        # Usar default se ainda estiver vazio
+        if ([string]::IsNullOrEmpty($version)) {
           $version = 'v1.0.1'
         }
         
+        Write-Host "GitHub Ref: $ref"
+        Write-Host "Versão detectada: $version"
+        
         # Nome do arquivo ZIP
         $zipName = "prontuario-$version-${{ matrix.arch }}-bits.zip"
+        $destPath = "dist\$zipName"
         
-        Write-Host "Versão: $version"
         Write-Host "ZIP Name: $zipName"
+        Write-Host "Dest Path: $destPath"
         
         if (Test-Path "dist\${{ matrix.output-name }}") {
-          Compress-Archive -Path "dist\${{ matrix.output-name }}" -DestinationPath $zipName -Force
-          Write-Host "ZIP criado com sucesso: $zipName"
-          Write-Host "Tamanho: $((Get-Item $zipName).Length / 1MB) MB"
+          Write-Host "Build dir encontrado: dist\${{ matrix.output-name }}"
+          Compress-Archive -Path "dist\${{ matrix.output-name }}" -DestinationPath $destPath -Force
+          
+          if (Test-Path $destPath) {
+            $size = (Get-Item $destPath).Length / 1MB
+            Write-Host "✓ ZIP criado com sucesso: $zipName ($([Math]::Round($size, 2)) MB)"
+          } else {
+            Write-Error "Falha ao criar ZIP"
+            exit 1
+          }
         } else {
           Write-Error "Diretório de build não encontrado: dist\${{ matrix.output-name }}"
+          Get-ChildItem dist -ErrorAction SilentlyContinue | Select-Object FullName
           exit 1
         }
     
