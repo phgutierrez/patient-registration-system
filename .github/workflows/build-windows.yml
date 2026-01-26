@@ -50,52 +50,38 @@ jobs:
     - name: Create ZIP archive
       shell: powershell
       run: |
-        # Extrair versão com lógica clara
         $ref = "${{ github.ref }}"
         $version = $null
         
-        # Se for tag (refs/tags/v1.0.1)
-        if ($ref -match '^refs/tags/') {
-          $version = $ref -replace '^refs/tags/', ''
+        if ($ref -match 'refs/tags') {
+          $version = $ref -replace 'refs/tags/', ''
         }
-        # Se for branch (refs/heads/teste-exe)
-        elseif ($ref -match '^refs/heads/') {
-          $version = $ref -replace '^refs/heads/', ''
+        elseif ($ref -match 'refs/heads') {
+          $version = $ref -replace 'refs/heads/', ''
         }
-        # Se for workflow_dispatch, usar input ou default
         else {
           $version = '${{ github.event.inputs.version }}'
         }
         
-        # Usar default se ainda estiver vazio
         if ([string]::IsNullOrEmpty($version)) {
           $version = 'v1.0.1'
         }
         
-        Write-Host "GitHub Ref: $ref"
-        Write-Host "Versão detectada: $version"
+        Write-Host "Ref: $ref"
+        Write-Host "Version: $version"
         
-        # Nome do arquivo ZIP
         $zipName = "prontuario-$version-${{ matrix.arch }}-bits.zip"
-        $destPath = "dist\$zipName"
+        $srcPath = "dist\${{ matrix.output-name }}"
         
-        Write-Host "ZIP Name: $zipName"
-        Write-Host "Dest Path: $destPath"
+        Write-Host "Source: $srcPath"
+        Write-Host "Dest: $zipName"
         
-        if (Test-Path "dist\${{ matrix.output-name }}") {
-          Write-Host "Build dir encontrado: dist\${{ matrix.output-name }}"
-          Compress-Archive -Path "dist\${{ matrix.output-name }}" -DestinationPath $destPath -Force
-          
-          if (Test-Path $destPath) {
-            $size = (Get-Item $destPath).Length / 1MB
-            Write-Host "✓ ZIP criado com sucesso: $zipName ($([Math]::Round($size, 2)) MB)"
-          } else {
-            Write-Error "Falha ao criar ZIP"
-            exit 1
-          }
+        if (Test-Path $srcPath) {
+          Write-Host "Found: $srcPath"
+          Compress-Archive -Path $srcPath -DestinationPath $zipName -Force
+          Write-Host "ZIP created: $zipName"
         } else {
-          Write-Error "Diretório de build não encontrado: dist\${{ matrix.output-name }}"
-          Get-ChildItem dist -ErrorAction SilentlyContinue | Select-Object FullName
+          Write-Host "ERROR: Path not found: $srcPath"
           exit 1
         }
     
