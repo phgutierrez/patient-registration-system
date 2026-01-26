@@ -1,0 +1,22 @@
+FROM python:3.11-windowsservercore
+
+WORKDIR /app
+
+# Copiar projeto
+COPY . .
+
+# Instalar dependências
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Compilar 64 bits
+RUN pyinstaller --clean prontuario_64bits.spec
+
+# Compilar 32 bits  
+RUN pyinstaller --clean prontuario_32bits.spec
+
+# Criar ZIPs
+RUN powershell -Command "Compress-Archive -Path 'dist/64bits/prontuario-64bits' -DestinationPath 'dist/prontuario-v1.0.1-64bits.zip' -Force"
+RUN powershell -Command "Compress-Archive -Path 'dist/32bits/prontuario-32bits' -DestinationPath 'dist/prontuario-v1.0.1-32bits.zip' -Force"
+
+# Saída
+RUN dir dist\*.zip

@@ -1,0 +1,76 @@
+name: Build Windows Executables
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: 'v1.0.1'
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11']
+        arch: ['x64', 'x86']
+        include:
+          - arch: 'x64'
+            spec-file: 'prontuario_64bits.spec'
+            output-name: 'prontuario-64bits'
+          - arch: 'x86'
+            spec-file: 'prontuario_32bits.spec'
+            output-name: 'prontuario-32bits'
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: ${{ matrix.arch }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build executable
+      run: |
+        pyinstaller --clean ${{ matrix.spec-file }}
+    
+    - name: Create ZIP archive
+      shell: powershell
+      run: |
+        $version = "${{ github.ref }}" -replace 'refs/tags/', ''
+        if ($version -eq '') { $version = 'v1.0.1' }
+        $zipName = "prontuario-$version-${{ matrix.arch }}-bits.zip"
+        
+        if (Test-Path "dist\${{ matrix.output-name }}") {
+          Compress-Archive -Path "dist\${{ matrix.output-name }}" -DestinationPath $zipName -Force
+          Write-Host "ZIP criado: $zipName"
+        } else {
+          Write-Error "Diretório de build não encontrado"
+          exit 1
+        }
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: prontuario-${{ matrix.arch }}-bits
+        path: prontuario-v*.zip
+        retention-days: 30
+    
+    - name: Create Release Assets
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: prontuario-*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
