@@ -58,8 +58,6 @@ a = Analysis(
         'xml.dom',
         'xml.sax',
         'multiprocessing',
-        'concurrent',
-        'asyncio',
         'distutils',
         'lib2to3',
         'pdb',

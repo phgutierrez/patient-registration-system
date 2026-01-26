@@ -31,8 +31,8 @@ if os.path.exists('dist'):
 excludes = [
     'matplotlib', 'numpy.distutils', 'setuptools', 'pip', 'wheel', 'pytest',
     'ipython', 'jupyter', 'notebook', 'sphinx', 'tkinter', 'test', 'unittest',
-    'doctest', 'pydoc', 'multiprocessing', 'concurrent',
-    'asyncio', 'distutils', 'lib2to3', 'pdb', 'dbm', 'curses', 'turtle',
+    'doctest', 'pydoc', 'multiprocessing',
+    'distutils', 'lib2to3', 'pdb', 'dbm', 'curses', 'turtle',
 ]
 
 # Configurações do PyInstaller (modo ONE-DIR)
