@@ -8,6 +8,8 @@ on:
         required: true
         default: 'v1.0.1'
   push:
+    branches:
+      - 'teste-exe'
     tags:
       - 'v*'
 
@@ -48,15 +50,28 @@ jobs:
     - name: Create ZIP archive
       shell: powershell
       run: |
-        $version = "${{ github.ref }}" -replace 'refs/tags/', ''
-        if ($version -eq '') { $version = 'v1.0.1' }
+        # Extrair versão de forma segura
+        $ref = "${{ github.ref }}"
+        $version = $ref -replace '^refs/tags/', ''
+        $version = $version -replace '^refs/heads/', ''
+        
+        # Valor padrão se vazio
+        if ([string]::IsNullOrEmpty($version) -or $version -eq $ref) {
+          $version = 'v1.0.1'
+        }
+        
+        # Nome do arquivo ZIP
         $zipName = "prontuario-$version-${{ matrix.arch }}-bits.zip"
+        
+        Write-Host "Versão: $version"
+        Write-Host "ZIP Name: $zipName"
         
         if (Test-Path "dist\${{ matrix.output-name }}") {
           Compress-Archive -Path "dist\${{ matrix.output-name }}" -DestinationPath $zipName -Force
-          Write-Host "ZIP criado: $zipName"
+          Write-Host "ZIP criado com sucesso: $zipName"
+          Write-Host "Tamanho: $((Get-Item $zipName).Length / 1MB) MB"
         } else {
-          Write-Error "Diretório de build não encontrado"
+          Write-Error "Diretório de build não encontrado: dist\${{ matrix.output-name }}"
           exit 1
         }
     
