@@ -1,19 +1,19 @@
-# Ambiente virtual
-venv/
-env/
-.venv/
-ENV/
+# Builds e Distribuição
+build/
+dist/
+*.exe
+*.zip
+*.tar.gz
+*.spec
 
-# Arquivos de cache do Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-!dist/PatientRegistration.exe
+*.egg
+*.egg-info/
 downloads/
 eggs/
 .eggs/
@@ -22,32 +22,85 @@ lib64/
 parts/
 sdist/
 var/
-*.egg-info/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+develop-eggs/
 .installed.cfg
-*.egg
 
-# Banco de dados SQLite
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.virtualenv
+
+# Banco de Dados
+instance/
+*.db
 *.sqlite
 *.sqlite3
-*.db
 
-# Arquivos gerados
-src/static/preenchidos/
-
-# Arquivos de ambiente
-.env
-.flaskenv
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
 logs/
 
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
+# Configurações locais
+.env
+.env.local
+.flaskenv
+config.local.py
 
-# IDEs e editores
-.idea/
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.cache
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Arquivos do sistema
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Backups
+*.backup
+backup/
+
+# Access Database
+*.laccdb
+*.mdb~
+
+# PDFs gerados
+src/static/pdfs/gerados/*.pdf
+src/static/preenchidos/
+
+# Script auxiliar
+update_templates.py
+
 .vscode/
 *.swp
 *.swo

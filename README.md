@@ -1,79 +1,303 @@
-# filepath: /patient-registration-system/patient-registration-system/README.md
+# 🏥 Sistema de Solicitação de Cirurgia - Ortopedia Pediátrica
 
-# Sistema de Registro de Pacientes
+<div align="center">
 
-Sistema para gerenciamento de prontuários, pacientes e solicitações de cirurgia desenvolvido com Flask.
+![Python](https://img.shields.io/badge/Python-3.11.9-blue?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-2.3.3-black?logo=flask&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Produção-success)
 
-## Funcionalidades
+Sistema completo para gerenciamento de pacientes e solicitações de cirurgia pediátrica com interface moderna e geração automática de documentos.
 
-- Cadastro e gerenciamento de pacientes
-- Solicitação e agendamento de cirurgias
-- Geração automática de PDFs para solicitações
-- Integração com Google Forms para agendamento
-- Interface responsiva
+[📥 Download](#-instalação) • [📖 Documentação](#-funcionalidades) • [🚀 Como Usar](#-uso-rápido) • [📄 Releases](../../releases)
 
-## Tecnologias Utilizadas
+</div>
 
-- Python 3.x
-- Flask (Framework web)
-- SQLAlchemy (ORM)
-- Bootstrap (Frontend)
-- FillPDF (Preenchimento de formulários PDF)
+---
 
-## Estrutura do Projeto
+## 📋 Sobre o Projeto
+
+Sistema desenvolvido para otimizar o processo de cadastro de pacientes e solicitação de cirurgias ortopédicas pediátricas. Inclui geração automática de PDFs, integração com banco de dados local e interface responsiva moderna.
+
+### ✨ Características Principais
+
+- 🎨 **Interface Moderna** - Design responsivo com gradientes e animações
+- ⚡ **Alta Performance** - Servidor Waitress otimizado para produção
+- 💾 **Persistência Local** - SQLite com migrações automáticas (Alembic)
+- 📄 **Geração de PDFs** - Documentos automáticos com ReportLab
+- 🔒 **Segurança** - Autenticação de usuários e proteção CSRF
+- 🚀 **Executável Windows** - Sem necessidade de instalação Python
+
+---
+
+## 🎯 Funcionalidades
+
+### Gestão de Pacientes
+- ✅ Cadastro completo com dados pessoais, endereço e informações médicas
+- ✅ Listagem com busca e filtros
+- ✅ Edição e visualização de prontuários
+- ✅ Integração com banco Access (CPAM) via pyodbc
+- ✅ Validação automática de dados (CNS, CID, telefone)
+- ✅ Cálculo automático de idade
+
+### Solicitações de Cirurgia
+- ✅ Formulário completo para solicitação
+- ✅ Geração automática de PDF com dados do paciente
+- ✅ Histórico de solicitações por paciente
+- ✅ Confirmação e download de documentos
+
+### Gestão de Usuários
+- ✅ Cadastro de médicos solicitantes
+- ✅ Campos para CNS e CRM
+- ✅ Sistema de seleção de usuário ativo
+- ✅ Interface de gerenciamento
+
+### Interface do Sistema
+- ✅ Dashboard com atalhos rápidos (Alt+N, Alt+L, Alt+U)
+- ✅ Cards clicáveis para navegação intuitiva
+- ✅ Logo institucional e identidade visual
+- ✅ Botão de encerramento do sistema
+- ✅ Mensagens de feedback em tempo real
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+### Backend
+- **Python 3.11.9** - Linguagem principal
+- **Flask 2.3.3** - Framework web
+- **SQLAlchemy** - ORM para banco de dados
+- **Alembic** - Migrações de banco de dados
+- **Waitress 2.1.2** - Servidor WSGI de produção
+- **Flask-Login** - Gerenciamento de sessões
+- **Flask-WTF** - Formulários com validação
+
+### Frontend
+- **Bootstrap 5.3.3** - Framework CSS
+- **Font Awesome 6.4.0** - Ícones
+- **JavaScript** - Interatividade e validações
+
+### Geração de Documentos
+- **ReportLab** - Criação de PDFs
+- **PyPDF2** - Manipulação de PDFs
+
+### Banco de Dados
+- **SQLite** - Banco principal
+- **pyodbc** - Integração com Access (CPAM)
+
+---
+
+## 📦 Instalação
+
+### Opção 1: Executável Windows (Recomendado)
+
+1. **Baixe a última versão** na aba [Releases](../../releases)
+2. **Extraia a pasta** `PatientRegistration` para um local de sua preferência
+3. **Execute** `PatientRegistration.exe`
+4. O sistema abrirá automaticamente no navegador padrão
+
+> 💡 **Dica**: A pasta completa (377 MB) contém todas as dependências. Não mova apenas o .exe!
+
+### Opção 2: Executar via Python
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/phgutierrez/patient-registration-system.git
+cd patient-registration-system
+
+# 2. Crie um ambiente virtual
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
+
+# 3. Instale as dependências
+pip install -r requirements.txt
+
+# 4. Execute o sistema
+python run.py
+```
+
+---
+
+## 🚀 Uso Rápido
+
+### Primeira Execução
+
+1. O sistema criará automaticamente **5 usuários iniciais**:
+   - pedro
+   - andre
+   - brauner
+   - savio
+   - laecio
+
+2. **Selecione um usuário** para começar
+
+3. Use o **Dashboard** para navegar:
+   - **Alt+N** - Cadastrar novo paciente
+   - **Alt+L** - Listar pacientes
+   - **Alt+U** - Cadastrar usuário
+
+### Fluxo de Trabalho
 
 ```
-patient-registration-system
-├── src
-│   ├── static
-│   │   ├── css
-│   │   │   └── styles.css
-│   │   └── js
-│   │       └── main.js
-│   ├── templates
-│   │   ├── base.html
-│   │   ├── login.html
-│   │   ├── dashboard.html
-│   │   └── registration.html
-│   ├── models
-│   │   ├── __init__.py
-│   │   ├── user.py
-│   │   └── patient.py
-│   ├── routes
-│   │   ├── __init__.py
+1. Cadastrar Paciente → 2. Ver Pacientes → 3. Solicitar Cirurgia → 4. Download PDF
+```
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+patient-registration-system/
+├── src/
+│   ├── models/          # Modelos do banco de dados
+│   │   ├── patient.py
+│   │   ├── surgery_request.py
+│   │   └── user.py
+│   ├── routes/          # Rotas da aplicação
 │   │   ├── auth.py
-│   │   └── patients.py
-│   ├── database
-│   │   └── schema.sql
-│   ├── config.py
-│   ├── app.py
-│   └── utils.py
-├── tests
-│   ├── __init__.py
-│   ├── test_auth.py
-│   └── test_patients.py
-├── requirements.txt
+│   │   ├── patients.py
+│   │   ├── surgery.py
+│   │   └── main.py
+│   ├── templates/       # Templates HTML (17 arquivos)
+│   │   ├── base.html
+│   │   ├── index.html
+│   │   ├── auth/
+│   │   ├── patient/
+│   │   └── surgery/
+│   ├── static/          # Arquivos estáticos
+│   │   ├── css/
+│   │   ├── js/
+│   │   └── logo ortoped.png
+│   ├── utils/           # Utilitários
+│   │   └── pdf_utils.py
+│   ├── app.py           # Configuração do Flask
+│   ├── config.py        # Configurações
+│   └── extensions.py    # Extensões Flask
+├── migrations/          # Migrações do banco
+├── dist/               # Executável compilado
+│   └── PatientRegistration/
+│       ├── PatientRegistration.exe
+│       └── instance/   # Banco de dados
+├── server.py           # Servidor principal
+├── build_exe.py        # Script de build
+├── requirements.txt    # Dependências Python
 └── README.md
+
 ```
 
-## Como Instalar e Executar
+---
 
-1. Clone o repositório:
-   ```
-   git clone https://github.com/seu-usuario/patient-registration-system.git
-   cd patient-registration-system
-   ```
+## 🔧 Desenvolvimento
 
-2. Crie um ambiente virtual e instale as dependências:
-   ```
-   python -m venv venv
-   venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### Requisitos
+- Python 3.11+
+- pip
+- virtualenv
 
-3. Execute o aplicativo:
-   ```
-   flask run
-   ```
+### Executar em modo desenvolvimento
 
-4. Acesse o sistema em: http://127.0.0.1:5000
+```bash
+# Ativar ambiente virtual
+.venv\Scripts\activate
+
+# Executar com auto-reload
+flask run --reload
+
+# Ou via Python
+python run.py
+```
+
+### Criar executável
+
+```bash
+# Instalar PyInstaller
+pip install pyinstaller==6.3.0
+
+# Executar build
+python build_exe.py
+```
+
+O executável será criado em `dist/PatientRegistration/`
+
+### Migrações de Banco
+
+```bash
+# Criar nova migração
+flask db migrate -m "descrição"
+
+# Aplicar migrações
+flask db upgrade
+
+# Reverter migração
+flask db downgrade
+```
+
+---
+
+## 🎨 Capturas de Tela
+
+### Dashboard
+Interface principal com cards clicáveis e atalhos de teclado
+
+### Cadastro de Paciente
+Formulário completo com validação em tempo real
+
+### Lista de Pacientes
+Tabela moderna com busca e ações agrupadas
+
+---
+
+## 📝 Changelog
+
+### v1.0.0 (2026-01-26)
+- ✨ Interface moderna com gradientes e animações
+- ✨ Logo institucional na sidebar
+- ✨ Cards do dashboard totalmente clicáveis
+- ✨ Modo --onedir para inicialização rápida
+- 🐛 Correção de logo duplicado
+- ⚡ Otimização de performance
+- 📦 Build otimizado (377 MB com todas dependências)
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Para contribuir:
+
+1. Faça um Fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona MinhaFeature'`)
+4. Push para a branch (`git push origin feature/MinhaFeature`)
+5. Abra um Pull Request
+
+---
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
+
+## 👨‍⚕️ Autor
+
+**Dr. Pedro Henrique Freitas**
+
+- Sistema desenvolvido para otimização de processos em Ortopedia Pediátrica
+- © 2026 - Todos os direitos reservados
+
+---
+
+## 📞 Suporte
+
+Para reportar bugs ou solicitar features, abra uma [Issue](../../issues).
+
+---
+
+<div align="center">
+
+**Desenvolvido com ❤️ para Ortopedia Pediátrica**
+
+[⬆ Voltar ao topo](#-sistema-de-solicitação-de-cirurgia---ortopedia-pediátrica)
+
+</div>
