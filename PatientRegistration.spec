@@ -24,7 +24,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'numpy.distutils', 'setuptools', 'pip', 'wheel', 'pytest', 'ipython', 'jupyter', 'notebook', 'sphinx', 'tkinter', 'test', 'unittest', 'doctest', 'pydoc', 'xml.etree', 'xml.dom', 'xml.sax', 'multiprocessing', 'concurrent', 'asyncio', 'distutils', 'lib2to3', 'pdb', 'dbm', 'curses', 'turtle'],
+    excludes=['matplotlib', 'numpy.distutils', 'setuptools', 'pip', 'wheel', 'pytest', 'ipython', 'jupyter', 'notebook', 'sphinx', 'tkinter', 'test', 'unittest', 'doctest', 'pydoc', 'multiprocessing', 'distutils', 'lib2to3', 'pdb', 'dbm', 'curses', 'turtle'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

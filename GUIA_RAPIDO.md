@@ -17,10 +17,19 @@ dist\PatientRegistration.exe
 ### 2. O que Acontece
 1. **Executável inicia** → Console abre com mensagens de log
 2. **Servidor inicializa** → http://127.0.0.1:5000
-3. **Navegador abre automaticamente** → Sistema pronto para uso!
-4. **Fazer login** → Selecionar usuário existente ou cadastrar novo
+3. **Banco de dados criado** → `dist/instance/prontuario.db` (na primeira execução)
+4. **Usuários iniciais cadastrados** → 5 usuários com senha `123456`
+5. **Navegador abre automaticamente** → Sistema pronto para uso!
+6. **Fazer login** → Usar um dos usuários criados ou cadastrar novo
 
-### 3. Encerrar o Sistema
+### 3. Usuários Iniciais (Senha: 123456)
+1. **pedro** - Pedro Freitas
+2. **andre** - André Cristiano
+3. **brauner** - Brauner Cavalcanti
+4. **savio** - Sávio Bruno
+5. **laecio** - Laecio Damaceno
+
+### 4. Encerrar o Sistema
 **Opção 1 (Recomendada):**
 - Clicar no botão vermelho **"Sair do Sistema"** no menu lateral
 - Sistema encerra graciosamente
@@ -138,13 +147,22 @@ patient-registration-system/
 ### Backup
 Para fazer backup dos dados:
 ```powershell
-Copy-Item "instance\prontuario.db" "backup\prontuario_$(Get-Date -Format 'yyyy-MM-dd').db"
+# Backup do banco de dados (IMPORTANTE: usar dist\instance)
+Copy-Item "dist\instance\prontuario.db" "backup\prontuario_$(Get-Date -Format 'yyyy-MM-dd').db"
 ```
 
 ### Restaurar Backup
 ```powershell
-Copy-Item "backup\prontuario_2026-01-26.db" "instance\prontuario.db" -Force
+# Restaurar de backup (IMPORTANTE: usar dist\instance)
+Copy-Item "backup\prontuario_2026-01-26.db" "dist\instance\prontuario.db" -Force
 ```
+
+### Localização dos Dados
+- **Banco de dados**: `dist\instance\prontuario.db`
+- **PDFs gerados**: `dist\src\static\pdfs\gerados\`
+- **Executável**: `dist\PatientRegistration.exe`
+
+> ⚠️ **IMPORTANTE**: Os dados são salvos em `dist\instance\prontuario.db`. Para mover o sistema para outro computador, copie toda a pasta `dist\` incluindo a subpasta `instance\`.
 
 ## 🐛 Debug Mode
 

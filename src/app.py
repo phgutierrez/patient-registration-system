@@ -3,12 +3,20 @@ from src.config import Config
 from src.extensions import db, login_manager, csrf, migrate
 import logging
 import traceback
+import os
 
 logger = logging.getLogger(__name__)
 
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    # Verificar se há um instance_path personalizado
+    instance_path = os.environ.get('INSTANCE_PATH')
+    
+    if instance_path:
+        app = Flask(__name__, instance_path=instance_path)
+    else:
+        app = Flask(__name__)
+    
     app.config.from_object(config_class)
 
     # Inicializar extensões
