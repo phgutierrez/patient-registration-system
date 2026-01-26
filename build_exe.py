@@ -95,12 +95,11 @@ pyinstaller_args = [
     '--collect-submodules=sqlalchemy',
     '--collect-submodules=wtforms',
     
-    # Coletar dados de pacotes
-    '--copy-metadata=flask',
-    '--copy-metadata=flask-sqlalchemy',
-    '--copy-metadata=flask-login',
-    '--copy-metadata=flask-wtf',
-    '--copy-metadata=reportlab',
+    # Coletar dados de pacotes (comentado devido a problemas com Python 32 bits)
+    # '--copy-metadata=flask',
+    # '--copy-metadata=flask-sqlalchemy',
+    # '--copy-metadata=flask-login',
+    # '--copy-metadata=wtforms',
 ]
 
 # Adicionar exclusões

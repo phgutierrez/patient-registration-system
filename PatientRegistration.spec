@@ -1,14 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
-from PyInstaller.utils.hooks import copy_metadata
 
-datas = [('src', 'src'), ('migrations', 'migrations')]
 hiddenimports = ['sqlalchemy.sql.default_comparator', 'waitress', 'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf', 'flask_migrate', 'reportlab', 'reportlab.pdfgen', 'reportlab.lib', 'reportlab.platypus', 'PyPDF2', 'pyodbc', 'werkzeug', 'wtforms', 'email_validator', 'alembic', 'dateutil']
-datas += copy_metadata('flask')
-datas += copy_metadata('flask-sqlalchemy')
-datas += copy_metadata('flask-login')
-datas += copy_metadata('flask-wtf')
-datas += copy_metadata('reportlab')
 hiddenimports += collect_submodules('flask')
 hiddenimports += collect_submodules('reportlab')
 hiddenimports += collect_submodules('sqlalchemy')
@@ -19,7 +12,7 @@ a = Analysis(
     ['server.py'],
     pathex=[],
     binaries=[],
-    datas=datas,
+    datas=[('src', 'src'), ('migrations', 'migrations')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
