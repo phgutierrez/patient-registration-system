@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+        <div class="card-body py-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-0" style="font-size: 2rem; font-weight: 700;">
+                        <i class="fas fa-user-edit me-3"></i>Detalhes do Paciente</h1>
+                </div>
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-success">
+                <i class="fas fa-notes-medical me-2"></i>Solicitar Cirurgia
+            </a>
+            <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Editar
+            </a>
+            <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
+            <h5 class="card-title mb-0">{{ patient.nome }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-muted">Dados Pessoais</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Prontuário</dt>
+                        <dd class="col-sm-8">{{ patient.prontuario }}</dd>
+
+                        <dt class="col-sm-4">Data de Nascimento</dt>
+                        <dd class="col-sm-8">{{ patient.data_nascimento.strftime('%d/%m/%Y') }}</dd>
+
+                        <dt class="col-sm-4">Sexo</dt>
+                        <dd class="col-sm-8">{{ patient.sexo }}</dd>
+
+                        <dt class="col-sm-4">CNS</dt>
+                        <dd class="col-sm-8">{{ patient.cns }}</dd>
+
+                        <dt class="col-sm-4">Nome da Mãe</dt>
+                        <dd class="col-sm-8">{{ patient.nome_mae }}</dd>
+                    </dl>
+                </div>
+
+                <div class="col-md-6">
+                    <h6 class="text-muted">Endereço e Contato</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Endereço</dt>
+                        <dd class="col-sm-8">{{ patient.endereco }}</dd>
+
+                        <dt class="col-sm-4">Cidade</dt>
+                        <dd class="col-sm-8">{{ patient.cidade }}</dd>
+
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">{{ patient.estado }}</dd>
+
+                        <dt class="col-sm-4">Contato</dt>
+                        <dd class="col-sm-8">{{ patient.contato }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
+            <h5 class="card-title mb-0">Informações Médicas</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Diagnóstico</dt>
+                        <dd class="col-sm-8">{{ patient.diagnostico }}</dd>
+
+                        <dt class="col-sm-4">CID</dt>
+                        <dd class="col-sm-8">{{ patient.cid }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if patient.procedimento_solicitado %}
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
+            <h5 class="card-title mb-0">Informações de Cirurgia</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Procedimento</dt>
+                        <dd class="col-sm-8">{{ patient.procedimento_solicitado }}</dd>
+
+                        <dt class="col-sm-4">CID do Procedimento</dt>
+                        <dd class="col-sm-8">{{ patient.cid_procedimento }}</dd>
+
+                        <dt class="col-sm-4">Data Prevista</dt>
+                        <dd class="col-sm-8">{{ patient.data_prevista_cirurgia.strftime('%d/%m/%Y') }}</dd>
+
+                        <dt class="col-sm-4">Observações</dt>
+                        <dd class="col-sm-8">{{ patient.observacoes }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# NOVA SEÇÃO: Solicitações de Cirurgia #}
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0"><i class="fas fa-notes-medical me-2"></i>Solicitações de Cirurgia</h5>
+        </div>
+        <div class="card-body">
+            {% if patient.surgery_requests %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Procedimento</th>
+                            <th>Data Prevista</th>
+                            <th>Hora Prevista</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for surgery in patient.surgery_requests | sort(attribute='created_at', reverse=True) %}
+                        <tr>
+                            <td>{{ surgery.procedimento_solicitado }}</td>
+                            <td>{{ surgery.data_cirurgia.strftime('%d/%m/%Y') if surgery.data_cirurgia else 'N/A' }}
+                            </td>
+                            <td>{{ surgery.hora_cirurgia.strftime('%H:%M') if surgery.hora_cirurgia else 'N/A' }}</td>
+                            <td><span class="badge bg-secondary">{{ surgery.status or 'Pendente' }}</span></td> {#
+                            Adicionar classe de cor baseada no status se desejar #}
+                            <td>
+                                {# Link para download do PDF, se existir #}
+                                {% if surgery.pdf_filename %}
+                                <a href="{{ url_for('surgery.download_pdf', surgery_id=surgery.id, pdf_name=surgery.pdf_filename) }}"
+                                    class="btn btn-info btn-sm" title="Baixar PDF da Solicitação">
+                                    <i class="fas fa-file-pdf me-2"></i>Baixar PDF
+                                </a>
+                                {% else %}
+                                <span class="text-muted fst-italic">PDF não gerado</span>
+                                {% endif %}
+                                {# Adicionar links para editar/ver detalhes da solicitação se necessário #}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Nenhuma solicitação de cirurgia encontrada para este paciente.</p>
+            {% endif %}
+            {# Botão para solicitar nova cirurgia pode ser redundante aqui, já que está no topo #}
+            {# <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-success mt-3">+
+                Solicitar Nova Cirurgia</a> #}
+        </div>
+    </div>
+</div>
+{% endblock %}

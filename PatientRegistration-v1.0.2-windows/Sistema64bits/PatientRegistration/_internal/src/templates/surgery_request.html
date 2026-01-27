@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Solicitação de Cirurgia - {{ patient.name }}</h2>
+
+    <form method="POST" class="mt-4">
+        <div class="form-group">
+            <label for="procedimento_solicitado">Procedimento Solicitado</label>
+            <input type="text" class="form-control" id="procedimento_solicitado" name="procedimento_solicitado"
+                value="{{ patient.procedimento_solicitado or '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cid_procedimento">CID do Procedimento</label>
+            <input type="text" class="form-control" id="cid_procedimento" name="cid_procedimento"
+                value="{{ patient.cid_procedimento or '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="data_prevista_cirurgia">Data Prevista da Cirurgia</label>
+            <input type="datetime-local" class="form-control" id="data_prevista_cirurgia" name="data_prevista_cirurgia"
+                value="{{ patient.data_prevista_cirurgia.strftime('%Y-%m-%dT%H:%M') if patient.data_prevista_cirurgia else '' }}"
+                required>
+        </div>
+
+        <div class="form-group">
+            <label for="observacoes">Observações</label>
+            <textarea class="form-control" id="observacoes" name="observacoes"
+                rows="4">{{ patient.observacoes or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a href="{{ url_for('patient_details', patient_id=patient.id) }}" class="btn btn-secondary">Voltar</a>
+    </form>
+</div>
+{% endblock %}

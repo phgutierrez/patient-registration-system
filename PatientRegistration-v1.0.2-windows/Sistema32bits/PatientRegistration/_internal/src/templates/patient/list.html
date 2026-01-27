@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Pacientes - Sistema de Solicitação de Cirurgia{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho da Página -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1" style="font-size: 1.75rem; color: #1e293b; font-weight: 700;">
+                        <i class="fas fa-users me-2" style="color: #3b82f6;"></i>Lista de Pacientes
+                    </h1>
+                    <p class="text-muted mb-0">Gerencie todos os pacientes cadastrados no sistema</p>
+                </div>
+                <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary btn-lg shadow-sm">
+                    <i class="fas fa-user-plus me-2"></i>Novo Paciente
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Busca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="input-group input-group-lg">
+                <span class="input-group-text bg-white border-end-0" style="border: 2px solid #e2e8f0; border-right: none;">
+                    <i class="fas fa-search" style="color: #3b82f6;"></i>
+                </span>
+                <input type="text" 
+                       id="searchPatientInput" 
+                       class="form-control border-start-0"
+                       placeholder="Buscar por nome, CNS, cidade..."
+                       style="border: 2px solid #e2e8f0; border-left: none;">
+            </div>
+        </div>
+    </div>
+
+    {% if patients %}
+    <!-- Contador de Pacientes -->
+    <div class="mb-3">
+        <span class="badge bg-primary" style="font-size: 0.95rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-users me-2"></i>Total: {{ patients|length }} paciente(s)
+        </span>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="border-radius: 12px; overflow: hidden;">
+                <thead style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+                    <tr>
+                        <th class="py-3"><i class="fas fa-user me-2"></i>Nome</th>
+                        <th class="py-3"><i class="fas fa-birthday-cake me-2"></i>Data de Nascimento</th>
+                        <th class="py-3"><i class="fas fa-id-card me-2"></i>CNS</th>
+                        <th class="py-3"><i class="fas fa-map-marker-alt me-2"></i>Cidade</th>
+                        <th class="text-center py-3"><i class="fas fa-cog me-2"></i>Ações</th>
+                    </tr>
+                </thead>
+            <tbody id="patientTableBody">
+                {% for patient in patients %}
+                <tr style="transition: all 0.2s;">
+                    <td class="py-3"><strong>{{ patient.nome }}</strong></td>
+                    <td class="py-3">{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
+                    <td class="py-3">{{ patient.cns if patient.cns else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
+                    <td class="py-3">{{ patient.cidade if patient.cidade else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
+                    <td class="text-center actions py-3">
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" 
+                               class="btn btn-info btn-sm" 
+                               title="Visualizar Detalhes"
+                               style="border-radius: 6px 0 0 6px;">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('patients.edit_patient', id=patient.id) }}"
+                               class="btn btn-primary btn-sm" 
+                               title="Editar Paciente">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}"
+                               class="btn btn-success btn-sm" 
+                               title="Solicitar Cirurgia">
+                                <i class="fas fa-notes-medical"></i>
+                            </a>
+                            <!-- Formulário de Exclusão -->
+                            <form action="{{ url_for('patients.delete_patient', id=patient.id) }}" 
+                                  method="POST"
+                                  class="d-inline"
+                                  onsubmit="return confirm('⚠️ Tem certeza que deseja excluir o paciente {{ patient.nome }}?\\n\\nEsta ação não pode ser desfeita!');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <button type="submit" 
+                                        class="btn btn-danger btn-sm" 
+                                        title="Excluir Paciente"
+                                        style="border-radius: 0 6px 6px 0;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-user-slash mb-3" style="font-size: 4rem; color: #94a3b8;"></i>
+        <h4 class="text-muted mb-2">Nenhum paciente cadastrado</h4>
+        <p class="text-muted mb-4">Comece cadastrando o primeiro paciente do sistema</p>
+        <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-user-plus me-2"></i>Cadastrar Primeiro Paciente
+        </a>
+    </div>
+</div>
+{% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchPatientInput');
+        const tableBody = document.getElementById('patientTableBody');
+        const rows = tableBody.getElementsByTagName('tr');
+        const noResultsMessage = document.createElement('tr'); // Cria linha para mensagem
+        noResultsMessage.innerHTML = `<td colspan="5" class="text-center text-muted">Nenhum paciente encontrado com os critérios de busca.</td>`;
+
+        if (searchInput && tableBody) {
+            searchInput.addEventListener('input', function () {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                let found = false;
+                const existingMessage = tableBody.querySelector('#no-results-row');
+                if (existingMessage) {
+                    tableBody.removeChild(existingMessage);
+                }
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    // Pula a linha de mensagem "nenhum resultado" se ela estiver presente
+                    if (row.id === 'no-results-row') continue;
+                    const cells = row.getElementsByTagName('td');
+                    let rowText = '';
+                    for (let j = 0; j < cells.length - 1; j++) { // Exclui a última célula (Ações)
+                        rowText += cells[j].textContent.toLowerCase() + ' ';
+                    }
+                    if (rowText.includes(searchTerm)) {
+                        row.style.display = '';
+                        found = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+                if (!found && searchTerm !== '') {
+                    noResultsMessage.id = 'no-results-row';
+                    tableBody.appendChild(noResultsMessage);
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}

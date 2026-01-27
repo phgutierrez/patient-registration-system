@@ -98,10 +98,27 @@ if (-not $Skip32bit) {
 
 # Passo 7/6: Criar ZIP com ambos os executáveis
 Write-Host "📦 $CurrentStep/9 - Comprimindo arquivos..." -ForegroundColor Yellow
-Compress-Archive -Path "dist\Sistema64bits\PatientRegistration" -DestinationPath $ZipName -Force
+# Criar estrutura temporária para o ZIP
+$tempZipPath = "temp_release"
+if (Test-Path $tempZipPath) { Remove-Item -Recurse -Force $tempZipPath }
+New-Item -ItemType Directory -Path $tempZipPath | Out-Null
+New-Item -ItemType Directory -Path "$tempZipPath\Sistema64bits" | Out-Null
+
+# Copiar 64bits
+Copy-Item -Path "dist\Sistema64bits\PatientRegistration" -Destination "$tempZipPath\Sistema64bits\" -Recurse
+
+# Copiar 32bits se existir
 if (-not $Skip32bit) {
-    Compress-Archive -Path "dist\Sistema32bits\PatientRegistration" -DestinationPath $ZipName -Update
+    New-Item -ItemType Directory -Path "$tempZipPath\Sistema32bits" | Out-Null
+    Copy-Item -Path "dist\Sistema32bits\PatientRegistration" -Destination "$tempZipPath\Sistema32bits\" -Recurse
 }
+
+# Criar ZIP
+Compress-Archive -Path "$tempZipPath\*" -DestinationPath $ZipName -Force
+
+# Limpar temporário
+Remove-Item -Recurse -Force $tempZipPath
+
 $zipSize = (Get-Item $ZipName).Length / 1MB
 if (-not $Skip32bit) {
     Write-Host "   ✅ Arquivo ZIP criado com 64bits e 32bits ($([math]::Round($zipSize, 2)) MB)`n" -ForegroundColor Green
