@@ -79,6 +79,11 @@ pyinstaller_args = [
     '--hidden-import=email_validator',
     '--hidden-import=alembic',
     '--hidden-import=dateutil',
+    '--hidden-import=pkg_resources',
+    '--hidden-import=jaraco',
+    '--hidden-import=jaraco.functools',
+    '--hidden-import=jaraco.context',
+    '--hidden-import=jaraco.text',
     
     # Coletar submodules
     '--collect-submodules=flask',
@@ -117,9 +122,9 @@ print("\n" + "=" * 70)
 print("Build 32bits concluído!")
 print("=" * 70)
 print(f"Executável criado em: dist\\Sistema32bits\\PatientRegistration\\PatientRegistration.exe")
-print("\nBenefícios do modo --onedir:")
-print("✓ Inicialização mais rápida (não precisa extrair arquivos)")
-print("✓ Melhor desempenho em execuções subsequentes")
-print("✓ Facilita debugging e manutenção")
+print("\nBeneficios do modo --onedir:")
+print("[OK] Inicializacao mais rapida")
+print("[OK] Melhor desempenho em execucoes")
+print("[OK] Facilita debugging e manutencao")
 print("\nPara distribuir: Envie toda a pasta 'dist\\Sistema32bits\\PatientRegistration'")
 print("=" * 70)
