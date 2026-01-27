@@ -1,6 +1,10 @@
 """
-Script otimizado para criar executável com PyInstaller
+Script otimizado para criar executável 32bits com PyInstaller
 Reduz o tamanho do executável excluindo módulos desnecessários
+Saída: dist/Sistema32bits/PatientRegistration
+
+Nota: Este script cria um executável compilado para 32bits
+Pode ser executado com Python 64bits, apenas criará o binário 32bits
 """
 import PyInstaller.__main__
 import os
@@ -11,21 +15,6 @@ def remove_readonly(func, path, excinfo):
     """Callback para remover atributo readonly em Windows"""
     os.chmod(path, 0o777)
     func(path)
-
-# Limpar builds anteriores
-if os.path.exists('build'):
-    try:
-        shutil.rmtree('build', onerror=remove_readonly)
-        time.sleep(0.5)  # Aguardar liberação de arquivos
-    except Exception as e:
-        print(f"Aviso: Não foi possível limpar pasta build: {e}")
-
-if os.path.exists('dist'):
-    try:
-        shutil.rmtree('dist', onerror=remove_readonly)
-        time.sleep(0.5)  # Aguardar liberação de arquivos
-    except Exception as e:
-        print(f"Aviso: Não foi possível limpar pasta dist: {e}")
 
 # Lista de módulos a excluir para reduzir tamanho
 excludes = [
@@ -53,7 +42,7 @@ excludes = [
     'turtle',
 ]
 
-# Configurações do PyInstaller
+# Configurações do PyInstaller para 32bits
 pyinstaller_args = [
     'server.py',                          # Arquivo principal
     '--name=PatientRegistration',         # Nome do executável
@@ -61,7 +50,8 @@ pyinstaller_args = [
     '--noconsole',                        # Não mostrar console (use --console para debug)
     '--clean',                            # Limpar cache antes de buildar
     '--noconfirm',                        # Não pedir confirmação para sobrescrever
-    '--distpath=dist/Sistema64bits',      # Caminho de saída para 64bits
+    '--distpath=dist/Sistema32bits',      # Caminho de saída para 32bits
+    '--target-arch=x86',                  # Compilar para 32bits (x86)
     
     # Adicionar dados necessários
     '--add-data=src;src',                 # Incluir pasta src
@@ -109,11 +99,13 @@ for module in excludes:
     pyinstaller_args.append(f'--exclude-module={module}')
 
 print("=" * 70)
-print("Iniciando build do executável...")
+print("Iniciando build do executável 32BITS...")
 print("=" * 70)
+print(f"Arquitetura: 32 bits (x86)")
 print(f"Nome: PatientRegistration.exe")
 print(f"Modo: One-dir (pasta com dependências - inicialização rápida)")
 print(f"Servidor: Waitress (produção)")
+print(f"Saída: dist\\Sistema32bits\\PatientRegistration")
 print(f"Otimizações: Ativadas")
 print(f"Módulos excluídos: {len(excludes)}")
 print("=" * 70)
@@ -122,12 +114,12 @@ print("=" * 70)
 PyInstaller.__main__.run(pyinstaller_args)
 
 print("\n" + "=" * 70)
-print("Build concluído!")
+print("Build 32bits concluído!")
 print("=" * 70)
-print(f"Executável criado em: dist\\PatientRegistration\\PatientRegistration.exe")
+print(f"Executável criado em: dist\\Sistema32bits\\PatientRegistration\\PatientRegistration.exe")
 print("\nBenefícios do modo --onedir:")
 print("✓ Inicialização mais rápida (não precisa extrair arquivos)")
 print("✓ Melhor desempenho em execuções subsequentes")
 print("✓ Facilita debugging e manutenção")
-print("\nPara distribuir: Envie toda a pasta 'dist\\PatientRegistration'")
+print("\nPara distribuir: Envie toda a pasta 'dist\\Sistema32bits\\PatientRegistration'")
 print("=" * 70)

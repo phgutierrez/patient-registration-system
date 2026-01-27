@@ -23,51 +23,94 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 
 $TagName = "v$Version"
 $ZipName = "PatientRegistration-v$Version-windows.zip"
+$Python64bitPath = "D:/Users/phgut/OneDrive/Documentos/patient-registration-system/.venv/Scripts/python.exe"
+$Python32bitPath = "D:/Users/phgut/OneDrive/Documentos/patient-registration-system/.venv32/Scripts/python.exe"
 
 Write-Host "`n📋 Informações da Release:" -ForegroundColor Yellow
 Write-Host "   Tag: $TagName" -ForegroundColor White
 Write-Host "   Arquivo: $ZipName" -ForegroundColor White
 Write-Host "   Mensagem: $Message`n" -ForegroundColor White
+Write-Host "   Será criado: Sistema64bits + Sistema32bits`n" -ForegroundColor Cyan
 
 # Passo 1: Limpar arquivos anteriores
-Write-Host "🧹 1/7 - Limpando arquivos anteriores..." -ForegroundColor Yellow
+Write-Host "🧹 1/9 - Limpando arquivos anteriores..." -ForegroundColor Yellow
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
 if (Test-Path $ZipName) { Remove-Item -Force $ZipName }
 Write-Host "   ✅ Limpeza concluída`n" -ForegroundColor Green
 
 # Passo 2: Limpar arquivos .pyc
-Write-Host "🧹 2/7 - Removendo arquivos .pyc..." -ForegroundColor Yellow
+Write-Host "🧹 2/9 - Removendo arquivos .pyc..." -ForegroundColor Yellow
 Get-ChildItem -Recurse -Filter "*.pyc" | Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "   ✅ Arquivos .pyc removidos`n" -ForegroundColor Green
 
-# Passo 3: Criar build
-Write-Host "🔨 3/7 - Criando executável..." -ForegroundColor Yellow
-& D:/Users/phgut/OneDrive/Documentos/patient-registration-system/.venv/Scripts/python.exe build_exe.py
+# Passo 3: Criar build 64bits
+Write-Host "🔨 3/9 - Criando executável 64bits..." -ForegroundColor Yellow
+& $Python64bitPath build_exe.py
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "`n❌ ERRO: Falha ao criar executável`n" -ForegroundColor Red
+    Write-Host "`n❌ ERRO: Falha ao criar executável 64bits`n" -ForegroundColor Red
     exit 1
 }
-Write-Host "   ✅ Executável criado`n" -ForegroundColor Green
+Write-Host "   ✅ Executável 64bits criado`n" -ForegroundColor Green
 
-# Passo 4: Verificar executável
-Write-Host "🔍 4/7 - Verificando executável..." -ForegroundColor Yellow
-if (-not (Test-Path "dist\PatientRegistration\PatientRegistration.exe")) {
-    Write-Host "`n❌ ERRO: Executável não encontrado`n" -ForegroundColor Red
+# Passo 4: Verificar executável 64bits
+Write-Host "🔍 4/9 - Verificando executável 64bits..." -ForegroundColor Yellow
+if (-not (Test-Path "dist\Sistema64bits\PatientRegistration\PatientRegistration.exe")) {
+    Write-Host "`n❌ ERRO: Executável 64bits não encontrado`n" -ForegroundColor Red
     exit 1
 }
-$exeSize = (Get-Item "dist\PatientRegistration\PatientRegistration.exe").Length / 1MB
-Write-Host "   ✅ Executável encontrado ($([math]::Round($exeSize, 2)) MB)`n" -ForegroundColor Green
+$exe64Size = (Get-Item "dist\Sistema64bits\PatientRegistration\PatientRegistration.exe").Length / 1MB
+Write-Host "   ✅ Executável 64bits encontrado ($([math]::Round($exe64Size, 2)) MB)`n" -ForegroundColor Green
 
-# Passo 5: Criar ZIP
-Write-Host "📦 5/7 - Comprimindo pasta..." -ForegroundColor Yellow
-Compress-Archive -Path "dist\PatientRegistration" -DestinationPath $ZipName -Force
+# Passo 5: Criar build 32bits
+Write-Host "🔨 5/9 - Criando executável 32bits..." -ForegroundColor Yellow
+# Tentar usar Python 64bits para gerar 32bits
+& $Python64bitPath build_exe_32bits.py
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "`n⚠️  AVISO: Falha ao criar executável 32bits com Python 64bits" -ForegroundColor Yellow
+    Write-Host "   Verificando se já existe build 32bits anterior..." -ForegroundColor Yellow
+    if (Test-Path "dist\Sistema32bits\PatientRegistration\PatientRegistration.exe") {
+        Write-Host "   ✅ Usando build 32bits anterior`n" -ForegroundColor Green
+        $Skip32bit = $false
+    } else {
+        Write-Host "   Pulando build 32bits. Nenhum build anterior encontrado." -ForegroundColor Yellow
+        $Skip32bit = $true
+    }
+} else {
+    Write-Host "   ✅ Executável 32bits criado`n" -ForegroundColor Green
+    $Skip32bit = $false
+}
+
+# Passo 6: Verificar executável 32bits
+if (-not $Skip32bit) {
+    Write-Host "🔍 6/9 - Verificando executável 32bits..." -ForegroundColor Yellow
+    if (-not (Test-Path "dist\Sistema32bits\PatientRegistration\PatientRegistration.exe")) {
+        Write-Host "`n❌ ERRO: Executável 32bits não encontrado`n" -ForegroundColor Red
+        exit 1
+    }
+    $exe32Size = (Get-Item "dist\Sistema32bits\PatientRegistration\PatientRegistration.exe").Length / 1MB
+    Write-Host "   ✅ Executável 32bits encontrado ($([math]::Round($exe32Size, 2)) MB)`n" -ForegroundColor Green
+    $CurrentStep = 7
+} else {
+    $CurrentStep = 6
+}
+
+# Passo 7/6: Criar ZIP com ambos os executáveis
+Write-Host "📦 $CurrentStep/9 - Comprimindo arquivos..." -ForegroundColor Yellow
+Compress-Archive -Path "dist\Sistema64bits\PatientRegistration" -DestinationPath $ZipName -Force
+if (-not $Skip32bit) {
+    Compress-Archive -Path "dist\Sistema32bits\PatientRegistration" -DestinationPath $ZipName -Update
+}
 $zipSize = (Get-Item $ZipName).Length / 1MB
-Write-Host "   ✅ Arquivo ZIP criado ($([math]::Round($zipSize, 2)) MB)`n" -ForegroundColor Green
+if (-not $Skip32bit) {
+    Write-Host "   ✅ Arquivo ZIP criado com 64bits e 32bits ($([math]::Round($zipSize, 2)) MB)`n" -ForegroundColor Green
+} else {
+    Write-Host "   ✅ Arquivo ZIP criado com 64bits ($([math]::Round($zipSize, 2)) MB)`n" -ForegroundColor Green
+}
 
-# Passo 6: Git commit e push
-Write-Host "📝 6/7 - Criando commit..." -ForegroundColor Yellow
+# Passo 8: Git commit e push
+Write-Host "$([math]::Round($CurrentStep)+1)/9 - Criando commit..." -ForegroundColor Yellow
 git add .
 git commit -m "Release $TagName - $Message"
 if ($LASTEXITCODE -ne 0) {
@@ -75,8 +118,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "   ✅ Commit criado`n" -ForegroundColor Green
 
-# Passo 7: Criar e enviar tag
-Write-Host "🏷️  7/7 - Criando e enviando tag..." -ForegroundColor Yellow
+# Passo 9: Criar e enviar tag
+Write-Host "$([math]::Round($CurrentStep)+2)/9 - Criando e enviando tag..." -ForegroundColor Yellow
 git tag -a $TagName -m "$Message"
 git push origin master
 git push origin $TagName
@@ -97,7 +140,13 @@ Write-Host ""
 Write-Host "📊 Resumo:" -ForegroundColor Yellow
 Write-Host "   Tag criada: $TagName" -ForegroundColor White
 Write-Host "   Arquivo ZIP: $ZipName ($([math]::Round($zipSize, 2)) MB)" -ForegroundColor White
-Write-Host "   Executável: $([math]::Round($exeSize, 2)) MB" -ForegroundColor White
+if (-not $Skip32bit) {
+    Write-Host "   Executável 64bits: $([math]::Round($exe64Size, 2)) MB" -ForegroundColor White
+    Write-Host "   Executável 32bits: $([math]::Round($exe32Size, 2)) MB" -ForegroundColor White
+} else {
+    Write-Host "   Executável 64bits: $([math]::Round($exe64Size, 2)) MB" -ForegroundColor White
+    Write-Host "   Executável 32bits: ⚠️  Não foi criado (configure Python 32bits)" -ForegroundColor Yellow
+}
 Write-Host ""
 Write-Host "🚀 Próximos passos:" -ForegroundColor Yellow
 Write-Host "   1. Acesse: https://github.com/phgutierrez/patient-registration-system/releases/new" -ForegroundColor White
