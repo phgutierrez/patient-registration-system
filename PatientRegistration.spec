@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import copy_metadata
 
 datas = [('src', 'src'), ('migrations', 'migrations')]
-hiddenimports = ['sqlalchemy.sql.default_comparator', 'waitress', 'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf', 'flask_migrate', 'reportlab', 'reportlab.pdfgen', 'reportlab.lib', 'reportlab.platypus', 'PyPDF2', 'pyodbc', 'werkzeug', 'wtforms', 'email_validator', 'alembic', 'dateutil', 'pkg_resources', 'jaraco', 'jaraco.functools', 'jaraco.context', 'jaraco.text']
+hiddenimports = ['sqlalchemy.sql.default_comparator', 'waitress', 'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf', 'flask_migrate', 'reportlab', 'reportlab.pdfgen', 'reportlab.lib', 'reportlab.platypus', 'PyPDF2', 'pyodbc', 'werkzeug', 'wtforms', 'email_validator', 'alembic', 'dateutil', 'pkg_resources', 'platformdirs', 'jaraco', 'jaraco.functools', 'jaraco.context', 'jaraco.text']
 datas += copy_metadata('flask')
 datas += copy_metadata('flask-sqlalchemy')
 datas += copy_metadata('flask-login')

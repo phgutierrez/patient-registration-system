@@ -80,6 +80,7 @@ pyinstaller_args = [
     '--hidden-import=alembic',
     '--hidden-import=dateutil',
     '--hidden-import=pkg_resources',
+    '--hidden-import=platformdirs',
     '--hidden-import=jaraco',
     '--hidden-import=jaraco.functools',
     '--hidden-import=jaraco.context',
