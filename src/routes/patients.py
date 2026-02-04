@@ -121,10 +121,10 @@ def search_patient_accdb():
         return jsonify({"error": "Prontuário não fornecido"}), 400
     
     try:
-        # Caminho do arquivo Access
-        db_path = Path(current_app.root_path).parent / 'src' / 'static' / 'AMBULATORIO_SERV.accdb'
+        # Caminho do arquivo Access (rede)
+        db_path = r"\\192.168.1.252\naqh\AMBULATORIO_SERV\AMBULATORIO_SERV.accdb"
         
-        if not db_path.exists():
+        if not Path(db_path).exists():
             return jsonify({"error": "Banco de dados não encontrado"}), 404
         
         # String de conexão para Access
