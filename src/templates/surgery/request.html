@@ -347,8 +347,16 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="buscaModelos" class="form-control" placeholder="Buscar modelo por nome ou procedimento...">
+                </div>
                 <div id="modelosList">
                     <p class="text-muted text-center">Carregando modelos...</p>
+                </div>
+                <div id="botaoExpandir" class="mt-3" style="display: none;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="toggleMostrarTodos()">
+                        <i class="fas fa-expand-alt me-1"></i>Ver todos os modelos
+                    </button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -360,16 +368,25 @@
 
 <script>
     let modelosModalInstance = null;
+    let mostrarTodosModelos = false;
 
     document.addEventListener('DOMContentLoaded', function () {
         const reservaSangueCheck = document.getElementById('reserva_sangue_check');
         const quantidadeSangueInput = document.getElementById('quantidade_sangue_input');
         const modelosModalEl = document.getElementById('modelosModal');
+        const buscaInput = document.getElementById('buscaModelos');
 
         // Inicializa modal (Bootstrap 5) sem jQuery
         if (modelosModalEl && window.bootstrap && bootstrap.Modal) {
             modelosModalInstance = new bootstrap.Modal(modelosModalEl);
             modelosModalEl.addEventListener('show.bs.modal', carregarModelos);
+        }
+
+        // Busca em tempo real
+        if (buscaInput) {
+            buscaInput.addEventListener('input', function() {
+                carregarModelos(this.value.toLowerCase());
+            });
         }
 
         function toggleQuantidadeSangue() {
@@ -493,7 +510,9 @@
         
         const dadosModelo = {
             nome: nomeModelo.trim(),
-            dados: coletarDadosFormulario()
+            dados: coletarDadosFormulario(),
+            datasCriacao: new Date().toISOString(),
+            usosCount: 0  // Iniciar contador de usos
         };
         
         // Salvar no localStorage
@@ -522,29 +541,62 @@
     }
 
     // Função para carregar modelos
-    function carregarModelos() {
+    function carregarModelos(termoBusca = '') {
         const modelosList = document.getElementById('modelosList');
-        const modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        const botaoExpandir = document.getElementById('botaoExpandir');
+        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
         
         if (modelos.length === 0) {
             modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo salvo ainda.</p>';
+            if (botaoExpandir) botaoExpandir.style.display = 'none';
             return;
         }
         
+        // Ordenar por uso (decrescente) e depois por nome
+        modelos.sort((a, b) => {
+            const usosA = a.usosCount || 0;
+            const usosB = b.usosCount || 0;
+            if (usosA !== usosB) return usosB - usosA;
+            return a.nome.localeCompare(b.nome);
+        });
+        
+        // Filtrar por termo de busca
+        let modelosFiltrados = modelos;
+        if (termoBusca) {
+            modelosFiltrados = modelos.filter(m => 
+                m.nome.toLowerCase().includes(termoBusca) || 
+                (m.dados.procedimento_solicitado && m.dados.procedimento_solicitado.toLowerCase().includes(termoBusca))
+            );
+        }
+        
+        if (modelosFiltrados.length === 0) {
+            modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo encontrado.</p>';
+            if (botaoExpandir) botaoExpandir.style.display = 'none';
+            return;
+        }
+        
+        // Mostrar os 3 primeiros, ou todos se mostrarTodosModelos for true
+        const modelosExibidos = mostrarTodosModelos ? modelosFiltrados : modelosFiltrados.slice(0, 3);
+        const temMais = modelosFiltrados.length > 3;
+        
         let html = '<div class="list-group">';
-        modelos.forEach((modelo, index) => {
+        modelosExibidos.forEach((modelo, index) => {
+            const indiceOriginal = modelos.indexOf(modelo);
+            const usosCount = modelo.usosCount || 0;
+            const badgeUso = usosCount > 0 ? `<span class="badge bg-info ms-2">${usosCount} ${usosCount === 1 ? 'uso' : 'usos'}</span>` : '';
+            
             html += `
                 <div class="list-group-item">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0">${modelo.nome}</h6>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${modelo.nome}${badgeUso}</h6>
                             <small class="text-muted">Procedimento: ${modelo.dados.procedimento_solicitado || 'N/A'}</small>
                         </div>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${index})">
+                        <div class="d-flex gap-2 ms-3">
+                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${indiceOriginal})" title="Carregar modelo">
                                 <i class="fas fa-download me-1"></i>Carregar
                             </button>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${index})">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${indiceOriginal})" title="Deletar modelo">
                                 <i class="fas fa-trash me-1"></i>Deletar
                             </button>
                         </div>
@@ -555,6 +607,20 @@
         html += '</div>';
         
         modelosList.innerHTML = html;
+        
+        // Mostrar/esconder botão de expandir
+        if (botaoExpandir) {
+            botaoExpandir.style.display = temMais && !mostrarTodosModelos ? 'block' : 'none';
+        }
+    }
+
+    // Função para expandir/recolher lista de modelos
+    function toggleMostrarTodos() {
+        mostrarTodosModelos = !mostrarTodosModelos;
+        const botaoExpandir = document.getElementById('botaoExpandir');
+        const buscaInput = document.getElementById('buscaModelos');
+        const termoBusca = buscaInput ? buscaInput.value.toLowerCase() : '';
+        carregarModelos(termoBusca);
     }
 
     // Função para carregar dados de um modelo
@@ -568,6 +634,11 @@
         
         const modelo = modelos[index];
         const dados = modelo.dados;
+        
+        // Incrementar contador de usos
+        modelo.usosCount = (modelo.usosCount || 0) + 1;
+        modelos[index] = modelo;
+        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
         
         // Preencher campos de texto
         document.querySelector('[name="peso"]').value = dados.peso || '';
@@ -628,6 +699,13 @@
         if (modelosModalInstance) {
             modelosModalInstance.hide();
         }
+        
+        // Limpar barra de busca
+        const buscaInput = document.getElementById('buscaModelos');
+        if (buscaInput) {
+            buscaInput.value = '';
+        }
+        mostrarTodosModelos = false;
         
         // Scroll para o topo do formulário
         window.scrollTo({ top: 0, behavior: 'smooth' });

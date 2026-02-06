@@ -513,6 +513,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="{{ url_for('main.agenda') }}" class="nav-link">
+                        <i class="fas fa-calendar-alt"></i>
+                        Agenda Cirúrgica
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ url_for('auth.register_user') }}" class="nav-link">
                         <i class="fas fa-user-cog"></i>
                         Cadastro Usuário
@@ -633,6 +639,39 @@
                     }, 300);
                 }, 5000);
             });
+        });
+    </script>
+    <script>
+        // Heartbeat para detectar desconexão do navegador
+        let heartbeatInterval = null;
+        let heartbeatFailures = 0;
+        const MAX_HEARTBEAT_FAILURES = 3;
+
+        function startHeartbeat() {
+            heartbeatInterval = setInterval(function() {
+                fetch('/api/heartbeat', { method: 'GET', credentials: 'same-origin' })
+                    .then(response => {
+                        if (response.ok) {
+                            heartbeatFailures = 0;
+                        } else {
+                            heartbeatFailures++;
+                        }
+                    })
+                    .catch(error => {
+                        heartbeatFailures++;
+                        if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
+                            clearInterval(heartbeatInterval);
+                        }
+                    });
+            }, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            startHeartbeat();
+        });
+
+        window.addEventListener('beforeunload', function() {
+            navigator.sendBeacon('/api/browser-closing', JSON.stringify({ timestamp: Date.now() }));
         });
     </script>
 </body>

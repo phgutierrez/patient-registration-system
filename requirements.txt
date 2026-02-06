@@ -18,3 +18,6 @@ pyodbc==4.0.39
 pandas==2.0.3
 waitress==2.1.2
 pyinstaller==6.3.0
+requests==2.31.0
+icalendar==5.0.11
+pytz==2023.3
