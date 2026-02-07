@@ -43,6 +43,13 @@ class SurgeryRequest(db.Model):
     status = db.Column(db.String(20), default='Pendente')
     pdf_filename = db.Column(db.String(255), nullable=True)
     pdf_hemocomponente = db.Column(db.String(255), nullable=True)
+    
+    # Campos de agendamento no Google Calendar
+    scheduled_at = db.Column(db.DateTime, nullable=True)  # Quando foi agendado
+    scheduled_event_id = db.Column(db.String(255), nullable=True)  # ID do evento no Google Calendar
+    scheduled_event_link = db.Column(db.String(500), nullable=True)  # Link direto para o evento
+    calendar_status = db.Column(db.String(20), nullable=True)  # 'agendado', 'erro', etc.
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

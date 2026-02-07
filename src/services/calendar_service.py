@@ -114,6 +114,9 @@ class CalendarService:
     def _normalize_event(self, component) -> Optional[Dict[str, Any]]:
         """
         Normaliza um componente VEVENT para dict padrão.
+        
+        IMPORTANTE: Para eventos all-day (VALUE=DATE), preserva a data pura
+        sem conversão de timezone, evitando o deslocamento de -1 dia.
         """
         try:
             # Extrair campos
@@ -134,51 +137,85 @@ class CalendarService:
             if not dtstart:
                 return None
             
-            # Verificar se é all-day (date vs datetime)
-            all_day = False
+            # ========================================
+            # CASO 1: All-day (VALUE=DATE)
+            # ========================================
             if isinstance(dtstart.dt, date) and not isinstance(dtstart.dt, datetime):
-                # É um date, não datetime
+                # É um date puro, não datetime
+                # REGRA: Nunca converter date para datetime para all-day
                 all_day = True
-                start_dt = datetime.combine(dtstart.dt, datetime.min.time())
-                # Se DTEND existe, usar; senão, usar start
+                start_date = dtstart.dt  # Preservar date puro
+                
+                # Para end_date:
+                # Em ICS, DTEND para all-day é exclusive (próximo dia)
+                # Exemplo: DTSTART:20260206, DTEND:20260207 = evento no dia 06
                 if dtend:
-                    if isinstance(dtend.dt, date) and not isinstance(dtend.dt, datetime):
-                        end_dt = datetime.combine(dtend.dt, datetime.min.time())
+                    dtend_val = dtend.dt
+                    if isinstance(dtend_val, date) and not isinstance(dtend_val, datetime):
+                        # DTEND é também date (exclusive)
+                        end_date = dtend_val - timedelta(days=1)  # Recuar 1 dia para ficar no mesmo dia
                     else:
-                        end_dt = dtend.dt
+                        # DTEND é datetime (improvável em all-day, mas tratar)
+                        end_date = dtend_val.date()
                 else:
-                    end_dt = start_dt + timedelta(days=1)
+                    # Sem DTEND: evento é só de 1 dia
+                    end_date = start_date
+                
+                # Para exibição/compatibilidade, criar datetime local "fictício" ao meio-dia
+                # (não será usado para agrupamento por dia)
+                start_dt = datetime.combine(start_date, datetime.min.time())
+                start_dt = self.tz.localize(start_dt)  # Localize na timezone local DIRETAMENTE
+                
+                end_dt = datetime.combine(end_date, datetime.min.time())
+                end_dt = self.tz.localize(end_dt)
+                
+                return {
+                    "uid": uid,
+                    "title": title,
+                    "start": start_dt,
+                    "end": end_dt,
+                    "start_date": start_date,  # NOVO: date puro para all-day
+                    "end_date": end_date,      # NOVO: date puro para all-day
+                    "all_day": all_day,
+                    "location": location,
+                    "description": description,
+                }
+            
+            # ========================================
+            # CASO 2: Timed (datetime)
+            # ========================================
             else:
-                # É um datetime
+                all_day = False
                 start_dt = dtstart.dt
+                
                 if dtend:
                     end_dt = dtend.dt
                 else:
                     # Sem DTEND: assumir duração de 30 min
                     end_dt = start_dt + timedelta(minutes=30)
-            
-            # Converter para timezone local se necessário
-            if isinstance(start_dt, datetime) and start_dt.tzinfo is None:
-                # Naive datetime; assumir UTC
-                start_dt = pytz.UTC.localize(start_dt)
-            
-            if isinstance(end_dt, datetime) and end_dt.tzinfo is None:
-                end_dt = pytz.UTC.localize(end_dt)
-            
-            # Converter para timezone local
-            if isinstance(start_dt, datetime):
-                start_dt = start_dt.astimezone(self.tz)
-                end_dt = end_dt.astimezone(self.tz)
-            
-            return {
-                "uid": uid,
-                "title": title,
-                "start": start_dt,
-                "end": end_dt,
-                "all_day": all_day,
-                "location": location,
-                "description": description,
-            }
+                
+                # Converter para timezone local se necessário
+                if isinstance(start_dt, datetime) and start_dt.tzinfo is None:
+                    # Naive datetime; assumir UTC
+                    start_dt = pytz.UTC.localize(start_dt)
+                
+                if isinstance(end_dt, datetime) and end_dt.tzinfo is None:
+                    end_dt = pytz.UTC.localize(end_dt)
+                
+                # Converter para timezone local
+                if isinstance(start_dt, datetime):
+                    start_dt = start_dt.astimezone(self.tz)
+                    end_dt = end_dt.astimezone(self.tz)
+                
+                return {
+                    "uid": uid,
+                    "title": title,
+                    "start": start_dt,
+                    "end": end_dt,
+                    "all_day": all_day,
+                    "location": location,
+                    "description": description,
+                }
         
         except Exception as e:
             logger.warning(f"Erro ao normalizar evento: {e}")
@@ -201,26 +238,23 @@ class CalendarService:
         """
         filtered = []
         
-        # Converter datas para datetime (início e fim do dia no timezone local)
-        start_dt = datetime.combine(start_date, datetime.min.time())
-        start_dt = self.tz.localize(start_dt)
-        
-        end_dt = datetime.combine(end_date, datetime.max.time())
-        end_dt = self.tz.localize(end_dt)
-        
         for event in events:
-            # Filtro por data
-            event_start = event["start"]
-            event_end = event["end"]
+            # Determinar a data do evento para comparação
+            if event.get("all_day") and event.get("start_date"):
+                event_date = event["start_date"]
+            else:
+                event_date = event["start"].date()
             
-            # Verificar se o evento está no intervalo
-            # (overlaps: event.start < end_dt AND event.end > start_dt)
-            if event_start >= end_dt or event_end <= start_dt:
+            # Filtro por data (simples: verificar se data está no intervalo)
+            if event_date < start_date or event_date > end_date:
                 continue
             
-            # Filtro por query (título)
+            # Filtro por query (título OU descrição)
             if query:
-                if query.lower() not in event["title"].lower():
+                query_lower = query.lower()
+                title_match = query_lower in event["title"].lower()
+                desc_match = event["description"] and query_lower in event["description"].lower()
+                if not (title_match or desc_match):
                     continue
             
             filtered.append(event)
@@ -230,6 +264,9 @@ class CalendarService:
     def group_events_by_day(self, events: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
         Agrupa eventos por dia (data local no timezone).
+        
+        Para all-day events, usa start_date (date puro).
+        Para timed events, usa start.date() (datetime convertido para date).
         
         Returns:
             {
@@ -241,7 +278,11 @@ class CalendarService:
         
         for event in events:
             # Extrair data do start
-            date_key = event["start"].date().isoformat()
+            # Se for all-day e temos start_date, usar; senão, usar start.date()
+            if event.get("all_day") and event.get("start_date"):
+                date_key = event["start_date"].isoformat()
+            else:
+                date_key = event["start"].date().isoformat()
             
             if date_key not in grouped:
                 grouped[date_key] = []

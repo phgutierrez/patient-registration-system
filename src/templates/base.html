@@ -55,10 +55,11 @@
             background: linear-gradient(135deg, var(--secondary) 0%, #0f172a 100%);
             color: white;
             padding: 2rem 1.5rem;
-            padding-bottom: 6rem;  /* Espaço para o botão de sair */
             position: fixed;
             height: 100vh;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
             transition: var(--transition);
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
         }
@@ -122,10 +123,8 @@
 
         /* Logo Inferior Esquerdo na Sidebar */
         .sidebar-logo {
-            position: absolute;
-            bottom: 5.5rem;
-            left: 1.5rem;
-            right: 1.5rem;
+            margin-top: auto;
+            margin-bottom: 1rem;
             background: rgba(255, 255, 255, 0.1);
             padding: 1rem;
             border-radius: var(--border-radius);
@@ -140,7 +139,9 @@
         }
 
         .sidebar-logo img {
-            height: 45px;
+            max-height: 80px;
+            max-width: 100%;
+            height: auto;
             width: auto;
             object-fit: contain;
         }
@@ -488,7 +489,12 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h1>🏥 Solicitação de Cirurgia</h1>
+            <h1>
+                <img src="{{ url_for('static', filename='logo ortoped.png') }}" 
+                     alt="Logo" 
+                     style="height: 32px; width: auto; vertical-align: middle; margin-right: 0.5rem;">
+                Solicitação de Cirurgia
+            </h1>
             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; margin-top: 0.5rem; display: block;">Sistema Integrado</small>
         </div>
         <nav>
@@ -535,13 +541,8 @@
             </ul>
         </nav>
         
-        <!-- Logo (parte inferior da sidebar) -->
-        <div class="sidebar-logo">
-            <img src="{{ url_for('static', filename='logo ortoped.png') }}" alt="Ortopedia Pediátrica">
-        </div>
-        
         <!-- Botão Sair do Sistema (parte inferior da sidebar) -->
-        <div style="position: absolute; bottom: 2rem; left: 1.5rem; right: 1.5rem;">
+        <div style="margin-top: auto; padding-top: 0;">
             <button onclick="shutdownServer()" class="btn btn-danger" style="width: 100%; justify-content: center;">
                 <i class="fas fa-power-off"></i>
                 Sair do Sistema
@@ -642,36 +643,48 @@
         });
     </script>
     <script>
-        // Heartbeat para detectar desconexão do navegador
-        let heartbeatInterval = null;
-        let heartbeatFailures = 0;
-        const MAX_HEARTBEAT_FAILURES = 3;
+        // Heartbeat / lifecycle: envia session para o servidor em modo desktop
+        const HEARTBEAT_INTERVAL_SECONDS = {{ config.get('LIFECYCLE_HEARTBEAT_SECONDS', 5) if config else 5 }};
+        const HEARTBEAT_TIMEOUT_SECONDS = {{ config.get('LIFECYCLE_TIMEOUT_SECONDS', 30) if config else 30 }};
 
-        function startHeartbeat() {
-            heartbeatInterval = setInterval(function() {
-                fetch('/api/heartbeat', { method: 'GET', credentials: 'same-origin' })
-                    .then(response => {
-                        if (response.ok) {
-                            heartbeatFailures = 0;
-                        } else {
-                            heartbeatFailures++;
-                        }
-                    })
-                    .catch(error => {
-                        heartbeatFailures++;
-                        if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
-                            clearInterval(heartbeatInterval);
-                        }
-                    });
-            }, 5000);
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        const lifecycleSession = getQueryParam('session');
+        let heartbeatTimer = null;
+
+        function sendHeartbeat() {
+            if (!lifecycleSession) return;
+
+            fetch('/lifecycle/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session: lifecycleSession }),
+                credentials: 'same-origin'
+            }).catch(() => {
+                // Silencioso: servidor pode estar encerrando
+            });
+        }
+
+        function startLifecycleHeartbeat() {
+            if (!lifecycleSession) return;
+            // enviar imediatamente e depois em intervalo
+            sendHeartbeat();
+            heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_SECONDS * 1000);
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            startHeartbeat();
+            startLifecycleHeartbeat();
         });
 
+        // Ao fechar a aba, tentar notificar o servidor (beacon - best effort)
         window.addEventListener('beforeunload', function() {
-            navigator.sendBeacon('/api/browser-closing', JSON.stringify({ timestamp: Date.now() }));
+            if (!lifecycleSession) return;
+            try {
+                navigator.sendBeacon('/lifecycle/shutdown', JSON.stringify({ session: lifecycleSession }));
+            } catch (e) {}
         });
     </script>
 </body>

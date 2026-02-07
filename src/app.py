@@ -82,11 +82,20 @@ def create_app(config_class=Config):
     from src.routes.main import main
     from src.routes.patients import patients
     from src.routes.surgery import surgery
+    from src.routes.lifecycle import bp as lifecycle_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(main)
     app.register_blueprint(patients)
     app.register_blueprint(surgery)
+    app.register_blueprint(lifecycle_bp)
+
+    # Inicializar monitor de lifecycle (se o módulo estiver disponível)
+    try:
+        from src.services.lifecycle import start_monitor
+        start_monitor(app)
+    except Exception:
+        logger.exception('Não foi possível iniciar o monitor de lifecycle')
 
     return app
 

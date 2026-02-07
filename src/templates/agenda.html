@@ -10,7 +10,7 @@
             <h1 class="mb-0">
                 <i class="fas fa-calendar-alt me-2"></i>Agenda Cirúrgica
             </h1>
-            <small class="text-muted">Google Calendar (CPAM Escoliose)</small>
+            <small class="text-muted">Google Calendar</small>
         </div>
     </div>
 
@@ -40,51 +40,75 @@
     <!-- Filtros -->
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-body">
-            <form method="GET" class="row g-3 align-items-end">
-                <!-- Modo de exibição -->
-                <div class="col-md-2">
+            <form method="GET" id="filterForm" class="row g-3">
+                <!-- Campo oculto para mês (usado no modo calendário) -->
+                <input type="hidden" name="month" id="monthInput" value="{{ current_month }}">
+                
+                <!-- Modo de exibição - linha separada -->
+                <div class="col-12">
                     <label for="view" class="form-label">Modo</label>
-                    <div class="btn-group w-100" role="group">
+                    <div class="btn-group" role="group">
                         <input type="radio" class="btn-check" name="view" id="view_week" 
                                value="week" {% if view == 'week' %}checked{% endif %} 
-                               onchange="document.getElementById('filterForm').submit()">
+                               onchange="handleViewChange('week')">
                         <label class="btn btn-outline-primary" for="view_week">
                             <i class="fas fa-columns me-1"></i>Semana
                         </label>
 
                         <input type="radio" class="btn-check" name="view" id="view_month" 
                                value="month" {% if view == 'month' %}checked{% endif %}
-                               onchange="document.getElementById('filterForm').submit()">
+                               onchange="handleViewChange('month')">
                         <label class="btn btn-outline-primary" for="view_month">
-                            <i class="fas fa-calendar-days me-1"></i>Mês
+                            <i class="fas fa-calendar-days me-1"></i>Calendário
                         </label>
                     </div>
                 </div>
+                
+                <!-- Navegação de mês (visível apenas no modo month) -->
+                {% if view == 'month' %}
+                <div class="col-12">
+                    <label class="form-label">Navegar Mês</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="changeMonth(-1)">
+                            <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </button>
+                        <button type="button" class="btn btn-outline-primary flex-grow-1" disabled>
+                            {{ month_name }} {{ year }}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="changeMonth(1)">
+                            Próximo<i class="fas fa-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
 
-                <!-- Data inicial -->
-                <div class="col-md-2">
+                <!-- Data inicial (apenas modo semana) -->
+                {% if view == 'week' %}
+                <div class="col-12 col-sm-6 col-md-3">
                     <label for="start" class="form-label">Início</label>
                     <input type="date" class="form-control" id="start" name="start" 
                            value="{{ start_date }}" required>
                 </div>
 
-                <!-- Data final -->
-                <div class="col-md-2">
+                <!-- Data final (apenas modo semana) -->
+                <div class="col-12 col-sm-6 col-md-3">
                     <label for="end" class="form-label">Fim</label>
                     <input type="date" class="form-control" id="end" name="end" 
                            value="{{ end_date }}" required>
                 </div>
+                {% endif %}
 
                 <!-- Busca -->
-                <div class="col-md-3">
-                    <label for="q" class="form-label">Buscar título</label>
+                <div class="col-12 col-sm-9 col-md-4">
+                    <label for="q" class="form-label">Buscar</label>
                     <input type="text" class="form-control" id="q" name="q" 
                            placeholder="Ex: Escoliose, Joelho..." value="{{ query }}">
                 </div>
 
-                <!-- Botões -->
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary w-100" id="filterForm">
+                <!-- Botão -->
+                <div class="col-12 col-sm-3 col-md-2">
+                    <label class="form-label d-none d-sm-block">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-search me-1"></i>Buscar
                     </button>
                 </div>
@@ -109,84 +133,175 @@
                         {% endif %}
                     </p>
                 </div>
-            </card>
+            </div>
             {% else %}
-            <!-- Lista de eventos por dia -->
-            <div class="events-list">
-                {% for date_key in sorted_dates %}
-                {% set events_day = grouped_events[date_key] %}
-                <div class="mb-4">
-                    <!-- Header do dia -->
-                    <div class="d-flex align-items-center mb-2">
-                        <h5 class="mb-0 flex-grow-1">
-                            <i class="fas fa-calendar-check text-primary me-2"></i>
-                            {{ formatted_dates[date_key] }}
-                        </h5>
-                        <span class="badge bg-secondary">{{ events_day | length }} evento{{ 's' if events_day | length != 1 else '' }}</span>
-                    </div>
+                {% if view == 'week' %}
+                <!-- MODO SEMANAL: Lista de eventos por dia -->
+                <div class="events-list">
+                    {% for date_key in sorted_dates %}
+                    {% set events_day = grouped_events[date_key] %}
+                    <div class="mb-4">
+                        <!-- Header do dia -->
+                        <div class="d-flex align-items-center mb-2">
+                            <h5 class="mb-0 flex-grow-1">
+                                <i class="fas fa-calendar-check text-primary me-2"></i>
+                                {{ formatted_dates[date_key] }}
+                            </h5>
+                            <span class="badge bg-secondary">{{ events_day | length }} evento{{ 's' if events_day | length != 1 else '' }}</span>
+                        </div>
 
-                    <!-- Cards dos eventos -->
-                    <div class="row g-3">
-                        {% for event in events_day %}
-                        <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 border-0 shadow-sm event-card">
-                                <div class="card-body">
-                                    <!-- Horário -->
-                                    <div class="mb-2">
-                                        <small class="text-primary fw-bold">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {% if event.all_day %}
-                                                Dia inteiro
+                        <!-- Cards dos eventos -->
+                        <div class="row g-3">
+                            {% for event in events_day %}
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card h-100 border-0 shadow-sm event-card">
+                                    <div class="card-body">
+                                        <!-- Horário -->
+                                        <div class="mb-2">
+                                            <small class="text-primary fw-bold">
+                                                <i class="fas fa-clock me-1"></i>
+                                                {% if event.all_day %}
+                                                    Dia inteiro
+                                                {% else %}
+                                                    {{ event.start.strftime('%H:%M') }} - {{ event.end.strftime('%H:%M') }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+
+                                        <!-- Título -->
+                                        <h6 class="card-title mb-2">{{ event.title }}</h6>
+
+                                        <!-- Local -->
+                                        {% if event.location %}
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                {{ event.location }}
+                                            </small>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Descrição COMPLETA -->
+                                        {% if event.description %}
+                                        <div class="mb-3">
+                                            <small class="text-muted d-block event-description" style="white-space: pre-wrap; word-break: break-word;">
+                                                {{ event.description }}
+                                            </small>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Status do Evento -->
+                                        <div class="mt-3 pt-2 border-top">
+                                            {% if event.status %}
+                                                <!-- Status já definido -->
+                                                <div class="mb-2">
+                                                    {% if event.status == 'REALIZADA' %}
+                                                    <span class="badge bg-success d-inline-block me-2">
+                                                        <i class="fas fa-check-circle me-1"></i>Realizada
+                                                    </span>
+                                                    {% elif event.status == 'SUSPENSA' %}
+                                                    <span class="badge bg-danger d-inline-block me-2">
+                                                        <i class="fas fa-ban me-1"></i>Suspensa
+                                                    </span>
+                                                    {% endif %}
+                                                    <button class="btn btn-sm btn-outline-secondary" 
+                                                            onclick="openStatusModal('{{ event.uid }}', 'alterar')">
+                                                        Alterar
+                                                    </button>
+                                                </div>
+                                                {% if event.status == 'SUSPENSA' and event.suspension_reason %}
+                                                <div class="mt-2">
+                                                    <small class="text-muted d-block">
+                                                        <strong>Motivo:</strong><br>
+                                                        {{ event.suspension_reason }}
+                                                    </small>
+                                                </div>
+                                                {% endif %}
                                             {% else %}
-                                                {{ event.start.strftime('%H:%M') }} - {{ event.end.strftime('%H:%M') }}
+                                                <!-- Sem status - mostrar botões -->
+                                                <div class="btn-group btn-group-sm w-100" role="group">
+                                                    <button class="btn btn-outline-success" 
+                                                            onclick="updateEventStatus('{{ event.uid }}', 'REALIZADA', '{{ event.start.strftime('%Y-%m-%d') }}')">
+                                                        <i class="fas fa-check-circle me-1"></i>Realizada
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" 
+                                                            onclick="openStatusModal('{{ event.uid }}', 'suspender')">
+                                                        <i class="fas fa-ban me-1"></i>Suspensa
+                                                    </button>
+                                                </div>
                                             {% endif %}
-                                        </small>
-                                    </div>
-
-                                    <!-- Título -->
-                                    <h6 class="card-title mb-2">{{ event.title }}</h6>
-
-                                    <!-- Local -->
-                                    {% if event.location %}
-                                    <div class="mb-2">
-                                        <small class="text-muted">
-                                            <i class="fas fa-map-marker-alt me-1"></i>
-                                            {{ event.location }}
-                                        </small>
-                                    </div>
-                                    {% endif %}
-
-                                    <!-- Descrição (truncada) -->
-                                    {% if event.description %}
-                                    <div class="mb-3">
-                                        <small class="text-muted d-block" style="max-height: 60px; overflow: hidden;">
-                                            {{ event.description | truncate(100, true) }}
-                                        </small>
-                                    </div>
-                                    {% endif %}
-
-                                    <!-- Metadados -->
-                                    <div class="mt-3 pt-2 border-top">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            ID: {{ event.uid | truncate(20, true) }}
-                                        </small>
+                                            
+                                            <!-- Info do evento -->
+                                            <small class="text-muted d-block mt-2">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                ID: {{ event.uid | truncate(20, true) }}
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- MODO CALENDÁRIO MENSAL -->
+                <div class="calendar-grid">
+                    <!-- Header dos dias da semana -->
+                    <div class="calendar-header">
+                        <div class="calendar-day-header">Dom</div>
+                        <div class="calendar-day-header">Seg</div>
+                        <div class="calendar-day-header">Ter</div>
+                        <div class="calendar-day-header">Qua</div>
+                        <div class="calendar-day-header">Qui</div>
+                        <div class="calendar-day-header">Sex</div>
+                        <div class="calendar-day-header">Sáb</div>
+                    </div>
+                    
+                    <!-- Grid de semanas -->
+                    <div class="calendar-body">
+                        {% for week in weeks %}
+                            {% for cell in week %}
+                                <div class="calendar-day {{ 'other-month' if cell.is_other_month else '' }} {{ 'today' if cell.is_today else '' }}">
+                                    {% if cell.day %}<div class="day-number">{{ cell.day }}</div>{% endif %}
+                                    <div class="day-events">
+                                        {% if cell.events %}
+                                            {% for event in cell.events[:3] %}
+                                            <button type="button" class="event-pill {% if event.status == 'REALIZADA' %}event-realizada{% elif event.status == 'SUSPENSA' %}event-suspensa{% endif %}" 
+                                                    data-bs-toggle="modal" data-bs-target="#eventModal"
+                                                    data-title="{{ event.title }}"
+                                                    data-start="{{ event.start.strftime('%d/%m/%Y %H:%M') }}"
+                                                    data-allday="{{ 'Sim' if event.all_day else 'Não' }}"
+                                                    data-location="{{ event.location or '' }}"
+                                                    data-description="{{ event.description or '' }}"
+                                                    data-uid="{{ event.uid }}"
+                                                    data-status="{{ event.status or '' }}"
+                                                    data-suspensionreason="{{ event.suspension_reason or '' }}"
+                                                    title="{{ event.title }}">
+                                                <i class="fas fa-circle" style="font-size: 0.4rem;"></i>
+                                                <span class="event-time">{{ event.start.strftime('%H:%M') if not event.all_day else '' }}</span>
+                                                <span class="event-title">{{ event.title | truncate(15, true) }}</span>
+                                            </button>
+                                            {% endfor %}
+                                            {% if cell.events | length > 3 %}
+                                            <div class="more-events">+{{ cell.events | length - 3 }} mais</div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
                         {% endfor %}
                     </div>
                 </div>
-                {% endfor %}
-            </div>
+                {% endif %}
             {% endif %}
 
             <!-- Meta de cache -->
             <div class="mt-4 pt-3 border-top">
                 <small class="text-muted">
                     {% if meta_source == 'cache' %}
-                    <i class="fas fa-database me-1"></i> Dados do cache (última atualização: ~15 minutos)
+                    <i class="fas fa-database me-1"></i> Dados do cache (última atualização: ~5 minutos)
                     {% elif meta_source == 'live' %}
                     <i class="fas fa-check-circle text-success me-1"></i> Dados atualizados do servidor
                     {% elif meta_source == 'stale_cache' %}
@@ -202,9 +317,235 @@
 
 <!-- Helper para converter string ISO para date object -->
 <script>
-    // Registrar custom filter no Jinja (server-side, so não precisa de JS)
+    // Manipular mudança de modo (week/month)
+    function handleViewChange(newView) {
+        const form = document.getElementById('filterForm');
+        
+        if (newView === 'month') {
+            // Quando muda para calendário (month), limpar start/end
+            // para forçar o backend usar month
+            const startInput = document.getElementById('start');
+            const endInput = document.getElementById('end');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            
+            // Garantir que o monthInput está preenchido com month atual
+            const monthInput = document.getElementById('monthInput');
+            if (!monthInput.value || monthInput.value === '') {
+                const today = new Date();
+                monthInput.value = today.getFullYear() + '-' + 
+                                   String(today.getMonth() + 1).padStart(2, '0');
+            }
+        } else if (newView === 'week') {
+            // Quando muda para semana, preencher start/end com intervalo padrão (hoje até hoje+7)
+            const startInput = document.getElementById('start');
+            const endInput = document.getElementById('end');
+            
+            const today = new Date();
+            const endDate = new Date(today);
+            endDate.setDate(endDate.getDate() + 7);
+            
+            // Formatar como YYYY-MM-DD
+            const formatDate = (date) => {
+                return date.getFullYear() + '-' + 
+                       String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(date.getDate()).padStart(2, '0');
+            };
+            
+            if (startInput) startInput.value = formatDate(today);
+            if (endInput) endInput.value = formatDate(endDate);
+            
+            // Limpar month para que o focus esteja em start/end
+            const monthInput = document.getElementById('monthInput');
+            if (monthInput) monthInput.value = '';
+        }
+        
+        form.submit();
+    }
+    
+    // Navegar entre meses
+    function changeMonth(delta) {
+        const monthInput = document.getElementById('monthInput');
+        const currentMonth = monthInput.value; // formato: YYYY-MM
+        
+        if (!currentMonth) {
+            const today = new Date();
+            monthInput.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        }
+        
+        const [year, month] = monthInput.value.split('-').map(Number);
+        const newDate = new Date(year, month - 1 + delta, 1);
+        
+        const newYear = newDate.getFullYear();
+        const newMonth = String(newDate.getMonth() + 1).padStart(2, '0');
+        
+        monthInput.value = newYear + '-' + newMonth;
+        document.getElementById('filterForm').submit();
+    }
 </script>
 <style>
+    /* Calendário Grid */
+    /* Calendário Grid com colunas fixas */
+    .calendar-grid {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+    }
+    
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        grid-auto-flow: row;
+        width: 100%;
+        background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+        color: white;
+        font-weight: 600;
+        text-align: center;
+        padding: 0.75rem 0;
+        box-sizing: border-box;
+    }
+    
+    .calendar-day-header {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex: 1;
+        word-wrap: break-word;
+    }
+    
+    /* Body com colunas fixas (7 colunas iguais sempre) */
+    .calendar-body {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        grid-auto-flow: row;
+        gap: 1px;
+        background: #e5e7eb;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Cada célula do calendário com altura fixa */
+    .calendar-day {
+        background: white;
+        min-height: 120px;
+        height: 120px;
+        padding: 0.5rem;
+        position: relative;
+        transition: background-color 0.2s;
+        box-sizing: border-box;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .calendar-day:hover {
+        background-color: #f9fafb;
+    }
+    
+    .calendar-day.other-month {
+        background-color: #f3f4f6;
+        opacity: 0.5;
+    }
+    
+    .calendar-day.today {
+        background-color: #eff6ff;
+        border: 2px solid var(--primary);
+    }
+    
+    .day-number {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        flex-shrink: 0;
+    }
+    
+    .calendar-day.today .day-number {
+        color: var(--primary);
+        font-weight: 700;
+    }
+    
+    .day-events {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .event-pill {
+        background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .event-pill:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    }
+    
+    .event-pill .event-time {
+        font-weight: 600;
+        margin-right: 0.25rem;
+    }
+    
+    .event-pill .event-title {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .event-pill i {
+        color: currentColor;
+        opacity: 0.9;
+    }
+
+    .more-events {
+        font-size: 0.7rem;
+        color: #6b7280;
+        text-align: center;
+        padding: 0.25rem;
+        font-weight: 500;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .calendar-day {
+            min-height: 80px;
+            padding: 0.25rem;
+        }
+        
+        .calendar-day-header {
+            font-size: 0.7rem;
+            padding: 0.25rem;
+        }
+        
+        .day-number {
+            font-size: 0.8rem;
+        }
+        
+        .event-pill {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.3rem;
+        }
+    }
+    
+    /* Estilos originais */
     .event-card {
         transition: transform 0.2s, box-shadow 0.2s;
     }
@@ -212,6 +553,44 @@
     .event-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Classes para status dos eventos - Cores inteiras */
+    .event-pill.event-realizada {
+        background: linear-gradient(135deg, #198754 0%, #15673f 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);
+    }
+
+    .event-pill.event-realizada:hover {
+        filter: brightness(0.95);
+        box-shadow: 0 4px 8px rgba(25, 135, 84, 0.4);
+    }
+
+    .event-pill.event-realizada .event-time,
+    .event-pill.event-realizada .event-title {
+        color: #ffffff !important;
+    }
+
+    .event-pill.event-suspensa {
+        background: linear-gradient(135deg, #dc3545 0%, #a71d2a 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+        text-decoration: line-through;
+        opacity: 0.9;
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+    }
+
+    .event-pill.event-suspensa:hover {
+        filter: brightness(0.95);
+        opacity: 0.95;
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+    }
+
+    .event-pill.event-suspensa .event-time,
+    .event-pill.event-suspensa .event-title {
+        color: #ffffff !important;
     }
 
     .events-list {
@@ -227,4 +606,389 @@
         }
     }
 </style>
+
+<!-- Modal para alterar status do evento -->
+<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="statusModalLabel">Alterar Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="statusModalEventUid">
+                <input type="hidden" id="statusModalAction">
+                
+                <div id="suspensionReasonGroup" style="display: none;">
+                    <label for="suspensionReason" class="form-label">Motivo da Suspensão *</label>
+                    <textarea class="form-control" id="suspensionReason" rows="4" 
+                              placeholder="Descreva o motivo da suspensão (mínimo 5 caracteres)" required></textarea>
+                    <small class="text-muted d-block mt-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Este campo é obrigatório para suspender o evento.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-warning" onclick="saveStatusWithReason()">
+                    <i class="fas fa-save me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalhes do evento (modo mês) -->
+<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="eventModalLabel">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span id="modalTitle">Detalhes do Evento</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Data e Horário -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="fas fa-clock me-2"></i>Data e Horário
+                    </h6>
+                    <p class="mb-1"><strong id="modalStart"></strong></p>
+                    <p class="mb-0 text-muted small">Dia inteiro: <span id="modalAllDay"></span></p>
+                </div>
+
+                <!-- Local -->
+                <div class="mb-3" id="modalLocationContainer" style="display: none;">
+                    <h6 class="text-muted mb-2">
+                        <i class="fas fa-map-marker-alt me-2"></i>Local
+                    </h6>
+                    <p class="mb-0" id="modalLocation"></p>
+                </div>
+
+                <!-- Descrição -->
+                <div class="mb-3" id="modalDescriptionContainer" style="display: none;">
+                    <h6 class="text-muted mb-2">
+                        <i class="fas fa-file-alt me-2"></i>Descrição
+                    </h6>
+                    <p class="mb-0" id="modalDescription" style="white-space: pre-wrap; word-break: break-word;"></p>
+                </div>
+
+                <!-- Status do Evento -->
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="fas fa-check-circle me-2"></i>Status do Evento
+                    </h6>
+                    <div class="mb-2">
+                        <span id="modalStatusBadge" class="badge"></span>
+                    </div>
+                    <div id="modalSuspensionReasonContainer" style="display: none;" class="alert alert-warning py-2 px-3 mb-2">
+                        <strong>Motivo:</strong> <span id="modalSuspensionReason"></span>
+                    </div>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-success" id="modalBtnRealizada">
+                            <i class="fas fa-check me-1"></i>Realizada
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="modalBtnSuspensa">
+                            <i class="fas fa-pause me-1"></i>Suspensa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ID -->
+                <div class="mb-0">
+                    <h6 class="text-muted mb-2">
+                        <i class="fas fa-info-circle me-2"></i>ID do Evento
+                    </h6>
+                    <p class="mb-0 text-muted small" id="modalUid"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Preencher modal com dados do evento ao clicar
+    document.addEventListener('DOMContentLoaded', function() {
+        const eventModal = document.getElementById('eventModal');
+        if (eventModal) {
+            eventModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                
+                // Extrair dados do botão
+                const title = button.getAttribute('data-title');
+                const start = button.getAttribute('data-start');
+                const allDay = button.getAttribute('data-allday');
+                const location = button.getAttribute('data-location');
+                const description = button.getAttribute('data-description');
+                const uid = button.getAttribute('data-uid');
+                const status = button.getAttribute('data-status');
+                const suspensionReason = button.getAttribute('data-suspensionreason');
+                
+                // Preencher modal
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalStart').textContent = start;
+                document.getElementById('modalAllDay').textContent = allDay;
+                document.getElementById('modalUid').textContent = uid;
+                
+                // Local (exibir apenas se existir)
+                const locationContainer = document.getElementById('modalLocationContainer');
+                if (location && location.trim() !== '') {
+                    document.getElementById('modalLocation').textContent = location;
+                    locationContainer.style.display = 'block';
+                } else {
+                    locationContainer.style.display = 'none';
+                }
+                
+                // Descrição (exibir apenas se existir)
+                const descriptionContainer = document.getElementById('modalDescriptionContainer');
+                if (description && description.trim() !== '') {
+                    document.getElementById('modalDescription').textContent = description;
+                    descriptionContainer.style.display = 'block';
+                } else {
+                    descriptionContainer.style.display = 'none';
+                }
+                
+                // Status do evento
+                const statusBadge = document.getElementById('modalStatusBadge');
+                if (status === 'REALIZADA') {
+                    statusBadge.className = 'badge bg-success';
+                    statusBadge.textContent = '✓ Realizada';
+                } else if (status === 'SUSPENSA') {
+                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.textContent = '⏸ Suspensa';
+                } else {
+                    statusBadge.className = 'badge bg-secondary';
+                    statusBadge.textContent = '? Sem status';
+                }
+                
+                // Mostrar motivo de suspensão se aplicável
+                const suspensionContainer = document.getElementById('modalSuspensionReasonContainer');
+                if (status === 'SUSPENSA' && suspensionReason) {
+                    document.getElementById('modalSuspensionReason').textContent = suspensionReason;
+                    suspensionContainer.style.display = 'block';
+                } else {
+                    suspensionContainer.style.display = 'none';
+                }
+                
+                // Adicionar event listeners aos botões de status
+                const btnRealizada = document.getElementById('modalBtnRealizada');
+                const btnSuspensa = document.getElementById('modalBtnSuspensa');
+                
+                // Remove listeners antigos
+                btnRealizada.replaceWith(btnRealizada.cloneNode(true));
+                btnSuspensa.replaceWith(btnSuspensa.cloneNode(true));
+                
+                // Adiciona novos listeners
+                const newBtnRealizada = document.getElementById('modalBtnRealizada');
+                const newBtnSuspensa = document.getElementById('modalBtnSuspensa');
+                
+                newBtnRealizada.addEventListener('click', function() {
+                    updateEventStatusFromModal(uid, 'REALIZADA');
+                });
+                
+                newBtnSuspensa.addEventListener('click', function() {
+                    openSuspensionModalFromEventModal(uid);
+                });
+            });
+        }
+    });
+
+    // Função para obter CSRF token
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    // Função para atualizar status do evento a partir do modal
+    function updateEventStatusFromModal(eventUid, status) {
+        const reason = status === 'SUSPENSA' ? prompt('Motivo da suspensão (mínimo 5 caracteres):') : null;
+        
+        if (status === 'SUSPENSA' && (!reason || reason.trim().length < 5)) {
+            showAlert('Motivo da suspensão é obrigatório (mínimo 5 caracteres)', 'warning');
+            return;
+        }
+        
+        fetch('/agenda/events/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                event_uid: eventUid,
+                status: status,
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                showAlert('Status atualizado com sucesso!', 'success');
+                // Fechar o modal e recarregar
+                const modal = bootstrap.Modal.getInstance(document.getElementById('eventModal'));
+                if (modal) modal.hide();
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showAlert(data.error || 'Erro ao atualizar status', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Erro ao atualizar status', 'danger');
+        });
+    }
+
+    // Função para abrir modal de suspensão
+    function openSuspensionModalFromEventModal(eventUid) {
+        // Cria um prompt para o motivo
+        const reason = prompt('Motivo da suspensão (mínimo 5 caracteres):');
+        
+        if (reason === null) {
+            return; // Usuário cancelou
+        }
+        
+        if (reason.trim().length < 5) {
+            showAlert('Motivo da suspensão é obrigatório (mínimo 5 caracteres)', 'warning');
+            return;
+        }
+        
+        fetch('/agenda/events/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                event_uid: eventUid,
+                status: 'SUSPENSA',
+                reason: reason.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                showAlert('Evento marcado como suspensa!', 'success');
+                // Fechar o modal e recarregar
+                const modal = bootstrap.Modal.getInstance(document.getElementById('eventModal'));
+                if (modal) modal.hide();
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showAlert(data.error || 'Erro ao atualizar status', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Erro ao atualizar status', 'danger');
+        });
+    }
+
+    // Funções para gerenciar status dos eventos
+    function openStatusModal(eventUid, action) {
+        const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+        document.getElementById('statusModalEventUid').value = eventUid;
+        document.getElementById('suspensionReasonGroup').style.display = action === 'suspender' ? 'block' : 'none';
+        document.getElementById('suspensionReason').value = '';
+        
+        const title = action === 'suspender' ? 'Marcar como Suspensa' : 'Alterar Status';
+        document.getElementById('statusModalLabel').textContent = title;
+        document.getElementById('statusModalAction').value = action;
+        
+        modal.show();
+    }
+
+    function updateEventStatus(eventUid, status, eventDate) {
+        fetch('/agenda/events/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                event_uid: eventUid,
+                status: status,
+                event_date: eventDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                showAlert('Status atualizado com sucesso!', 'success');
+                // Recarregar após 1s
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Erro ao atualizar status', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Erro ao atualizar status', 'danger');
+        });
+    }
+
+    function saveStatusWithReason() {
+        const eventUid = document.getElementById('statusModalEventUid').value;
+        const reason = document.getElementById('suspensionReason').value.trim();
+        const action = document.getElementById('statusModalAction').value;
+        
+        // Validar motivo
+        if (action === 'suspender' && reason.length < 5) {
+            showAlert('Motivo deve ter pelo menos 5 caracteres', 'warning');
+            return;
+        }
+        
+        fetch('/agenda/events/status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                event_uid: eventUid,
+                status: 'SUSPENSA',
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                showAlert('Evento marcado como suspenso', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
+                // Recarregar após 1s
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Erro ao atualizar status', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Erro ao atualizar status', 'danger');
+        });
+    }
+
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.setAttribute('role', 'alert');
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Auto-dismiss após 5s
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+</script>
 {% endblock %}

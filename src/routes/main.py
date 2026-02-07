@@ -84,15 +84,37 @@ def agenda():
     
     try:
         # Parâmetros de query
-        view = request.args.get('view', 'week')  # week ou month
+        view = request.args.get('view', 'month')  # week ou month (padrão: month)
         start_str = request.args.get('start')
         end_str = request.args.get('end')
         query = request.args.get('q', '').strip() or None
+        month_str = request.args.get('month')  # formato: YYYY-MM
         
         # Determinar intervalo
         today = date.today()
         
-        if start_str and end_str:
+        # Se modo month, SEMPRE usar mês completo (ignorar start/end da semana anterior)
+        if view == 'month':
+            if month_str:
+                try:
+                    year, month = map(int, month_str.split('-'))
+                    first = date(year, month, 1)
+                    last = (first + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+                    start_date = first
+                    end_date = last
+                except:
+                    first = today.replace(day=1)
+                    last = (first + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+                    start_date = first
+                    end_date = last
+            else:
+                # Usar mês atual
+                first = today.replace(day=1)
+                last = (first + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+                start_date = first
+                end_date = last
+        # Modo semana (week)
+        elif start_str and end_str:
             try:
                 start_date = datetime.fromisoformat(start_str).date()
                 end_date = datetime.fromisoformat(end_str).date()
@@ -100,15 +122,9 @@ def agenda():
                 start_date = today
                 end_date = today + timedelta(days=7)
         else:
-            if view == 'month':
-                # Primeiro ao último dia do mês
-                first = today.replace(day=1)
-                last = (first + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-                start_date = first
-                end_date = last
-            else:  # week
-                start_date = today
-                end_date = today + timedelta(days=7)
+            # Padrão: semana atual
+            start_date = today
+            end_date = today + timedelta(days=7)
         
         # Obter serviço
         calendar_service = get_calendar_service(current_app)
@@ -137,6 +153,11 @@ def agenda():
                 for evt in events_data:
                     evt['start'] = datetime.fromisoformat(evt['start'])
                     evt['end'] = datetime.fromisoformat(evt['end'])
+                    # Converter datas de all-day se existirem
+                    if evt.get('start_date'):
+                        evt['start_date'] = datetime.fromisoformat(evt['start_date']).date()
+                    if evt.get('end_date'):
+                        evt['end_date'] = datetime.fromisoformat(evt['end_date']).date()
                     events.append(evt)
                 meta_source = "cache"
                 logger.info("Usando cache válido para calendário")
@@ -159,6 +180,8 @@ def agenda():
                             'title': e['title'],
                             'start': e['start'].isoformat(),
                             'end': e['end'].isoformat(),
+                            'start_date': e.get('start_date').isoformat() if e.get('start_date') else None,
+                            'end_date': e.get('end_date').isoformat() if e.get('end_date') else None,
                             'all_day': e['all_day'],
                             'location': e['location'],
                             'description': e['description'],
@@ -186,6 +209,11 @@ def agenda():
                     for evt in events_data:
                         evt['start'] = datetime.fromisoformat(evt['start'])
                         evt['end'] = datetime.fromisoformat(evt['end'])
+                        # Converter datas de all-day se existirem
+                        if evt.get('start_date'):
+                            evt['start_date'] = datetime.fromisoformat(evt['start_date']).date()
+                        if evt.get('end_date'):
+                            evt['end_date'] = datetime.fromisoformat(evt['end_date']).date()
                         events.append(evt)
                     logger.warning("Usando cache antigo por falha de fetch")
                 except:
@@ -193,6 +221,25 @@ def agenda():
         
         # Filtrar por intervalo e query
         filtered_events = calendar_service.filter_events(events, start_date, end_date, query)
+        
+        # Carregar status dos eventos do banco
+        from src.models import CalendarEventStatus
+        status_map = {}
+        for evt_status in CalendarEventStatus.query.all():
+            status_map[evt_status.event_uid] = {
+                'status': evt_status.status,
+                'reason': evt_status.suspension_reason
+            }
+        
+        # Anexar status aos eventos
+        for event in filtered_events:
+            event_uid = event.get('uid', '')
+            if event_uid in status_map:
+                event['status'] = status_map[event_uid]['status']
+                event['suspension_reason'] = status_map[event_uid]['reason']
+            else:
+                event['status'] = None
+                event['suspension_reason'] = None
         
         # Agrupar por dia
         grouped = calendar_service.group_events_by_day(filtered_events)
@@ -206,6 +253,77 @@ def agenda():
             for date_key in sorted_dates
         }
         
+        # Se modo calendário (month), gerar estrutura de semanas (weeks) para o grid
+        weeks = []
+        month_name = ""
+        year = ""
+        current_month = ""
+        
+        if view == 'month':
+            import calendar as cal_module
+            
+            # Nomes dos meses em português
+            month_names = [
+                "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+            ]
+            
+            month_name = month_names[start_date.month - 1]
+            year = start_date.year
+            current_month = f"{year}-{start_date.month:02d}"
+            
+            # Primeiro dia do mês e dia da semana
+            # Python weekday(): 0=SEG, 1=TER, ..., 6=DOM
+            # Nosso índice:    0=DOM, 1=SEG, ..., 6=SÁB
+            first_day = start_date
+            python_weekday = first_day.weekday()  # 0-6, onde 0=SEG, 6=DOM
+            first_weekday = (python_weekday + 1) % 7  # Converte para: 0=DOM, 1=SEG, ..., 6=SÁB
+            
+            # Último dia do mês
+            last_day = end_date
+            last_day_of_month = cal_module.monthrange(year, start_date.month)[1]
+            
+            # Construir lista de cells (células individuais)
+            cells = []
+            
+            # 1. Adicionar células vazias ANTES do primeiro dia do mês
+            for _ in range(first_weekday):
+                cells.append({
+                    'date': None,
+                    'day': None,
+                    'events': [],
+                    'is_other_month': True,
+                    'is_today': False
+                })
+            
+            # 2. Adicionar dias do mês
+            for day_num in range(1, last_day_of_month + 1):
+                current_date = date(year, start_date.month, day_num)
+                day_str = current_date.isoformat()
+                day_events = grouped.get(day_str, [])
+                
+                cells.append({
+                    'date': current_date,
+                    'day': day_num,
+                    'events': day_events,
+                    'is_other_month': False,
+                    'is_today': current_date == today
+                })
+            
+            # 3. Adicionar células vazias DEPOIS do último dia (para completar a última semana)
+            while len(cells) % 7 != 0:
+                cells.append({
+                    'date': None,
+                    'day': None,
+                    'events': [],
+                    'is_other_month': True,
+                    'is_today': False
+                })
+            
+            # 4. Agrupar células em semanas (7 por semana)
+            for i in range(0, len(cells), 7):
+                weeks.append(cells[i:i+7])
+        
         # Contexto para template
         context = {
             'view': view,
@@ -218,6 +336,10 @@ def agenda():
             'meta_source': meta_source,
             'error': error,
             'total_events': len(filtered_events),
+            'weeks': weeks,  # Estrutura de semanas para o grid mensal
+            'month_name': month_name,
+            'year': year,
+            'current_month': current_month,
         }
         
         return render_template('agenda.html', **context)
@@ -233,3 +355,79 @@ def agenda():
                                sorted_dates=[],
                                meta_source='none',
                                total_events=0), 500
+
+
+@main.route('/agenda/events/status', methods=['POST'])
+def update_event_status():
+    """Atualiza o status de um evento (Realizada/Suspensa)"""
+    from src.extensions import db
+    from src.models import CalendarEventStatus
+    
+    try:
+        data = request.get_json()
+        
+        # Validações
+        if not data or 'event_uid' not in data:
+            return jsonify({'ok': False, 'error': 'event_uid é obrigatório'}), 400
+        
+        if 'status' not in data:
+            return jsonify({'ok': False, 'error': 'status é obrigatório'}), 400
+        
+        event_uid = data.get('event_uid', '').strip()
+        status = data.get('status', '').upper()
+        reason = data.get('reason', '').strip() if data.get('reason') else None
+        event_date = data.get('event_date')  # Opcional: YYYY-MM-DD
+        
+        # Validar status
+        if status not in ['REALIZADA', 'SUSPENSA']:
+            return jsonify({'ok': False, 'error': 'status deve ser REALIZADA ou SUSPENSA'}), 400
+        
+        # Se suspensa, validar motivo
+        if status == 'SUSPENSA':
+            if not reason or len(reason.strip()) < 5:
+                return jsonify({
+                    'ok': False, 
+                    'error': 'Motivo da suspensão é obrigatório (mínimo 5 caracteres)'
+                }), 400
+        
+        # Converter event_date se fornecida
+        event_date_obj = None
+        if event_date:
+            try:
+                event_date_obj = datetime.fromisoformat(event_date).date()
+            except:
+                pass
+        
+        # Buscar ou criar registro
+        event_status = CalendarEventStatus.query.filter_by(event_uid=event_uid).first()
+        
+        if event_status:
+            # Atualizar
+            event_status.status = status
+            event_status.suspension_reason = reason if status == 'SUSPENSA' else None
+            event_status.updated_at = datetime.utcnow()
+            if event_date_obj:
+                event_status.event_date = event_date_obj
+        else:
+            # Criar novo
+            event_status = CalendarEventStatus(
+                event_uid=event_uid,
+                status=status,
+                suspension_reason=reason if status == 'SUSPENSA' else None,
+                event_date=event_date_obj
+            )
+            db.session.add(event_status)
+        
+        db.session.commit()
+        
+        logger.info(f"Evento {event_uid[:20]}... marcado como {status}")
+        
+        return jsonify({
+            'ok': True,
+            'status': status,
+            'reason': reason if status == 'SUSPENSA' else None
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Erro ao atualizar status do evento: {e}", exc_info=True)
+        return jsonify({'ok': False, 'error': f'Erro ao atualizar status: {str(e)}'}), 500

@@ -21,8 +21,30 @@ class Config:
     # Security
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-123')
     
+    # Auto-migrate database schema on startup (development only)
+    AUTO_MIGRATE = os.getenv('AUTO_MIGRATE', 'false').lower() == 'true'
+    
     # Google Calendar Configuration
     GOOGLE_CALENDAR_ID = os.getenv('GOOGLE_CALENDAR_ID', 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com')
     GOOGLE_CALENDAR_TZ = os.getenv('GOOGLE_CALENDAR_TZ', 'America/Fortaleza')
     GOOGLE_CALENDAR_ICS_URL = os.getenv('GOOGLE_CALENDAR_ICS_URL', None)  # Se None, será construído
-    CALENDAR_CACHE_TTL_MINUTES = int(os.getenv('CALENDAR_CACHE_TTL_MINUTES', '15'))
+    CALENDAR_CACHE_TTL_MINUTES = int(os.getenv('CALENDAR_CACHE_TTL_MINUTES', '5'))
+    
+    # Google Forms Configuration (para agendamento automático)
+    # IMPORTANTE: Use o ID PÚBLICO do formulário!
+    # URL pública: https://docs.google.com/forms/d/e/[ID_PUBLICO]/viewform
+    # URL edição: https://docs.google.com/forms/d/[ID_EDICAO]/edit  <- NÃO use este!
+    GOOGLE_FORMS_EDIT_ID = os.getenv('GOOGLE_FORMS_EDIT_ID', '1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw')
+    GOOGLE_FORMS_PUBLIC_ID = os.getenv('GOOGLE_FORMS_PUBLIC_ID', None)
+    # URL pública do Forms (opcional) - ex: https://docs.google.com/forms/d/e/<PUBLIC_ID>/viewform
+    GOOGLE_FORMS_VIEWFORM_URL = os.getenv('GOOGLE_FORMS_VIEWFORM_URL', None)
+    GOOGLE_FORMS_TIMEOUT = int(os.getenv('GOOGLE_FORMS_TIMEOUT', '10'))
+
+    # Desktop lifecycle / auto-shutdown
+    DESKTOP_MODE = os.getenv('DESKTOP_MODE', 'false').lower() == 'true'
+    LIFECYCLE_TIMEOUT_SECONDS = int(os.getenv('LIFECYCLE_TIMEOUT_SECONDS', '30'))
+    LIFECYCLE_HEARTBEAT_SECONDS = int(os.getenv('LIFECYCLE_HEARTBEAT_SECONDS', '5'))
+    SERVER_BIND_HOST = os.getenv('SERVER_BIND_HOST', '127.0.0.1')
+    
+    # Apps Script Web App (DESABILITADO - agora usa submissão ao Forms)
+    # APPS_SCRIPT_SCHEDULER_URL = os.getenv('APPS_SCRIPT_SCHEDULER_URL', None)

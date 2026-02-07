@@ -1,14 +1,16 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file
+from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file, jsonify, current_app
 from flask_login import login_required, current_user
 from src.models.surgery_request import SurgeryRequest
 from src.models.patient import Patient
-from src.extensions import db
+from src.extensions import db, csrf
 from src.utils.pdf_utils import preencher_formulario_internacao, preencher_requisicao_hemocomponente
 from src.forms.surgery_form import SurgeryRequestForm
 from datetime import datetime
 import os
+import logging
 
 surgery = Blueprint('surgery', __name__)
+logger = logging.getLogger(__name__)
 
 
 @surgery.route('/patient/<int:patient_id>/surgery/request', methods=['GET', 'POST'])
@@ -194,3 +196,376 @@ def download_pdf_hemocomponente(surgery_id, pdf_name):
 
     # Enviar o arquivo para download
     return send_file(pdf_path, as_attachment=True, download_name=f"Requisicao_Hemocomponente_{surgery_request.patient_id}.pdf")
+
+
+@surgery.route('/surgery_requests/<int:id>/schedule/preview', methods=['GET'])
+@login_required
+def schedule_preview(id):
+    """
+    Retorna JSON com preview do agendamento antes de confirmar.
+    Agora usa submissão ao Google Forms ao invés de Web App.
+    """
+    from src.services.forms_service import build_forms_payload
+    
+    try:
+        # Buscar solicitação e paciente
+        surgery_request = SurgeryRequest.query.get_or_404(id)
+        patient = Patient.query.get_or_404(surgery_request.patient_id)
+        
+        # Verificar se já foi agendado
+        already_scheduled = surgery_request.calendar_status == 'agendado'
+        
+        # Montar payload do Forms
+        try:
+            payload = build_forms_payload(surgery_request, patient)
+            
+            # Formatar preview para exibição
+            preview = {
+                'title': payload['procedure_title'],
+                'date_display': payload['date'],
+                'orthopedist': payload['orthopedist'],
+                'needs_icu_display': payload['needs_icu'],
+                'opme_display': ', '.join(payload['opme']) if payload['opme'] else 'Não',
+                'description': payload['full_description'],
+                'all_day': True
+            }
+            
+            return jsonify({
+                'ok': True,
+                'preview': preview,
+                'already_scheduled': already_scheduled,
+                'scheduled_at': surgery_request.scheduled_at.isoformat() if surgery_request.scheduled_at else None,
+                'event_link': surgery_request.scheduled_event_link
+            })
+            
+        except ValueError as e:
+            # Validação falhou (campos obrigatórios faltando)
+            return jsonify({
+                'ok': False,
+                'message': f'Dados incompletos: {str(e)}'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro ao gerar preview de agendamento: {e}", exc_info=True)
+        return jsonify({
+            'ok': False,
+            'message': f'Erro ao gerar preview: {str(e)}'
+        }), 500
+
+
+@surgery.route('/surgery_requests/<int:id>/schedule/confirm', methods=['POST'])
+@login_required
+@csrf.exempt
+def schedule_confirm(id):
+    """
+    Confirma e envia agendamento submetendo resposta ao Google Forms.
+    O Apps Script da planilha (onFormSubmit) criará o evento no calendário.
+    """
+    from src.services.forms_service import build_forms_payload, submit_form
+    
+    try:
+        # Buscar solicitação e paciente
+        surgery_request = SurgeryRequest.query.get_or_404(id)
+        patient = Patient.query.get_or_404(surgery_request.patient_id)
+        
+        # Verificar se já foi agendado
+        if surgery_request.calendar_status == 'agendado':
+            return jsonify({
+                'ok': False,
+                'message': 'Esta cirurgia já foi agendada anteriormente',
+                'event_link': surgery_request.scheduled_event_link
+            }), 400
+        
+        # Obter PUBLIC_ID do Forms ou view URL
+        public_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
+        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
+        if not public_id and not view_url:
+            logger.error("GOOGLE_FORMS_PUBLIC_ID / GOOGLE_FORMS_VIEWFORM_URL não configurados")
+            return jsonify({
+                'ok': False,
+                'message': 'GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL não configurado. Configure no .env'
+            }), 400
+        
+        # Timeout configurável
+        timeout = current_app.config.get('GOOGLE_FORMS_TIMEOUT', 10)
+        
+        # Montar payload
+        try:
+            payload = build_forms_payload(surgery_request, patient)
+        except ValueError as e:
+            return jsonify({
+                'ok': False,
+                'message': f'Dados incompletos: {str(e)}'
+            }), 400
+        
+        # Determinar public_id para submissão
+        form_public_id = None
+        if public_id:
+            form_public_id = public_id
+        else:
+            # tentar extrair do view_url
+            import re
+            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url or '')
+            if m:
+                form_public_id = m.group(1)
+
+        # Submeter ao Google Forms
+        success, message, status_code = submit_form(form_public_id, payload, timeout)
+
+        if success:
+            # Atualizar registro com dados do agendamento
+            surgery_request.calendar_status = 'agendado'
+            surgery_request.scheduled_at = datetime.utcnow()
+            
+            # Não temos event_id/link direto (será criado pelo Apps Script da planilha)
+            # Mas podemos adicionar link para o Forms ou deixar None
+            surgery_request.scheduled_event_link = None  # Será criado pelo Apps Script
+            
+            db.session.commit()
+            
+            logger.info(f"Cirurgia {id} enviada ao Google Forms com sucesso")
+            
+            return jsonify({
+                'ok': True,
+                'message': 'Agendamento enviado com sucesso! O evento será criado automaticamente no Google Calendar.',
+                'scheduledAt': surgery_request.scheduled_at.isoformat()
+            })
+        else:
+            # Salvar status de erro
+            surgery_request.calendar_status = 'erro'
+            db.session.commit()
+            logger.error(f"Falha ao enviar cirurgia {id} ao Forms: {message} (status {status_code})")
+
+            # Se o erro foi de configuração do Forms (400 no service), retornar 400
+            if status_code == 400:
+                return jsonify({
+                    'ok': False,
+                    'message': message
+                }), 400
+
+            # Erros do Forms (400/403/404) - mapear para 502 Bad Gateway
+            if status_code in (400, 403, 404, 502):
+                return jsonify({
+                    'ok': False,
+                    'message': message
+                }), 502
+
+            # Outros erros: retornar 502 para falha externa
+            return jsonify({
+                'ok': False,
+                'message': f'Falha ao enviar: {message}'
+            }), 502
+            
+    except Exception as e:
+        logger.error(f"Erro ao confirmar agendamento: {e}", exc_info=True)
+        return jsonify({
+            'ok': False,
+            'message': f'Erro inesperado: {str(e)}'
+        }), 500
+
+
+@surgery.route('/surgery_requests/debug/forms-mapping', methods=['GET'])
+@login_required
+def debug_forms_mapping():
+    """Rota de debug para diagnosticar problemas no mapeamento do Forms"""
+    from src.services.forms_service import get_public_form_html, extract_entry_ids, get_or_refresh_mapping
+    
+    # Preferir PUBLIC_ID, senão aceitar VIEWFORM URL e tentar extrair
+    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
+    if not form_id:
+        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
+        if view_url:
+            import re
+            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
+            if m:
+                form_id = m.group(1)
+    force_refresh = request.args.get('force', 'false').lower() == 'true'
+    
+    debug_info = {
+        'form_id': form_id,
+        'force_refresh': force_refresh,
+        'status': 'debug',
+        'steps': []
+    }
+    
+    try:
+        # Passo 1: Verificar se form_id está configurado
+        debug_info['steps'].append({
+            'step': '1. Verificar configuração',
+            'form_id_configured': bool(form_id),
+            'form_id': form_id[:20] + '...' if form_id and len(form_id) > 20 else form_id
+        })
+        
+        if not form_id:
+            debug_info['status'] = 'error'
+            debug_info['error'] = 'GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL não está configurado'
+            return jsonify(debug_info), 400
+        
+        # Passo 2: Baixar HTML
+        debug_info['steps'].append({'step': '2. Baixando HTML do Forms...'})
+        try:
+            html = get_public_form_html(form_id)
+            debug_info['steps'][-1]['success'] = True
+            debug_info['steps'][-1]['html_size'] = len(html)
+            debug_info['steps'][-1]['html_preview'] = html[:300]
+        except Exception as e:
+            debug_info['steps'][-1]['success'] = False
+            debug_info['steps'][-1]['error'] = str(e)
+            debug_info['status'] = 'error'
+            return jsonify(debug_info), 500
+        
+        # Passo 3: Extrair entry IDs
+        debug_info['steps'].append({'step': '3. Extraindo entry IDs...'})
+        mapping = extract_entry_ids(html)
+        debug_info['steps'][-1]['success'] = True
+        debug_info['steps'][-1]['mapping_count'] = len(mapping)
+        debug_info['steps'][-1]['mapping'] = mapping
+        
+        # Passo 4: Tentar obter mapping com cache/refresh
+        debug_info['steps'].append({'step': '4. Obtendo mapeamento (com cache)...'})
+        try:
+            full_mapping = get_or_refresh_mapping(form_id, force_refresh=False)
+            debug_info['steps'][-1]['success'] = True
+            debug_info['steps'][-1]['mapping_count'] = len(full_mapping)
+            debug_info['steps'][-1]['mapping'] = full_mapping
+        except Exception as e:
+            debug_info['steps'][-1]['success'] = False
+            debug_info['steps'][-1]['error'] = str(e)
+            debug_info['steps'].append({'step': '5. Tentando com refresh forçado...'})
+            try:
+                full_mapping = get_or_refresh_mapping(form_id, force_refresh=True)
+                debug_info['steps'][-1]['success'] = True
+                debug_info['steps'][-1]['mapping'] = full_mapping
+            except Exception as e2:
+                debug_info['steps'][-1]['success'] = False
+                debug_info['steps'][-1]['error'] = str(e2)
+        
+        debug_info['status'] = 'complete'
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        debug_info['status'] = 'error'
+        debug_info['error'] = str(e)
+        return jsonify(debug_info), 500
+
+
+@surgery.route('/surgery_requests/debug/forms-clear-cache', methods=['POST'])
+@login_required
+def debug_forms_clear_cache():
+    """Limpar cache de mapeamento do Forms"""
+    from pathlib import Path
+    
+    cache_file = Path(__file__).parent.parent.parent / 'instance' / 'forms_mapping.json'
+    
+    try:
+        if cache_file.exists():
+            cache_file.unlink()
+            return jsonify({'ok': True, 'message': 'Cache limpo com sucesso'}), 200
+        else:
+            return jsonify({'ok': True, 'message': 'Cache não existia'}), 200
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@surgery.route('/surgery_requests/debug/forms-html', methods=['GET'])
+@login_required
+def debug_forms_html():
+    """Salva o HTML completo do Forms para análise"""
+    from src.services.forms_service import get_public_form_html
+    from pathlib import Path
+    
+    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
+    if not form_id:
+        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
+        if view_url:
+            import re
+            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
+            if m:
+                form_id = m.group(1)
+    
+    try:
+        html = get_public_form_html(form_id)
+        
+        # Salvar em arquivo
+        html_file = Path(__file__).parent.parent.parent / 'instance' / 'forms_debug.html'
+        html_file.parent.mkdir(exist_ok=True)
+        html_file.write_text(html, encoding='utf-8')
+        
+        # Análise rápida
+        import re
+        entries = re.findall(r'entry\.(\d+)', html)
+        unique_entries = sorted(set(entries))
+        
+        return jsonify({
+            'ok': True,
+            'html_size': len(html),
+            'html_file': str(html_file),
+            'entries_found': unique_entries,
+            'entry_count': len(unique_entries),
+            'message': f'HTML salvo em {html_file}'
+        })
+        
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@surgery.route('/surgery_requests/debug/forms-analysis', methods=['GET'])
+@login_required  
+def debug_forms_analysis():
+    """Analisa o HTML do Forms para encontrar padrões de entrada"""
+    from src.services.forms_service import get_public_form_html
+    import re
+    
+    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
+    if not form_id:
+        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
+        if view_url:
+            import re
+            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
+            if m:
+                form_id = m.group(1)
+    
+    try:
+        html = get_public_form_html(form_id)
+        
+        analysis = {
+            'form_id': form_id,
+            'html_size': len(html),
+            'patterns': {}
+        }
+        
+        # Procurar por diferentes padrões de entrada
+        patterns = {
+            'entry_simple': r'entry\.(\d+)(?![.\d])',  # entry.123 (não seguido por . ou dígito)
+            'entry_with_suffix': r'entry\.(\d+)\.(\w+)',  # entry.123.suffix
+            'input_name': r'name=["\']?([^\s"\']+)["\']?',  # name="..."
+            'name_entry': r'name=["\']?(entry\.\d+[^"\']*)["\']?',  # name="entry...."
+        }
+        
+        for pattern_name, pattern in patterns.items():
+            matches = re.findall(pattern, html)
+            if matches:
+                if isinstance(matches[0], tuple):
+                    analysis['patterns'][pattern_name] = [str(m) for m in list(set(matches))[:15]]
+                else:
+                    analysis['patterns'][pattern_name] = list(set(matches))[:15]
+        
+        # Procurar por "Datas", "Descrição", "OPME", "UTI" ou variações
+        field_keywords = {
+            'data': r'[Dd]ata|[Dd]ate|quando',
+            'descricao': r'[Dd]escri|[Dd]etail|[Oo]bserva',
+            'opme': r'[OO][Pp][Mm][Ee]|material',
+            'uti': r'[Uu][Tt][Ii]|intensiv',
+            'procedimento': r'[Pp]roced|[Ss]urgery|[Cc]irurg',
+            'ortopedista': r'[Oo]rto|[Dd]octor|[Mm]edic'
+        }
+        
+        analysis['field_detection'] = {}
+        for field, keyword_pattern in field_keywords.items():
+            if re.search(keyword_pattern, html, re.IGNORECASE):
+                analysis['field_detection'][field] = 'encontrado'
+        
+        return jsonify(analysis)
+        
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500

@@ -115,9 +115,12 @@ def edit_patient(id):
 @login_required
 def search_patient_accdb():
     """Busca dados do paciente no banco Access"""
-    prontuario = request.args.get('prontuario', '').strip()
-    
-    if not prontuario:
+    prontuario = request.args.get('prontuario', '')
+    if prontuario is None:
+        return jsonify({"error": "Prontuário não fornecido"}), 400
+
+    prontuario = str(prontuario).strip()
+    if prontuario == '':
         return jsonify({"error": "Prontuário não fornecido"}), 400
     
     try:
@@ -125,6 +128,7 @@ def search_patient_accdb():
         db_path = r"\\192.168.1.252\naqh\AMBULATORIO_SERV\AMBULATORIO_SERV.accdb"
         
         if not Path(db_path).exists():
+            current_app.logger.error(f"Banco Access não encontrado em: {db_path}")
             return jsonify({"error": "Banco de dados não encontrado"}), 404
         
         # String de conexão para Access
@@ -133,32 +137,35 @@ def search_patient_accdb():
         try:
             conn = pyodbc.connect(conn_str)
             cursor = conn.cursor()
-            
+
             # Buscar dados na tabela cadastro_de_pacientes
             cursor.execute('SELECT * FROM cadastro_de_pacientes WHERE prontuario = ?', prontuario)
             row = cursor.fetchone()
-            
+
             if not row:
                 cursor.close()
                 conn.close()
-                return jsonify({"found": False}), 200
-            
+                # Retornar 404 quando não encontrado (cliente pode interpretar como not found)
+                return jsonify({"found": False, "message": "Prontuário não encontrado"}), 404
+
             # Obter nomes das colunas
             columns = [description[0] for description in cursor.description]
-            
+
             # Converter para dicionário
             patient_data = dict(zip(columns, row))
-            
+
             cursor.close()
             conn.close()
-            
+
             return jsonify({"found": True, "data": patient_data}), 200
-            
+
         except pyodbc.Error as e:
-            return jsonify({"error": f"Erro ao conectar ao banco Access: {str(e)}"}), 500
-            
+            current_app.logger.exception("Erro ao conectar ao banco Access")
+            return jsonify({"error": "Erro ao conectar ao banco Access"}), 502
+
     except Exception as e:
-        return jsonify({"error": f"Erro ao buscar dados: {str(e)}"}), 500
+        current_app.logger.exception("Erro inesperado ao buscar dados do Access")
+        return jsonify({"error": "Erro ao buscar dados"}), 500
 
 
 # Nova rota para verificar a existência do paciente via API

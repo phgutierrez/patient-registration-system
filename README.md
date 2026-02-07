@@ -45,6 +45,11 @@ Sistema desenvolvido para otimizar o processo de cadastro de pacientes e solicit
 - ✅ Geração automática de PDF com dados do paciente
 - ✅ Histórico de solicitações por paciente
 - ✅ Confirmação e download de documentos
+- ✅ **Agendamento Automático via Google Forms**
+  - Preview antes de enviar
+  - Submissão direta ao Forms
+  - Evento criado automaticamente no Google Calendar
+  - Proteção contra duplicação
 
 ### Gestão de Usuários
 - ✅ Cadastro de médicos solicitantes
@@ -248,8 +253,66 @@ Tabela moderna com busca e ações agrupadas
 
 ---
 
-## 📝 Changelog
+## � Integração com Google Calendar
 
+O sistema inclui agendamento automático via **submissão ao Google Forms**, que dispara um Apps Script para criar eventos no Google Calendar.
+
+### ⚙️ Como Configurar
+
+1. **Configure o .env:**
+   ```env
+   GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+   GOOGLE_FORMS_TIMEOUT=10
+   ```
+
+2. **Extraia os entry IDs do Forms:**
+   ```bash
+   python scripts/extract_forms_entries.py
+   ```
+
+3. **Valide a integração:**
+   ```bash
+   python scripts/validate_forms_integration.py --skip-submit
+   ```
+
+4. **Teste com dados reais:**
+   - Crie uma solicitação de cirurgia
+   - Clique em "Adicionar à Agenda"
+   - Confirme no modal de preview
+   - Verifique o evento no Google Calendar
+
+### 📚 Documentação Completa
+
+- [Guia Rápido](docs/GUIA_FORMS.md)
+- [Documentação Técnica](docs/REVERSAO_FORMS.md)
+- [Resumo Executivo](docs/REVERSAO_RESUMO.md)
+
+### 🔄 Fluxo de Agendamento
+
+```
+1. Usuário clica "Adicionar à Agenda"
+   ↓
+2. Sistema mostra preview (título, data, descrição)
+   ↓
+3. Usuário confirma
+   ↓
+4. Sistema submete ao Google Forms
+   ↓
+5. Apps Script da planilha cria evento DIA INTEIRO no Calendar
+```
+
+---
+
+## �📝 Changelog
+### v2.0.0 (2026-02-05) - Agendamento via Google Forms
+- ✨ **NOVA FEATURE:** Agendamento automático via Google Forms
+- ✨ Preview + confirmação antes de enviar
+- ✨ Submissão direta ao Forms (sem Web App)
+- ✨ Proteção contra agendamento duplicado
+- 🔄 Reversão: Apps Script Web App → Google Forms
+- 📚 Documentação completa da integração
+- 🧪 Scripts de validação e testes
+- ⚡ Cache automático de entry IDs
 ### v1.0.0 (2026-01-26)
 - ✨ Interface moderna com gradientes e animações
 - ✨ Logo institucional na sidebar
