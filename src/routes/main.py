@@ -77,9 +77,8 @@ def shutdown():
 @main.route('/agenda')
 def agenda():
     """Exibe a agenda cirúrgica a partir do Google Calendar (ICS)"""
+    from src.services.calendar_cache_service import get_calendar_cache_service
     from src.services.calendar_service import get_calendar_service
-    from src.extensions import db
-    from src.models import CalendarCache
     from flask import current_app
     
     try:
@@ -126,98 +125,22 @@ def agenda():
             start_date = today
             end_date = today + timedelta(days=7)
         
-        # Obter serviço
+        # Get cached calendar data using the new cache service
+        cache_service = get_calendar_cache_service()
+        calendar_data = cache_service.get_calendar_data()
+        
+        # Get calendar service for filtering
         calendar_service = get_calendar_service(current_app)
         
-        # Verificar cache
-        cache = CalendarCache.query.filter_by(calendar_id=calendar_service.calendar_id).first()
-        cache_valid = False
-        use_stale = False
-        cache_ttl_minutes = current_app.config.get('CALENDAR_CACHE_TTL_MINUTES', 15)
+        # Use the events from cache
+        events = calendar_data.events
+        meta_source = calendar_data.source_status
+        error = calendar_data.last_error
         
-        if cache and cache.fetched_at:
-            age_minutes = (datetime.utcnow() - cache.fetched_at).total_seconds() / 60
-            cache_valid = age_minutes < cache_ttl_minutes
-        
-        # Fetch eventos
-        events = []
-        error = None
-        meta_source = "none"
-        
-        if cache_valid and cache and cache.events_json:
-            # Usar cache válido
-            try:
-                events_data = json.loads(cache.events_json)
-                # Reconverter datas de ISO string para datetime
-                events = []
-                for evt in events_data:
-                    evt['start'] = datetime.fromisoformat(evt['start'])
-                    evt['end'] = datetime.fromisoformat(evt['end'])
-                    # Converter datas de all-day se existirem
-                    if evt.get('start_date'):
-                        evt['start_date'] = datetime.fromisoformat(evt['start_date']).date()
-                    if evt.get('end_date'):
-                        evt['end_date'] = datetime.fromisoformat(evt['end_date']).date()
-                    events.append(evt)
-                meta_source = "cache"
-                logger.info("Usando cache válido para calendário")
-            except Exception as e:
-                logger.warning(f"Erro ao desserializar cache: {e}")
-                cache_valid = False
-        
-        if not cache_valid:
-            # Fazer fetch
-            logger.info("Buscando eventos do calendário...")
-            events, error = calendar_service.fetch_events()
-            
-            if events:
-                meta_source = "live"
-                # Atualizar cache
-                events_json = json.dumps(
-                    [
-                        {
-                            'uid': e['uid'],
-                            'title': e['title'],
-                            'start': e['start'].isoformat(),
-                            'end': e['end'].isoformat(),
-                            'start_date': e.get('start_date').isoformat() if e.get('start_date') else None,
-                            'end_date': e.get('end_date').isoformat() if e.get('end_date') else None,
-                            'all_day': e['all_day'],
-                            'location': e['location'],
-                            'description': e['description'],
-                        }
-                        for e in events
-                    ]
-                )
-                
-                if not cache:
-                    cache = CalendarCache(calendar_id=calendar_service.calendar_id)
-                    db.session.add(cache)
-                
-                cache.fetched_at = datetime.utcnow()
-                cache.events_json = events_json
-                cache.error_message = None
-                db.session.commit()
-                logger.info("Cache atualizado")
-            
-            elif cache and cache.events_json:
-                # Falhou; usar cache antigo
-                meta_source = "stale_cache"
-                try:
-                    events_data = json.loads(cache.events_json)
-                    events = []
-                    for evt in events_data:
-                        evt['start'] = datetime.fromisoformat(evt['start'])
-                        evt['end'] = datetime.fromisoformat(evt['end'])
-                        # Converter datas de all-day se existirem
-                        if evt.get('start_date'):
-                            evt['start_date'] = datetime.fromisoformat(evt['start_date']).date()
-                        if evt.get('end_date'):
-                            evt['end_date'] = datetime.fromisoformat(evt['end_date']).date()
-                        events.append(evt)
-                    logger.warning("Usando cache antigo por falha de fetch")
-                except:
-                    events = []
+        # Add age information for debugging
+        if calendar_data.fetched_at:
+            age_seconds = (datetime.utcnow() - calendar_data.fetched_at).total_seconds()
+            logger.debug(f"Using calendar cache: {meta_source}, age: {age_seconds:.1f}s")
         
         # Filtrar por intervalo e query
         filtered_events = calendar_service.filter_events(events, start_date, end_date, query)
@@ -340,6 +263,12 @@ def agenda():
             'month_name': month_name,
             'year': year,
             'current_month': current_month,
+            # Add cache info for debugging/monitoring
+            'cache_info': {
+                'fetched_at': calendar_data.fetched_at.isoformat() if calendar_data.fetched_at else None,
+                'age_seconds': (datetime.utcnow() - calendar_data.fetched_at).total_seconds() if calendar_data.fetched_at else None,
+                'ttl_seconds': current_app.config.get('CALENDAR_CACHE_TTL_SECONDS', 60)
+            }
         }
         
         return render_template('agenda.html', **context)
@@ -353,8 +282,71 @@ def agenda():
                                end_date=(date.today() + timedelta(days=7)).isoformat(),
                                grouped_events={},
                                sorted_dates=[],
-                               meta_source='none',
+                               meta_source='error',
                                total_events=0), 500
+
+
+@main.route('/agenda/cache/refresh', methods=['POST'])
+@login_required
+def refresh_calendar_cache():
+    """Force refresh of calendar cache"""
+    from src.services.calendar_cache_service import get_calendar_cache_service
+    
+    try:
+        cache_service = get_calendar_cache_service()
+        calendar_data = cache_service.get_calendar_data(force_refresh=True)
+        
+        return jsonify({
+            'ok': True,
+            'message': 'Calendar cache refreshed successfully',
+            'events_count': len(calendar_data.events),
+            'fetched_at': calendar_data.fetched_at.isoformat(),
+            'source_status': calendar_data.source_status,
+            'error': calendar_data.last_error
+        }), 200
+        
+    except Exception as e:
+        logger.exception("Error refreshing calendar cache")
+        return jsonify({
+            'ok': False,
+            'error': f'Failed to refresh calendar cache: {str(e)}'
+        }), 500
+
+
+@main.route('/agenda/cache/info', methods=['GET'])
+@login_required
+def calendar_cache_info():
+    """Get calendar cache information"""
+    from src.services.calendar_cache_service import get_calendar_cache_service
+    from flask import current_app
+    
+    try:
+        cache_service = get_calendar_cache_service()
+        # Get current cache without forcing refresh
+        calendar_data = cache_service.get_calendar_data(force_refresh=False)
+        
+        ttl_seconds = current_app.config.get('CALENDAR_CACHE_TTL_SECONDS', 60)
+        age_seconds = (datetime.utcnow() - calendar_data.fetched_at).total_seconds() if calendar_data.fetched_at else None
+        
+        return jsonify({
+            'ok': True,
+            'cache_info': {
+                'events_count': len(calendar_data.events),
+                'fetched_at': calendar_data.fetched_at.isoformat() if calendar_data.fetched_at else None,
+                'age_seconds': age_seconds,
+                'ttl_seconds': ttl_seconds,
+                'expired': age_seconds > ttl_seconds if age_seconds else True,
+                'source_status': calendar_data.source_status,
+                'last_error': calendar_data.last_error
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.exception("Error getting calendar cache info")
+        return jsonify({
+            'ok': False,
+            'error': f'Failed to get calendar cache info: {str(e)}'
+        }), 500
 
 
 @main.route('/agenda/events/status', methods=['POST'])

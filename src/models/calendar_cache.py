@@ -13,6 +13,11 @@ class CalendarCache(db.Model):
     fetched_at = db.Column(db.DateTime, nullable=True)
     events_json = db.Column(db.Text, nullable=True)  # JSON serializado da lista de eventos
     error_message = db.Column(db.Text, nullable=True)  # Mensagem de erro se falhar
+    
+    # Conditional GET support
+    etag = db.Column(db.String(255), nullable=True)  # ETag from Google response
+    last_modified = db.Column(db.String(255), nullable=True)  # Last-Modified from Google response
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

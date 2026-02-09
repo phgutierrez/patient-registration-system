@@ -54,5 +54,44 @@ if __name__ == '__main__':
     # Verificar e executar auto-migração se necessário
     check_and_auto_migrate()
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Check if we should use production server instead
+    use_waitress = os.getenv('USE_WAITRESS', 'false').lower() == 'true'
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    host = os.getenv('SERVER_HOST', '127.0.0.1')
+    port = int(os.getenv('SERVER_PORT', '5000'))
+    
+    if use_waitress:
+        print("\\n" + "="*50)
+        print("🚀 Starting Patient Registration System")
+        print("="*50)
+        print(f"Server: Waitress (production)")
+        print(f"Host: {host}")
+        print(f"Port: {port}")
+        print(f"Debug: {'ON' if debug_mode else 'OFF'}")
+        print(f"Desktop Mode: {os.getenv('DESKTOP_MODE', 'false')}")
+        print("="*50)
+        print(f"Access: http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
+        if host == '0.0.0.0':
+            print("Network access: http://YOUR_IP_ADDRESS:" + str(port))
+        print("Press Ctrl+C to stop")
+        print("="*50 + "\\n")
+        
+        try:
+            from waitress import serve
+            serve(app, host=host, port=port)
+        except ImportError:
+            print("ERROR: Waitress not installed. Install with: pip install waitress")
+            print("Falling back to Flask dev server...")
+            app.run(debug=debug_mode, host=host, port=port)
+    else:
+        print("\\n" + "="*50)
+        print("⚠️  DEVELOPMENT MODE")
+        print("="*50)
+        print("Using Flask development server")
+        print("For production use: set USE_WAITRESS=true")
+        print("Or use: run_network.bat / run_local.bat")
+        print("="*50 + "\\n")
+        
+        # Flask development server (only for development)
+        app.run(debug=debug_mode, host=host, port=port)
 

@@ -35,10 +35,32 @@ def start_monitor(app):
     - Só ativa se DESKTOP_MODE == True
     - Só fecha se SERVER_BIND_HOST for 127.0.0.1 ou localhost
     - Usa LIFECYCLE_TIMEOUT_SECONDS para decidir timeout
+    - Desabilitado automaticamente no modo network (0.0.0.0)
     """
+    import os
+    
+    # Prevenir double-start devido ao debug reloader
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        werkzeug_main = os.environ.get("WERKZEUG_RUN_MAIN", "not set")
+        logger.debug(f"Lifecycle monitor skipped (WERKZEUG_RUN_MAIN={werkzeug_main})")
+        return
 
     def monitor():
-        logger.info("Lifecycle monitor iniciado")
+        # Check initial config to determine if monitor should run
+        with app.app_context():
+            desktop_mode = app.config.get('DESKTOP_MODE', False)
+            bind_host = app.config.get('SERVER_BIND_HOST', '127.0.0.1')
+            
+            if not desktop_mode:
+                logger.info("Lifecycle monitor disabled (DESKTOP_MODE=false)")
+                return
+                
+            if str(bind_host) not in ('127.0.0.1', 'localhost'):
+                logger.info(f"Lifecycle monitor disabled (network mode, bind_host={bind_host})")
+                return
+                
+            logger.info("Lifecycle monitor iniciado (desktop mode)")
+            
         while True:
             try:
                 time.sleep(5)

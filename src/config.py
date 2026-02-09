@@ -28,6 +28,10 @@ class Config:
     GOOGLE_CALENDAR_ID = os.getenv('GOOGLE_CALENDAR_ID', 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com')
     GOOGLE_CALENDAR_TZ = os.getenv('GOOGLE_CALENDAR_TZ', 'America/Fortaleza')
     GOOGLE_CALENDAR_ICS_URL = os.getenv('GOOGLE_CALENDAR_ICS_URL', None)  # Se None, será construído
+    
+    # Calendar cache TTL (60 seconds for fast updates)
+    CALENDAR_CACHE_TTL_SECONDS = int(os.getenv('CALENDAR_CACHE_TTL_SECONDS', '60'))
+    # Legacy minutes setting (deprecated, use seconds instead)
     CALENDAR_CACHE_TTL_MINUTES = int(os.getenv('CALENDAR_CACHE_TTL_MINUTES', '5'))
     
     # Google Forms Configuration (para agendamento automático)
@@ -40,11 +44,15 @@ class Config:
     GOOGLE_FORMS_VIEWFORM_URL = os.getenv('GOOGLE_FORMS_VIEWFORM_URL', None)
     GOOGLE_FORMS_TIMEOUT = int(os.getenv('GOOGLE_FORMS_TIMEOUT', '10'))
 
-    # Desktop lifecycle / auto-shutdown
+    # Server Configuration
+    SERVER_HOST = os.getenv('SERVER_HOST', '127.0.0.1')  # 0.0.0.0 for LAN
+    SERVER_PORT = int(os.getenv('SERVER_PORT', '5000'))
+    
+    # Desktop lifecycle / auto-shutdown (only for desktop mode)
     DESKTOP_MODE = os.getenv('DESKTOP_MODE', 'false').lower() == 'true'
     LIFECYCLE_TIMEOUT_SECONDS = int(os.getenv('LIFECYCLE_TIMEOUT_SECONDS', '30'))
     LIFECYCLE_HEARTBEAT_SECONDS = int(os.getenv('LIFECYCLE_HEARTBEAT_SECONDS', '5'))
-    SERVER_BIND_HOST = os.getenv('SERVER_BIND_HOST', '127.0.0.1')
+    SERVER_BIND_HOST = os.getenv('SERVER_BIND_HOST', SERVER_HOST)  # Backward compatibility
     
     # Apps Script Web App (DESABILITADO - agora usa submissão ao Forms)
     # APPS_SCRIPT_SCHEDULER_URL = os.getenv('APPS_SCRIPT_SCHEDULER_URL', None)

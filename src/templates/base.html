@@ -652,6 +652,11 @@
             return urlParams.get(name);
         }
 
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
         const lifecycleSession = getQueryParam('session');
         let heartbeatTimer = null;
 
@@ -660,7 +665,10 @@
 
             fetch('/lifecycle/heartbeat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
                 body: JSON.stringify({ session: lifecycleSession }),
                 credentials: 'same-origin'
             }).catch(() => {
@@ -683,7 +691,11 @@
         window.addEventListener('beforeunload', function() {
             if (!lifecycleSession) return;
             try {
-                navigator.sendBeacon('/lifecycle/shutdown', JSON.stringify({ session: lifecycleSession }));
+                // Para sendBeacon, usar FormData ao invés de JSON para CSRF
+                const formData = new FormData();
+                formData.append('session', lifecycleSession);
+                formData.append('csrf_token', getCsrfToken());
+                navigator.sendBeacon('/lifecycle/shutdown', formData);
             } catch (e) {}
         });
     </script>

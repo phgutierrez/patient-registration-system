@@ -23,7 +23,12 @@ def heartbeat():
 @bp.route('/lifecycle/shutdown', methods=['POST'])
 @login_required
 def shutdown():
-    data = request.get_json() or {}
+    # Aceitar tanto JSON quanto FormData (para sendBeacon)
+    if request.content_type and 'application/json' in request.content_type:
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+    
     session = data.get('session')
     if session:
         lifecycle_service.remove_session(session)

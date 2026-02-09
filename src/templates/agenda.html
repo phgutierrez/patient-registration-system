@@ -15,13 +15,30 @@
     </div>
 
     <!-- Aviso de Cache -->
-    {% if meta_source == 'stale_cache' %}
+    {% if meta_source == 'stale' %}
     <div class="alert alert-warning d-flex align-items-center" role="alert">
         <i class="fas fa-exclamation-triangle me-2"></i>
         <div>
-            <strong>Aviso:</strong> O calendário não pode ser atualizado no momento. 
-            Exibindo dados do último carregamento bem-sucedido. Verifique se o calendário está acessível.
+            <strong>Warning:</strong> Calendar could not be updated at the moment. 
+            Displaying data from the last successful fetch. Please check if the calendar is accessible.
+            {% if cache_info and cache_info.fetched_at %}
+            <small class="d-block mt-1">Last updated: {{ cache_info.fetched_at[:19] }} ({{ "%.0f"|format(cache_info.age_seconds) }}s ago)</small>
+            {% endif %}
         </div>
+        <button type="button" class="btn btn-sm btn-outline-warning ms-auto" onclick="refreshCalendarCache()" id="refreshBtn">
+            <i class="fas fa-refresh me-1"></i>Refresh
+        </button>
+    </div>
+    {% elif meta_source == 'error' %}
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <div>
+            <strong>Error:</strong> No calendar data available.
+            {% if error %} {{ error }}{% endif %}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="refreshCalendarCache()" id="refreshBtn">
+            <i class="fas fa-refresh me-1"></i>Retry
+        </button>
     </div>
     {% endif %}
 
@@ -297,19 +314,32 @@
                 {% endif %}
             {% endif %}
 
-            <!-- Meta de cache -->
-            <div class="mt-4 pt-3 border-top">
+            <!-- Cache status and refresh controls -->
+            <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
                 <small class="text-muted">
-                    {% if meta_source == 'cache' %}
-                    <i class="fas fa-database me-1"></i> Dados do cache (última atualização: ~5 minutos)
-                    {% elif meta_source == 'live' %}
-                    <i class="fas fa-check-circle text-success me-1"></i> Dados atualizados do servidor
-                    {% elif meta_source == 'stale_cache' %}
-                    <i class="fas fa-warning text-warning me-1"></i> Usando cache antigo (fetch falhou)
+                    {% if meta_source == 'ok' %}
+                    <i class="fas fa-check-circle text-success me-1"></i> Fresh data from server
+                    {% elif meta_source == 'stale' %}
+                    <i class="fas fa-clock text-warning me-1"></i> Using stale cache (server unreachable)
+                    {% elif meta_source == 'error' %}
+                    <i class="fas fa-exclamation-circle text-danger me-1"></i> No data available
                     {% else %}
-                    <i class="fas fa-question-circle me-1"></i> Status desconhecido
+                    <i class="fas fa-question-circle me-1"></i> Unknown status: {{ meta_source }}
+                    {% endif %}
+                    {% if cache_info and cache_info.fetched_at %}
+                    <br>Last updated: {{ cache_info.fetched_at[:19] }} 
+                    ({{ "%.0f"|format(cache_info.age_seconds) }}s ago, TTL: {{ cache_info.ttl_seconds }}s)
                     {% endif %}
                 </small>
+                
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="showCacheInfo()" title="Cache information">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshCalendarCache()" id="refreshBtn" title="Force refresh cache">
+                        <i class="fas fa-refresh me-1"></i>Refresh
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -989,6 +1019,90 @@
         
         // Auto-dismiss após 5s
         setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    // Calendar cache functions
+    async function refreshCalendarCache() {
+        const refreshBtn = document.getElementById('refreshBtn');
+        const originalContent = refreshBtn.innerHTML;
+        
+        // Show loading state
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+        refreshBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/agenda/cache/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.ok) {
+                showAlert(`Calendar refreshed successfully! Found ${data.events_count} events.`, 'success');
+                // Reload the page to show new data
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert(`Failed to refresh calendar: ${data.error}`, 'danger');
+            }
+        } catch (error) {
+            showAlert(`Failed to refresh calendar: ${error.message}`, 'danger');
+        } finally {
+            // Restore button state
+            refreshBtn.innerHTML = originalContent;
+            refreshBtn.disabled = false;
+        }
+    }
+
+    async function showCacheInfo() {
+        try {
+            const response = await fetch('/agenda/cache/info', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.ok) {
+                const info = data.cache_info;
+                const fetchedAt = info.fetched_at ? new Date(info.fetched_at).toLocaleString() : 'Never';
+                const ageText = info.age_seconds ? `${Math.round(info.age_seconds)}s ago` : 'Unknown';
+                const expiredText = info.expired ? 'Yes' : 'No';
+                
+                const message = `
+                    <strong>Calendar Cache Information:</strong><br>
+                    • Events: ${info.events_count}<br>
+                    • Last Fetched: ${fetchedAt}<br>
+                    • Age: ${ageText}<br>
+                    • TTL: ${info.ttl_seconds}s<br>
+                    • Expired: ${expiredText}<br>
+                    • Status: ${info.source_status}<br>
+                    ${info.last_error ? `• Last Error: ${info.last_error}<br>` : ''}
+                `;
+                
+                // Create a modal or use a simple alert with HTML
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-info alert-dismissible fade show position-fixed start-50 translate-middle-x';
+                alertDiv.style.top = '20px';
+                alertDiv.style.zIndex = '9999';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(alertDiv);
+                setTimeout(() => alertDiv.remove(), 10000);
+            } else {
+                showAlert(`Failed to get cache info: ${data.error}`, 'danger');
+            }
+        } catch (error) {
+            showAlert(`Failed to get cache info: ${error.message}`, 'danger');
+        }
     }
 </script>
 {% endblock %}
