@@ -5,7 +5,8 @@ from src.extensions import db
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
-    prontuario = db.Column(db.String(20), nullable=False)
+    # Prontuário com índice para otimizar buscas LAN
+    prontuario = db.Column(db.String(20), nullable=False, index=True)
     data_nascimento = db.Column(db.DateTime, nullable=False)
     sexo = db.Column(db.String(1), nullable=False)
     nome_mae = db.Column(db.String(100), nullable=False)

@@ -279,7 +279,9 @@ GOOGLE_CALENDAR_TZ=America/Fortaleza
 GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/SEU_CALENDARIO.ics
 CALENDAR_CACHE_TTL_SECONDS=60
 
-# Integração Google Forms (Opcional)
+# Integração Google Forms (Opcional - Pré-configurado)
+# Por padrão, o sistema usa o formulário hospitalar integrado
+# Sobrescreva apenas se usar formulário personalizado
 GOOGLE_FORMS_PUBLIC_ID=seu-id-publico-do-formulario
 GOOGLE_FORMS_VIEWFORM_URL=https://docs.google.com/forms/d/e/SEU_ID/viewform
 GOOGLE_FORMS_TIMEOUT=10

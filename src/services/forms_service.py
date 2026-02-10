@@ -17,6 +17,59 @@ from typing import Dict, Optional, List, Tuple
 from flask import current_app
 from difflib import SequenceMatcher
 from .forms_mapping import get_forms_mapping
+import time
+
+
+# ISSUE 1 FIX: Default Google Forms configuration - works out of the box
+def get_forms_configuration() -> Tuple[str, str]:
+    """
+    Get Google Forms configuration with fallback to defaults.
+    
+    Returns:
+        Tuple[str, str]: (public_id, view_url)
+        
+    This function implements the configuration precedence:
+    1) If GOOGLE_FORMS_VIEWFORM_URL is in env: extract PUBLIC_ID from it
+    2) Else if GOOGLE_FORMS_PUBLIC_ID is in env: build VIEWFORM URL from it  
+    3) Else: use DEFAULT constants (embedded in config.py)
+    """
+    public_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
+    view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
+    
+    # Use environment overrides if provided
+    if view_url:
+        # Extract PUBLIC_ID from VIEWFORM_URL if available
+        import re
+        match = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
+        if match:
+            extracted_id = match.group(1)
+            if not public_id:
+                public_id = extracted_id
+            current_app.logger.info(f"Using Google Forms VIEWFORM_URL from .env: {view_url}")
+            return public_id, view_url
+    
+    if public_id:
+        # Build view URL from PUBLIC_ID
+        constructed_url = f"https://docs.google.com/forms/d/e/{public_id}/viewform"
+        if not view_url:
+            view_url = constructed_url
+        current_app.logger.info(f"Using Google Forms PUBLIC_ID from .env: {public_id}")
+        return public_id, view_url
+    
+    # Fall back to defaults (this should always work for production EXE)
+    default_public_id = current_app.config.get('DEFAULT_GOOGLE_FORMS_PUBLIC_ID')
+    default_view_url = current_app.config.get('DEFAULT_GOOGLE_FORMS_VIEWFORM_URL')
+    
+    if default_public_id and default_view_url:
+        current_app.logger.warning(
+            "Using built-in Google Forms configuration (no .env override found). "
+            f"Form ID: {default_public_id[:8]}..."
+        )
+        return default_public_id, default_view_url
+    
+    # This should never happen in production, but handle gracefully
+    current_app.logger.error("No Google Forms configuration found (neither env vars nor defaults)")
+    raise ValueError("Google Forms not configured and no defaults available")
 
 
 # Arquivo para cache do mapeamento de entry IDs
@@ -559,22 +612,12 @@ def submit_form(form_id: str, payload: Dict[str, any], timeout: int = 10) -> Tup
         502: Erro de rede ou timeout
     """
     try:
-        # Determinar PUBLIC_ID do Forms
+        # ISSUE 1 FIX: Use new configuration resolution with defaults
         current_app.logger.info("[INFO] Iniciando submissao ao Google Forms...")
-        public_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
-        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
-
-        # Se não tiver public_id, tentar extrair de view_url
-        if not public_id and view_url:
-            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
-            if m:
-                public_id = m.group(1)
-
-        if not public_id:
-            # Não podemos prosseguir sem PUBLIC_ID público
-            current_app.logger.error("GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL não configurado")
-            return False, 'GOOGLE_FORMS_PUBLIC_ID não configurado. Configure GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL no .env', 400
-
+        public_id, view_url = get_forms_configuration()
+        
+        current_app.logger.info(f"[OK] Configuração Forms obtida: ID={public_id[:8]}...")
+        
         # Obter mapeamento de entry IDs (usa o mapeamento estático ou extraído)
         mapping = get_or_refresh_mapping(public_id)
         current_app.logger.info(f"[OK] Mapeamento obtido: {len(mapping)} campos")

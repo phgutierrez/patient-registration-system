@@ -276,15 +276,16 @@ def schedule_confirm(id):
                 'event_link': surgery_request.scheduled_event_link
             }), 400
         
-        # Obter PUBLIC_ID do Forms ou view URL
-        public_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
-        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
-        if not public_id and not view_url:
-            logger.error("GOOGLE_FORMS_PUBLIC_ID / GOOGLE_FORMS_VIEWFORM_URL não configurados")
+        # ISSUE 1 FIX: Use new configuration resolution with defaults
+        try:
+            public_id, view_url = get_forms_configuration()
+            logger.info(f"Using Forms configuration: {public_id[:8]}...")
+        except ValueError as e:
+            logger.error(f"Forms configuration error: {e}")
             return jsonify({
                 'ok': False,
-                'message': 'GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL não configurado. Configure no .env'
-            }), 400
+                'message': f'Configuração do Google Forms: {str(e)}'
+            }), 500
         
         # Timeout configurável
         timeout = current_app.config.get('GOOGLE_FORMS_TIMEOUT', 10)
@@ -368,23 +369,25 @@ def schedule_confirm(id):
 @login_required
 def debug_forms_mapping():
     """Rota de debug para diagnosticar problemas no mapeamento do Forms"""
-    from src.services.forms_service import get_public_form_html, extract_entry_ids, get_or_refresh_mapping
+    from src.services.forms_service import get_public_form_html, extract_entry_ids, get_or_refresh_mapping, get_forms_configuration
     
-    # Preferir PUBLIC_ID, senão aceitar VIEWFORM URL e tentar extrair
-    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
-    if not form_id:
-        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
-        if view_url:
-            import re
-            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
-            if m:
-                form_id = m.group(1)
+    # ISSUE 1 FIX: Use new configuration resolution with defaults
+    try:
+        form_id, view_url = get_forms_configuration()
+    except ValueError as e:
+        return jsonify({
+            'status': 'error',
+            'error': f'Forms configuration error: {str(e)}',
+            'steps': []
+        }), 500
+        
     force_refresh = request.args.get('force', 'false').lower() == 'true'
     
     debug_info = {
         'form_id': form_id,
+        'view_url': view_url,
         'force_refresh': force_refresh,
-        'status': 'debug',
+        'status': 'debug', 
         'steps': []
     }
     
@@ -393,13 +396,9 @@ def debug_forms_mapping():
         debug_info['steps'].append({
             'step': '1. Verificar configuração',
             'form_id_configured': bool(form_id),
-            'form_id': form_id[:20] + '...' if form_id and len(form_id) > 20 else form_id
+            'form_id': form_id[:20] + '...' if form_id and len(form_id) > 20 else form_id,
+            'using_defaults': not (current_app.config.get('GOOGLE_FORMS_PUBLIC_ID') or current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL'))
         })
-        
-        if not form_id:
-            debug_info['status'] = 'error'
-            debug_info['error'] = 'GOOGLE_FORMS_PUBLIC_ID ou GOOGLE_FORMS_VIEWFORM_URL não está configurado'
-            return jsonify(debug_info), 400
         
         # Passo 2: Baixar HTML
         debug_info['steps'].append({'step': '2. Baixando HTML do Forms...'})
@@ -471,17 +470,16 @@ def debug_forms_clear_cache():
 @login_required
 def debug_forms_html():
     """Salva o HTML completo do Forms para análise"""
-    from src.services.forms_service import get_public_form_html
+    from src.services.forms_service import get_public_form_html, get_forms_configuration
     from pathlib import Path
     
-    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
-    if not form_id:
-        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
-        if view_url:
-            import re
-            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
-            if m:
-                form_id = m.group(1)
+    # ISSUE 1 FIX: Use new configuration resolution with defaults
+    try:
+        form_id, view_url = get_forms_configuration()
+    except ValueError as e:
+        return jsonify({
+            'error': f'Forms configuration error: {str(e)}'
+        }), 500
     
     try:
         html = get_public_form_html(form_id)
@@ -513,17 +511,16 @@ def debug_forms_html():
 @login_required  
 def debug_forms_analysis():
     """Analisa o HTML do Forms para encontrar padrões de entrada"""
-    from src.services.forms_service import get_public_form_html
+    from src.services.forms_service import get_public_form_html, get_forms_configuration
     import re
     
-    form_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
-    if not form_id:
-        view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
-        if view_url:
-            import re
-            m = re.search(r"/d/e/([A-Za-z0-9_-]+)/", view_url)
-            if m:
-                form_id = m.group(1)
+    # ISSUE 1 FIX: Use new configuration resolution with defaults
+    try:
+        form_id, view_url = get_forms_configuration()
+    except ValueError as e:
+        return jsonify({
+            'error': f'Forms configuration error: {str(e)}'
+        }), 500
     
     try:
         html = get_public_form_html(form_id)

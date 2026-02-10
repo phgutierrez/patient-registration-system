@@ -110,7 +110,67 @@ def edit_patient(id):
     return render_template('patient/edit.html', patient=patient, form=form)
 
 
-# Rota para buscar dados do banco Access (AMBULATORIO_SERV.accdb)
+# ISSUE 2: Optimized patient lookup by prontuário with performance monitoring
+@patients.route('/api/search-patient-prontuario', methods=['GET'])
+@login_required
+def search_patient_by_prontuario():
+    """
+    Fast patient lookup by prontuário for LAN deployment.
+    Uses optimized query with timing monitoring.
+    """
+    prontuario = request.args.get('prontuario', '').strip()
+    if not prontuario:
+        return jsonify({"error": "Prontuário não fornecido"}), 400
+
+    try:
+        # ISSUE 2: Performance monitoring
+        start_time = time.time()
+        
+        # Optimized query: use indexed column, load only required fields
+        patient = Patient.query.filter_by(prontuario=prontuario).first()
+        
+        query_duration = (time.time() - start_time) * 1000  # Convert to milliseconds
+        logger.debug(f"Patient prontuário lookup took {query_duration:.2f}ms")
+        
+        if not patient:
+            return jsonify({
+                "found": False, 
+                "message": "Prontuário não encontrado",
+                "query_time_ms": round(query_duration, 2)
+            }), 404
+
+        # Return only essential patient info (avoid relationship loading)
+        patient_data = {
+            'id': patient.id,
+            'nome': patient.nome,
+            'prontuario': patient.prontuario,
+            'data_nascimento': patient.data_nascimento.isoformat() if patient.data_nascimento else None,
+            'sexo': patient.sexo,
+            'nome_mae': patient.nome_mae,
+            'cns': patient.cns,
+            'cidade': patient.cidade,
+            'endereco': patient.endereco,
+            'estado': patient.estado,
+            'contato': patient.contato,
+            'diagnostico': patient.diagnostico,
+            'cid': patient.cid,
+            'idade': patient.idade
+        }
+
+        return jsonify({
+            "found": True,
+            "data": patient_data,
+            "query_time_ms": round(query_duration, 2)
+        }), 200
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in prontuário search: {e}")
+        return jsonify({"error": "Erro interno do servidor"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in prontuário search: {e}")
+        return jsonify({"error": "Erro interno do servidor"}), 500
+
+
 @patients.route('/api/search-patient-accdb', methods=['GET'])
 @login_required
 def search_patient_accdb():
@@ -176,11 +236,21 @@ def check_patient_exists():
         return jsonify({"error": "Nome do paciente não fornecido"}), 400
 
     try:
+        # ISSUE 2: Performance monitoring for name search
+        start_time = time.time()
+        
         # Realiza a busca case-insensitive e ignorando espaços extras
         existing_patient = Patient.query.filter(db.func.lower(
             Patient.nome) == db.func.lower(patient_name.strip())).first()
+            
+        query_duration = (time.time() - start_time) * 1000
+        logger.debug(f"Patient name search took {query_duration:.2f}ms")
+        
         exists = existing_patient is not None
-        return jsonify({"exists": exists})
+        return jsonify({
+            "exists": exists,
+            "query_time_ms": round(query_duration, 2)
+        })
     except SQLAlchemyError as e:
         # Logar o erro pode ser útil aqui
         print(f"Erro no banco de dados ao verificar paciente: {e}")

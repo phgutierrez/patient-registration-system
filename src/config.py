@@ -38,10 +38,16 @@ class Config:
     # IMPORTANTE: Use o ID PÚBLICO do formulário!
     # URL pública: https://docs.google.com/forms/d/e/[ID_PUBLICO]/viewform
     # URL edição: https://docs.google.com/forms/d/[ID_EDICAO]/edit  <- NÃO use este!
+    
+    # DEFAULT FORMS CONFIGURATION - Works out of the box
+    # Based on the production Google Form currently in use
+    DEFAULT_GOOGLE_FORMS_PUBLIC_ID = '1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg'
+    DEFAULT_GOOGLE_FORMS_VIEWFORM_URL = f'https://docs.google.com/forms/d/e/{DEFAULT_GOOGLE_FORMS_PUBLIC_ID}/viewform'
+    
+    # Environment overrides (optional) - will use defaults if not provided
     GOOGLE_FORMS_EDIT_ID = os.getenv('GOOGLE_FORMS_EDIT_ID', '1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw')
-    GOOGLE_FORMS_PUBLIC_ID = os.getenv('GOOGLE_FORMS_PUBLIC_ID', None)
-    # URL pública do Forms (opcional) - ex: https://docs.google.com/forms/d/e/<PUBLIC_ID>/viewform
-    GOOGLE_FORMS_VIEWFORM_URL = os.getenv('GOOGLE_FORMS_VIEWFORM_URL', None)
+    GOOGLE_FORMS_PUBLIC_ID = os.getenv('GOOGLE_FORMS_PUBLIC_ID', DEFAULT_GOOGLE_FORMS_PUBLIC_ID)
+    GOOGLE_FORMS_VIEWFORM_URL = os.getenv('GOOGLE_FORMS_VIEWFORM_URL', DEFAULT_GOOGLE_FORMS_VIEWFORM_URL)
     GOOGLE_FORMS_TIMEOUT = int(os.getenv('GOOGLE_FORMS_TIMEOUT', '10'))
 
     # Server Configuration
