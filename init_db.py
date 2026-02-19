@@ -30,7 +30,8 @@ def init_db():
         # Corrigido: fornecendo o parâmetro 'password' necessário
         admin = User(
             username='admin',
-            password='admin123',  # Passando a senha diretamente
+            password='admin123',
+            full_name='Administrador',
             role='administrador'
         )
         # Não é necessário chamar set_password() aqui, pois estamos passando a senha no construtor
