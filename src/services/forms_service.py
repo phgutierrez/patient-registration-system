@@ -642,10 +642,21 @@ def submit_form(form_id: str, payload: Dict[str, any], timeout: int = 10) -> Tup
         else:
             current_app.logger.warning("   [X] Campo 'procedimento' nao mapeado")
         
-        # Data (date)
+        # Data (date) - Google Forms exige campos separados: _year, _month, _day
         if "data" in mapping:
-            form_data.append((mapping["data"], payload["date"]))
-            current_app.logger.info(f"   [OK] Data: {payload['date']}")
+            date_str = payload["date"]  # formato YYYY-MM-DD
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(date_str, "%Y-%m-%d")
+                entry_date = mapping["data"]
+                form_data.append((f"{entry_date}_year", str(d.year)))
+                form_data.append((f"{entry_date}_month", str(d.month)))   # sem zero
+                form_data.append((f"{entry_date}_day", str(d.day)))       # sem zero
+                current_app.logger.info(f"   [OK] Data: {d.year}/{d.month}/{d.day}")
+            except ValueError:
+                # fallback: enviar como string simples
+                form_data.append((mapping["data"], date_str))
+                current_app.logger.warning(f"   [!] Data em formato inesperado, enviando como string: {date_str}")
         else:
             current_app.logger.warning("   [X] Campo 'data' nao mapeado")
         
@@ -708,10 +719,27 @@ def submit_form(form_id: str, payload: Dict[str, any], timeout: int = 10) -> Tup
 
         status = response.status_code
 
-        # Aceitar 200 ou 302 como sucesso (Forms pode redirecionar)
+        # Google Forms retorna 200 tanto para sucesso quanto para falha de validação.
+        # É necessário verificar o conteúdo da resposta para distinguir os casos.
         if status in (200, 302):
-            current_app.logger.info(f"[OK] Forms submetido com sucesso (status {status})")
-            return True, 'Resposta enviada ao Google Forms com sucesso', status
+            body = response.text
+            # Página de confirmação contém o título configurado ("Agendamento Confirmado")
+            # ou a palavra "confirmation" na URL final após redirect
+            confirmed = (
+                "Agendamento Confirmado" in body
+                or "confirmation" in response.url
+                or ("confirmation" in body.lower() and "viewform" not in response.url)
+            )
+            if confirmed:
+                current_app.logger.info(f"[OK] Forms submetido com sucesso (status {status})")
+                return True, 'Resposta enviada ao Google Forms com sucesso', status
+            else:
+                # Formulário devolvido indica falha de validação
+                current_app.logger.error(
+                    f"[FALHA] Forms retornou o formulário novamente (validação falhou). "
+                    f"Verifique os valores dos campos. URL final: {response.url}"
+                )
+                return False, 'Google Forms rejeitou a submissão (valores inválidos ou campos obrigatórios faltando)', 400
 
         # Erros específicos
         if status == 404:
