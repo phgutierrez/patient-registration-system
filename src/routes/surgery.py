@@ -261,7 +261,7 @@ def schedule_confirm(id):
     Confirma e envia agendamento submetendo resposta ao Google Forms.
     O Apps Script da planilha (onFormSubmit) criará o evento no calendário.
     """
-    from src.services.forms_service import build_forms_payload, submit_form
+    from src.services.forms_service import build_forms_payload, submit_form, get_forms_configuration
     
     try:
         # Buscar solicitação e paciente
