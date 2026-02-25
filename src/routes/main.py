@@ -23,11 +23,11 @@ last_activity = None
 @main.route('/index')
 @login_required
 def index():
-    """Home: se especialidade já estiver na sessão, exibe dashboard; caso contrário, pede seleção."""
+    """Dashboard principal – especialidade já foi escolhida antes do login."""
     from flask import session
+    # Guarda de segurança: se de alguma forma chegou aqui sem especialidade
     if not session.get('specialty_slug'):
-        specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.name).all()
-        return render_template('select_specialty.html', specialties=specialties)
+        return redirect(url_for('auth.select_user'))
     return render_template('index.html', specialty=get_active_specialty())
 
 
@@ -46,12 +46,14 @@ def select_specialty():
 
 
 @main.route('/change-specialty')
-@login_required
 def change_specialty():
-    """Limpa especialidade da sessão para forçar nova seleção."""
+    """Limpa especialidade e usuário da sessão; redireciona para o início (seleção de especialidade)."""
     from flask import session
+    from flask_login import logout_user, current_user
+    if current_user.is_authenticated:
+        logout_user()
     session.pop('specialty_slug', None)
-    return redirect(url_for('main.index'))
+    return redirect(url_for('auth.select_user'))
 
 @main.route('/api/heartbeat', methods=['GET'])
 @login_required

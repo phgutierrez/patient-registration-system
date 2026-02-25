@@ -10,20 +10,47 @@ auth = Blueprint('auth', __name__)
 
 @auth.route('/', methods=['GET', 'POST'])
 def select_user():
-    """Página inicial com seleção de usuário"""
+    """Fluxo de entrada: 1ª seleciona especialidade, 2ª seleciona solicitante filtrado."""
+    from flask import session
+
+    # ── Etapa 1: especialidade ainda não escolhida ──────────────────────────
+    if not session.get('specialty_slug'):
+        specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.name).all()
+        return render_template('select_user.html', step='specialty', specialties=specialties)
+
+    # ── Etapa 2: mostrar solicitantes da especialidade ────────────────────
     if request.method == 'POST':
         username = request.form.get('username')
-        
         user = User.query.filter_by(username=username).first()
         if user:
             login_user(user)
             flash(f'Bem-vindo, {user.full_name}!', 'success')
             return redirect(url_for('main.index'))
-        
         flash('Usuário não encontrado', 'error')
-    
-    users = User.query.all()
-    return render_template('select_user.html', users=users)
+
+    specialty = Specialty.query.filter_by(slug=session['specialty_slug'], is_active=True).first()
+    if specialty and specialty.users:
+        users = specialty.users
+        no_users = False
+    else:
+        users = []
+        no_users = True
+
+    return render_template('select_user.html', step='user', users=users,
+                           specialty=specialty, no_users=no_users)
+
+
+@auth.route('/set-specialty', methods=['POST'])
+def set_specialty_pre_login():
+    """Grava especialidade na sessão antes do login e redireciona para seleção de solicitante."""
+    from flask import session
+    slug = request.form.get('specialty_slug', '').strip()
+    sp = Specialty.query.filter_by(slug=slug, is_active=True).first()
+    if not sp:
+        flash('Especialidade inválida.', 'error')
+        return redirect(url_for('auth.select_user'))
+    session['specialty_slug'] = slug
+    return redirect(url_for('auth.select_user'))
 
 
 @auth.route('/logout')
@@ -50,6 +77,14 @@ def register_user():
         specialty_id = request.form.get('specialty_id') or None
         if specialty_id:
             specialty_id = int(specialty_id)
+        # pre-fill from session if form didn't send
+        if not specialty_id:
+            from flask import session as _s
+            slug = _s.get('specialty_slug')
+            if slug:
+                _sp = Specialty.query.filter_by(slug=slug).first()
+                if _sp:
+                    specialty_id = _sp.id
 
         # Verifica se o usuário já existe
         if User.query.filter_by(username=username).first():
@@ -68,7 +103,8 @@ def register_user():
                 db.session.add(user)
                 db.session.commit()
                 flash(f'Usuário {full_name} criado com sucesso!', 'success')
-                return redirect(url_for('auth.register_user'))
+                # redirecionar de volta ao login para que o novo usuário já apareça
+                return redirect(url_for('auth.select_user'))
             except Exception as e:
                 db.session.rollback()
                 flash(f'Erro ao criar usuário: {str(e)}', 'error')

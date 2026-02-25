@@ -496,7 +496,7 @@
                 Solicitação de Cirurgia
             </h1>
             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; margin-top: 0.5rem; display: block;">Sistema Integrado</small>
-            {% if current_user.is_authenticated and active_specialty_name %}
+            {% if active_specialty_name %}
             <a href="{{ url_for('main.change_specialty') }}" class="d-block mt-2 text-decoration-none"
                title="Clique para trocar a especialidade">
                 <span class="badge text-bg-info" style="font-size: 0.75rem; cursor:pointer;">
@@ -552,6 +552,14 @@
                         Entrar
                     </a>
                 </li>
+                {% if active_specialty %}
+                <li class="nav-item">
+                    <a href="{{ url_for('auth.register_user') }}" class="nav-link">
+                        <i class="fas fa-user-plus"></i>
+                        Cadastrar Solicitante
+                    </a>
+                </li>
+                {% endif %}
                 {% endif %}
             </ul>
         </nav>
