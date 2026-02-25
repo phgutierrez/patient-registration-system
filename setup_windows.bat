@@ -187,19 +187,33 @@ if errorlevel 1 (
     echo           O banco pode ja existir. Continuando...
 )
 
-REM Aplicar migrations
+REM Aplicar migrations (OBRIGATORIO - cria tabela de especialidades)
 echo   - Aplicando migracoes com Alembic...
 
 if exist "alembic.ini" (
     alembic upgrade head
     
     if errorlevel 1 (
-        echo   [AVISO] Alembic retornou erro ^(banco pode ja estar atualizado^)
+        echo.
+        echo [ERRO] Falha ao aplicar migracoes!
+        echo        Isto eh OBRIGATORIO para criar a tabela de especialidades.
+        echo.
+        echo Tente manualmente:
+        echo   - Ative o ambiente: .venv\Scripts\activate.bat
+        echo   - Execute: alembic upgrade head
+        echo.
+        pause
+        exit /b 1
     ) else (
         echo   [OK] Migracoes aplicadas com sucesso
     )
 ) else (
-    echo   [AVISO] alembic.ini nao encontrado, pulando migracoes
+    echo.
+    echo [ERRO] alembic.ini nao encontrado!
+    echo        Certifique-se de estar no diretorio correto.
+    echo.
+    pause
+    exit /b 1
 )
 
 echo   [OK] Banco de dados criado/atualizado
@@ -210,11 +224,14 @@ REM ===================================================================
 REM PASSO 5: Inicializar Dados
 REM ===================================================================
 echo [PASSO 5/5] Inicializando dados do sistema...
+echo.
 
 python << PYTHON_SCRIPT
 import sys
 import os
 sys.path.insert(0, os.getcwd())
+
+success = True
 
 try:
     from src.app import create_app
@@ -226,17 +243,25 @@ try:
     app = create_app()
     
     with app.app_context():
+        print("   - Verificando tabelas do banco de dados...")
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
         
         if 'specialties' not in tables:
             print("   [ERRO] Tabela 'specialties' nao encontrada!")
-            print("          Execute: alembic upgrade head")
+            print("          Isto significa que as migracoes nao foram aplicadas.")
+            print("          Execute manualmente: alembic upgrade head")
             sys.exit(1)
         
+        print("   [OK] Tabelas de banco de dados verificadas")
+        print()
+        
+        # Criar especialidades
+        print("   - Criando/Verificando especialidades...")
         spec_count = Specialty.query.count()
+        
         if spec_count == 0:
-            print("   - Criando especialidades...")
+            print("     (Nenhuma encontrada, criando...)")
             
             specs = [
                 Specialty(slug='ortopedia', name='Ortopedia', is_active=True),
@@ -244,20 +269,27 @@ try:
             ]
             for spec in specs:
                 db.session.add(spec)
+                print("       + " + spec.name)
+            
             db.session.commit()
-            print("   [OK] Especialidades criadas")
+            print("   [OK] Especialidades criadas com sucesso")
         else:
-            print("   [OK] Especialidades ja existem (" + str(spec_count) + ")")
+            print("   [OK] " + str(spec_count) + " especialidade(s) ja existem")
         
+        print()
+        
+        # Criar usuarios
+        print("   - Criando/Verificando usuarios...")
         user_count = User.query.count()
+        
         if user_count == 0:
-            print("   - Criando usuarios iniciais...")
+            print("     (Nenhum encontrado, criando...)")
             users_data = [
-                {'username': 'pedro', 'full_name': 'Pedro Freitas', 'specialty_id': 1},
-                {'username': 'andre', 'full_name': 'Andre Cristiano', 'specialty_id': 1},
-                {'username': 'brauner', 'full_name': 'Brauner Cavalcanti', 'specialty_id': 1},
-                {'username': 'savio', 'full_name': 'Savio Bruno', 'specialty_id': 1},
-                {'username': 'laecio', 'full_name': 'Laecio Damaceno', 'specialty_id': 1},
+                {'username': 'pedro', 'full_name': 'Pedro Freitas'},
+                {'username': 'andre', 'full_name': 'Andre Cristiano'},
+                {'username': 'brauner', 'full_name': 'Brauner Cavalcanti'},
+                {'username': 'savio', 'full_name': 'Savio Bruno'},
+                {'username': 'laecio', 'full_name': 'Laecio Damaceno'},
             ]
             
             for user_data in users_data:
@@ -265,29 +297,49 @@ try:
                     username=user_data['username'],
                     password='123456',
                     full_name=user_data['full_name'],
-                    specialty_id=user_data['specialty_id'],
+                    specialty_id=1,
                     role='solicitante'
                 )
                 db.session.add(user)
+                print("       + " + user_data['username'] + " (" + user_data['full_name'] + ")")
+            
             db.session.commit()
-            print("   [OK] Usuarios iniciais criados")
+            print("   [OK] Usuarios criados com sucesso")
         else:
-            print("   [OK] Usuarios ja existem (" + str(user_count) + ")")
+            print("   [OK] " + str(user_count) + " usuario(s) ja existe(m)")
         
-        print("\n   [OK] Dados inicializados com sucesso!")
+        print()
+        print("   [OK] Dados inicializados com sucesso!")
+        print()
+        print("===============================================================================")
+        print("  RESUMO DA INICIALIZACAO:")
+        print("===============================================================================")
+        print("  - Especialidades: " + str(Specialty.query.count()))
+        print("  - Usuarios: " + str(User.query.count()))
+        print()
         
 except ImportError as e:
-    print("   [ERRO] Falha ao importar modulos: " + str(e))
-    sys.exit(1)
+    print("   [ERRO] Falha ao importar modulos do sistema")
+    print("          Detalhes: " + str(e))
+    success = False
+    
 except Exception as e:
-    print("   [AVISO] " + str(e))
-    print("           (Pode ser resultado normal de banco ja inicializado)")
+    print("   [ERRO] Erro nao esperado durante inicializacao")
+    print("          Detalhes: " + str(e))
+    success = False
+
+if not success:
+    sys.exit(1)
 
 PYTHON_SCRIPT
 
 if errorlevel 1 (
-    echo   [AVISO] Erro ao inicializar dados
-    echo           Voce pode tentar rodá-lo manualmente depois
+    echo.
+    echo [ERRO] Falha ao inicializar dados do sistema!
+    echo        Voce precisa corrigir isto antes de usar o sistema.
+    echo.
+    pause
+    exit /b 1
 )
 
 echo.
