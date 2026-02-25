@@ -8,18 +8,69 @@
 
 ## Sumário
 
-1. [Pré-requisitos](#1-pré-requisitos)
-2. [Download & Atualização](#2-download--atualização)
-3. [Configuração do Ambiente](#3-configuração-do-ambiente)  
-4. [Configuração](#4-configuração)
-5. [Inicialização do Banco de Dados](#5-inicialização-do-banco-de-dados)
-6. [Implantação de Rede LAN](#6-implantação-de-rede-lan)
-7. [Configuração do Windows Firewall](#7-configuração-do-windows-firewall)
-8. [Modo de Serviço de Inicialização Automática](#8-modo-de-serviço-de-inicialização-automática)
-9. [Procedimentos de Manutenção](#9-procedimentos-de-manutenção)
-10. [Solução de Problemas](#10-solução-de-problemas)
-11. [Segurança & Governança](#11-segurança--governança)
-12. [Apêndice](#12-apêndice)
+1. [Início Rápido Windows](#início-rápido-windows)
+2. [Pré-requisitos](#1-pré-requisitos)
+3. [Download & Atualização](#2-download--atualização)
+4. [Configuração do Ambiente](#3-configuração-do-ambiente)  
+5. [Configuração](#4-configuração)
+6. [Inicialização do Banco de Dados](#5-inicialização-do-banco-de-dados)
+7. [Implantação de Rede LAN](#6-implantação-de-rede-lan)
+8. [Configuração do Windows Firewall](#7-configuração-do-windows-firewall)
+9. [Modo de Serviço de Inicialização Automática](#8-modo-de-serviço-de-inicialização-automática)
+10. [Procedimentos de Manutenção](#9-procedimentos-de-manutenção)
+11. [Solução de Problemas](#10-solução-de-problemas)
+12. [Segurança & Governança](#11-segurança--governança)
+13. [Apêndice](#12-apêndice)
+
+---
+
+## Início Rápido Windows
+
+Se você apenas quer começar rapidamente:
+
+### 1️⃣ Baixar o código
+```powershell
+# Opção A: Git (se instalado)
+git clone https://github.com/phgutierrez/patient-registration-system.git
+cd patient-registration-system
+
+# Opção B: Download direto
+# Baixe o ZIP da branch 'cipe' do GitHub
+# Extraia em C:\patient-registration-system\
+```
+
+### 2️⃣ Executar Setup
+```powershell
+cd C:\patient-registration-system
+.\setup_windows.bat
+```
+
+O script fará automaticamente:
+- ✓ Criar ambiente Python
+- ✓ Instalar dependências
+- ✓ Criar banco de dados
+- ✓ Inserir especialidades e usuários iniciais
+
+### 3️⃣ Iniciar Sistema
+
+**Para desenvolvimento/desktop:**
+```powershell
+.\run_local.bat
+```
+
+**Para rede hospitalar/LAN:**
+```powershell
+.\run_network.bat
+```
+
+### 4️⃣ Acessar
+
+- **Local**: http://localhost:5000
+- **Rede**: http://seu-servidor-ip:5000
+
+**Login padrão:**
+- Usuário: `pedro` (ou andre, brauner, savio, laecio)
+- Senha: `123456`
 
 ---
 
@@ -229,36 +280,165 @@ LIFECYCLE_HEARTBEAT_SECONDS=5     # Intervalo de heartbeat
 
 ## 5. Inicialização do Banco de Dados
 
-### 5.1 Configuração Automática (Recomendado)
-O sistema usa criação direta de tabelas, não são necessárias migrações manuais:
+> **IMPORTANTE**: Antes de rodar o servidor pela primeira vez, SEMPRE execute os passos desta seção.
+
+### 5.1 Método Automático (RECOMENDADO para Windows)
+
+Execute o script de setup que faz tudo automaticamente:
 
 ```powershell
-# Testar criação do banco de dados
-.venv\Scripts\activate.bat
-python create_tables_direct.py
-
-# Saída esperada:
-# "All tables created successfully!"
-# "✓ Columns ETag and Last-Modified were created correctly!"
+# No PowerShell ou Command Prompt
+.\setup_windows.bat
 ```
 
-### 5.2 Verificar Esquema do Banco de Dados
+**O que esse script faz:**
+1. ✓ Cria/ativa ambiente virtual Python
+2. ✓ Instala dependências (requirements.txt)
+3. ✓ Cria tabelas do banco de dados
+4. ✓ Aplica todas as migrations (incluindo especialidades)
+5. ✓ Insere dados iniciais (usuários, especialidades, procedimentos)
+
+**Saída esperada:**
+```
+[PASSO 1/5] Verificando ambiente virtual...
+   ✓ Ambiente virtual pronto
+
+[PASSO 2/5] Ativando ambiente virtual...
+   ✓ Ambiente virtual ativado
+
+[PASSO 3/5] Verificando/Instalando dependências...
+   ✓ Dependências instaladas
+
+[PASSO 4/5] Criando/Atualizando banco de dados...
+   ✓ Banco de dados criado/atualizado
+
+[PASSO 5/5] Inicializando dados do sistema...
+   ✓ Especialidades já existem (2)
+   ✓ Usuários já existem (5)
+
+✓ SETUP CONCLUÍDO COM SUCESSO!
+```
+
+### 5.2 Método Manual (Para Troubleshooting)
+
+Se o método automático falhar, execute os passos manualmente:
+
+**Passo 1: Criar Ambiente Virtual**
+```powershell
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+**Passo 2: Instalar Dependências**
+```powershell
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+**Passo 3: Criar Tabelas Base**
+```powershell
+python create_tables_direct.py
+```
+
+**Saída esperada:**
+```
+Todas as tabelas criadas com sucesso!
+Tabelas criadas: ['calendar_cache', 'calendar_event_status', 'patient', 'specialty', 'specialty_settings', 'specialty_procedures', 'surgery_requests', 'users']
+✓ Colunas ETag e Last-Modified foram criadas corretamente!
+```
+
+**Passo 4: Aplicar Migrations (Especialidades e Dados)**
+```powershell
+alembic upgrade head
+```
+
+**Saída esperada:**
+```
+INFO [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO [alembic.runtime.migration] Running upgrade 006_add_conditional_get_support -> 007_add_specialties
+```
+
+**Passo 5: Inicializar Dados**
+```powershell
+python init_db.py
+```
+
+**Saída esperada:**
+```
+Inicializando banco de dados...
+Removendo tabelas existentes...
+Criando novas tabelas...
+Criando usuários iniciais...
+Banco de dados inicializado com sucesso!
+```
+
+### 5.3 Verificar se Banco está Pronto
+
+Execute este comando para verificar se tudo foi criado corretamente:
+
 ```powershell
 python -c "
 from src.app import create_app
+from src.extensions import db
+
 app = create_app()
 with app.app_context():
-    from src.extensions import db
     inspector = db.inspect(db.engine)
-    print('Tabelas:', inspector.get_table_names())
-    # Deve mostrar: ['calendar_cache', 'calendar_event_status', 'patient', 'surgery_requests', 'users']
+    tables = sorted(inspector.get_table_names())
+    
+    print('TABELAS DO BANCO DE DADOS:')
+    print('  ' + ', '.join(tables))
+    print()
+    
+    # Verificar dados
+    from src.models.specialty import Specialty
+    from src.models.user import User
+    from src.models.patient import Patient
+    
+    specs = Specialty.query.count()
+    users = User.query.count()
+    patients = Patient.query.count()
+    
+    print('DADOS INSERIDOS:')
+    print(f'  Especialidades: {specs}')
+    print(f'  Usuários: {users}')
+    print(f'  Pacientes: {patients}')
+    print()
+    
+    if specs > 0 and users > 0:
+        print('✓ BANCO PRONTO PARA USAR!')
+    else:
+        print('✗ ATENÇÃO: Faltam dados! Execute setup_windows.bat novamente')
 "
 ```
 
-### 5.3 Localização do Banco de Dados
-- **Localização padrão**: `instance/prontuario.db`
-- **Caminho completo**: `C:\patient-registration-system\instance\prontuario.db`
-- **Localização do backup**: Criar backups na pasta `instance/`
+### 5.4 Localização e Backup do Banco de Dados
+
+**Localização do arquivo:**
+```
+C:\patient-registration-system\instance\prontuario.db
+```
+
+**Fazer backup:**
+```powershell
+# Criar backup antes de reset
+copy instance\prontuario.db instance\prontuario_backup_2026-02-25.db
+
+# Restaurar backup se necessário
+copy instance\prontuario_backup_2026-02-25.db instance\prontuario.db
+```
+
+### 5.5 Resetar Banco de Dados Completamente
+
+Se algo der errado e quiser limpar e começar do zero:
+
+```powershell
+# Deletar banco existente
+remove-item instance\prontuario.db
+
+# Rodar setup novamente
+.\setup_windows.bat
+```
 
 ---
 
@@ -600,6 +780,9 @@ nssm start "PatientRegistrationSystem"
 # Recriar esquema do banco de dados
 python create_tables_direct.py
 
+# Aplicar migrations para criar tabelas de especialidades
+alembic upgrade head
+
 # Verificar se tabelas existem
 python -c "
 import sqlite3; 
@@ -609,6 +792,75 @@ cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table'\");
 print('Tabelas:', cursor.fetchall())
 "
 ```
+
+### 10.3.1 Problema: Especialidades não aparecem no formulário
+
+**Problema: Selecionar especialidades retorna erro ou vazio**
+
+Isso pode acontecer se:
+1. Migrations não foram aplicadas
+2. Dados de especialidades não foram inseridos
+3. Banco foi criado antes das novas features
+
+**Solução Passo-a-passo:**
+
+```powershell
+# 1. Ativar ambiente virtual
+.venv\Scripts\activate.bat
+
+# 2. Aplicar todas as migrations (inclusive 007_add_specialties)
+alembic upgrade head
+
+# 3. Verificar se tabela 'specialties' existe
+python -c "
+from src.app import create_app
+from src.extensions import db
+
+app = create_app()
+with app.app_context():
+    from sqlalchemy import inspect
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    
+    if 'specialties' in tables:
+        print('✓ Tabela specialties existe')
+    else:
+        print('✗ Tabela specialties NÃO existe! Execute: alembic upgrade head')
+    
+    # Verificar se há dados
+    from src.models.specialty import Specialty
+    count = Specialty.query.count()
+    print(f'Número de especialidades: {count}')
+    
+    if count == 0:
+        print('  AVISO: Nenhuma especialidade encontrada!')
+        print('  Inserindo especialidades padrão...')
+        from datetime import datetime
+        
+        specs = [
+            Specialty(slug='ortopedia', name='Ortopedia', is_active=True),
+            Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediátrica', is_active=True),
+        ]
+        for spec in specs:
+            db.session.add(spec)
+        db.session.commit()
+        print('  ✓ Especialidades criadas com sucesso!')
+"
+
+# 4. Parar e reiniciar servidor
+# CTRL+C para parar servidor
+# Depois execute: run_local.bat ou run_network.bat
+```
+
+**Se ainda não funcionar:**
+
+```powershell
+# Resetar banco completamente e rodar setup
+del instance\prontuario.db
+.\setup_windows.bat
+```
+
+---
 
 ### 10.4 Problemas de Integração de Calendário
 
