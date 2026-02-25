@@ -16,6 +16,10 @@ Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias orto
 
 ---
 
+> ⚡ **Novo ao projeto?** Veja o [QUICK_START.md](QUICK_START.md) para instalação em 3 passos!
+
+---
+
 ## 📋 Sobre
 
 Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ortopédicos pediátricos e solicitações de cirurgia. Fornece uma solução completa para registro de pacientes, agendamento de cirurgias, integração de calendário e geração de documentos - projetado para ambientes hospitalares Windows.
@@ -169,6 +173,11 @@ run_network.bat
    - **Alt+N** - Novo registro de paciente
    - **Alt+L** - Lista de pacientes
    - **Alt+U** - Gerenciamento de usuários
+
+### ⚠️ Problemas na Primeira Execução?
+- **Especialidades não aparecem**: Ver [TROUBLESHOOTING_ESPECIALIDADES.md](TROUBLESHOOTING_ESPECIALIDADES.md)
+- **Outros erros**: Execute `verify_setup.bat` para diagnóstico
+- **Não consegue instalar**: Ver seção "[Instalação](#-instalação)" abaixo
 
 ---
 
