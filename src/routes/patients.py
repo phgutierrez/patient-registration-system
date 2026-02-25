@@ -265,18 +265,20 @@ def delete_patient(id):
     try:
         # Aqui você pode adicionar lógica para verificar permissões
         # ou para lidar com entidades relacionadas (ex: cirurgias) antes de excluir.
+        # A relação em Patient com cascade="all, delete-orphan" automaticamente
+        # deleta todas as SurgeryRequest relacionadas
 
         db.session.delete(patient)
         db.session.commit()
         flash(f'Paciente \"{patient.nome}\" excluído com sucesso!', 'success')
-    except SQLAlchemyError as e:
+    except Exception as e:
         db.session.rollback()
-        flash(f'Erro ao excluir paciente: {str(e)}', 'danger')
-        # Logar o erro pode ser útil aqui
-        print(f"Erro ao excluir paciente ID {id}: {e}")
-    except Exception as e:  # Captura outros erros inesperados
-        db.session.rollback()
-        flash(f'Ocorreu um erro inesperado ao excluir o paciente.', 'danger')
-        print(f"Erro inesperado ao excluir paciente ID {id}: {e}")
+        # Log detalhado do erro
+        print(f"❌ Erro ao excluir paciente ID {id}: {type(e).__name__}: {str(e)}")
+        # Se for erro de FK ou integridade, ofereça dica ao usuário
+        if "FOREIGN KEY constraint failed" in str(e).upper() or "UNIQUE constraint failed" in str(e).upper():
+            flash(f'Não é possível excluir este paciente. Ele pode estar vinculado a outras solicitações de cirurgia.', 'warning')
+        else:
+            flash(f'Erro ao excluir paciente: {str(e)}', 'danger')
 
     return redirect(url_for('patients.list_patients'))

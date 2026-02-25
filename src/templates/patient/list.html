@@ -41,121 +41,189 @@
     <!-- Contador de Pacientes -->
     <div class="mb-3">
         <span class="badge bg-primary" style="font-size: 0.95rem; padding: 0.5rem 1rem;">
-            <i class="fas fa-users me-2"></i>Total: {{ patients|length }} paciente(s)
+            <i class="fas fa-users me-2"></i>Total: <span id="totalPatients">{{ patients|length }}</span> paciente(s)
         </span>
     </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0" style="border-radius: 12px; overflow: hidden;">
-                <thead style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
-                    <tr>
-                        <th class="py-3"><i class="fas fa-user me-2"></i>Nome</th>
-                        <th class="py-3"><i class="fas fa-birthday-cake me-2"></i>Data de Nascimento</th>
-                        <th class="py-3"><i class="fas fa-id-card me-2"></i>CNS</th>
-                        <th class="py-3"><i class="fas fa-map-marker-alt me-2"></i>Cidade</th>
-                        <th class="text-center py-3"><i class="fas fa-cog me-2"></i>Ações</th>
-                    </tr>
-                </thead>
-            <tbody id="patientTableBody">
-                {% for patient in patients %}
-                <tr style="transition: all 0.2s;">
-                    <td class="py-3"><strong>{{ patient.nome }}</strong></td>
-                    <td class="py-3">{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
-                    <td class="py-3">{{ patient.cns if patient.cns else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
-                    <td class="py-3">{{ patient.cidade if patient.cidade else '<span class="badge bg-secondary">N/A</span>'|safe }}</td>
-                    <td class="text-center actions py-3">
-                        <div class="btn-group" role="group">
-                            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" 
-                               class="btn btn-info btn-sm" 
-                               title="Visualizar Detalhes"
-                               style="border-radius: 6px 0 0 6px;">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{{ url_for('patients.edit_patient', id=patient.id) }}"
-                               class="btn btn-primary btn-sm" 
-                               title="Editar Paciente">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}"
-                               class="btn btn-success btn-sm" 
-                               title="Solicitar Cirurgia">
-                                <i class="fas fa-notes-medical"></i>
-                            </a>
-                            <!-- Formulário de Exclusão -->
-                            <form action="{{ url_for('patients.delete_patient', id=patient.id) }}" 
-                                  method="POST"
-                                  class="d-inline"
-                                  onsubmit="return confirm('⚠️ Tem certeza que deseja excluir o paciente {{ patient.nome }}?\\n\\nEsta ação não pode ser desfeita!');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <button type="submit" 
-                                        class="btn btn-danger btn-sm" 
-                                        title="Excluir Paciente"
-                                        style="border-radius: 0 6px 6px 0;">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </form>
+    <!-- Grid de Cards -->
+    <div class="row g-3" id="patientCardsContainer">
+        {% for patient in patients %}
+        <div class="col-md-6 col-lg-4 patient-card" data-patient-id="{{ patient.id }}" data-search-text="{{ patient.nome|lower }} {{ patient.cns|lower }} {{ patient.cidade|lower }}">
+            <div class="card border-0 shadow-sm h-100" style="transition: transform 0.2s, box-shadow 0.2s; border-radius: 12px;">
+                <!-- Card Header com cor gradiente -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0; padding: 1rem; color: white;">
+                    <h6 class="mb-1 fw-bold">{{ patient.nome }}</h6>
+                    {% if patient.prontuario %}
+                    <small class="d-block" style="opacity: 0.9;">Prontuário: {{ patient.prontuario }}</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    <!-- Informações Principais -->
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <small class="text-muted">Data Nascimento</small>
+                                <p class="mb-0"><strong>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else 'N/A' }}</strong></p>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Idade</small>
+                                <p class="mb-0"><strong>{{ patient.idade }} anos</strong></p>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </div>
+
+                    <!-- CNS e Cidade -->
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <small class="text-muted">CNS</small>
+                                <p class="mb-0"><strong>{{ patient.cns if patient.cns else '<span class="text-secondary">N/A</span>'|safe }}</strong></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Localização -->
+                    <div class="mb-3 pb-2 border-bottom">
+                        <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>Localização</small>
+                        <p class="mb-0"><strong>{{ patient.cidade if patient.cidade else 'N/A' }}</strong>{% if patient.estado %}, {{ patient.estado }}{% endif %}</p>
+                    </div>
+
+                    <!-- Diagnóstico Resumido -->
+                    {% if patient.diagnostico %}
+                    <div class="mb-3">
+                        <small class="text-muted">Diagnóstico</small>
+                        <p class="mb-0 text-muted" style="font-size: 0.85rem;"><em>{{ patient.diagnostico[:60] }}{{ '...' if patient.diagnostico|length > 60 else '' }}</em></p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Card Footer com Ações -->
+                <div class="card-footer bg-light border-top" style="border-radius: 0 0 12px 12px;">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" 
+                           class="btn btn-outline-info btn-sm" 
+                           title="Visualizar Detalhes">
+                            <i class="fas fa-eye me-1"></i>Detalhes
+                        </a>
+                    </div>
+                    
+                    <!-- Secondary Actions -->
+                    <div class="d-flex gap-2 mt-2">
+                        <a href="{{ url_for('patients.edit_patient', id=patient.id) }}"
+                           class="btn btn-outline-primary btn-sm flex-grow-1" 
+                           title="Editar Paciente">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}"
+                           class="btn btn-outline-success btn-sm flex-grow-1" 
+                           title="Solicitar Cirurgia">
+                            <i class="fas fa-notes-medical"></i>
+                        </a>
+                        <!-- Botão Delete com Alert customizado -->
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-sm flex-grow-1"
+                                onclick="confirmarDeletePaciente({{ patient.id }}, '{{ patient.nome }}')"
+                                title="Excluir Paciente">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+
+                    <!-- Formulário oculto para delete -->
+                    <form id="delete-form-{{ patient.id }}" 
+                          action="{{ url_for('patients.delete_patient', id=patient.id) }}" 
+                          method="POST"
+                          style="display: none;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
-</div>
-{% else %}
-<div class="card border-0 shadow-sm">
-    <div class="card-body text-center py-5">
-        <i class="fas fa-user-slash mb-3" style="font-size: 4rem; color: #94a3b8;"></i>
-        <h4 class="text-muted mb-2">Nenhum paciente cadastrado</h4>
-        <p class="text-muted mb-4">Comece cadastrando o primeiro paciente do sistema</p>
-        <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary btn-lg">
-            <i class="fas fa-user-plus me-2"></i>Cadastrar Primeiro Paciente
-        </a>
+
+    <!-- Mensagem de Nenhum Resultado -->
+    <div id="noResultsMessage" class="card border-0 shadow-sm" style="display: none;">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-search mb-3" style="font-size: 3rem; color: #94a3b8;"></i>
+            <h4 class="text-muted mb-2">Nenhum paciente encontrado</h4>
+            <p class="text-muted">Tente ajustar seus critérios de busca</p>
+        </div>
     </div>
-</div>
-{% endif %}
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-user-slash mb-3" style="font-size: 4rem; color: #94a3b8;"></i>
+            <h4 class="text-muted mb-2">Nenhum paciente cadastrado</h4>
+            <p class="text-muted mb-4">Comece cadastrando o primeiro paciente do sistema</p>
+            <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Cadastrar Primeiro Paciente
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>
+    // Modal de confirmação customizado
+    function confirmarDeletePaciente(patientId, patientName) {
+        const result = confirm(`⚠️ Tem certeza que deseja excluir o paciente "${patientName}"?\n\nEsta ação não pode ser desfeita!`);
+        if (result) {
+            const form = document.getElementById(`delete-form-${patientId}`);
+            if (form) {
+                form.submit();
+            } else {
+                console.error('Formulário não encontrado para paciente ID:', patientId);
+                alert('Erro ao processar exclusão. Por favor, tente novamente.');
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('searchPatientInput');
-        const tableBody = document.getElementById('patientTableBody');
-        const rows = tableBody.getElementsByTagName('tr');
-        const noResultsMessage = document.createElement('tr'); // Cria linha para mensagem
-        noResultsMessage.innerHTML = `<td colspan="5" class="text-center text-muted">Nenhum paciente encontrado com os critérios de busca.</td>`;
+        const patientCards = document.querySelectorAll('.patient-card');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+        const totalPatientsSpan = document.getElementById('totalPatients');
 
-        if (searchInput && tableBody) {
+        if (searchInput) {
             searchInput.addEventListener('input', function () {
                 const searchTerm = searchInput.value.toLowerCase().trim();
-                let found = false;
-                const existingMessage = tableBody.querySelector('#no-results-row');
-                if (existingMessage) {
-                    tableBody.removeChild(existingMessage);
-                }
+                let visibleCount = 0;
 
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    // Pula a linha de mensagem "nenhum resultado" se ela estiver presente
-                    if (row.id === 'no-results-row') continue;
-                    const cells = row.getElementsByTagName('td');
-                    let rowText = '';
-                    for (let j = 0; j < cells.length - 1; j++) { // Exclui a última célula (Ações)
-                        rowText += cells[j].textContent.toLowerCase() + ' ';
-                    }
-                    if (rowText.includes(searchTerm)) {
-                        row.style.display = '';
-                        found = true;
+                patientCards.forEach(card => {
+                    const searchText = card.getAttribute('data-search-text');
+                    if (searchText.includes(searchTerm)) {
+                        card.style.display = '';
+                        visibleCount++;
                     } else {
-                        row.style.display = 'none';
+                        card.style.display = 'none';
                     }
-                }
-                if (!found && searchTerm !== '') {
-                    noResultsMessage.id = 'no-results-row';
-                    tableBody.appendChild(noResultsMessage);
+                });
+
+                // Mostrar/esconder mensagem de nenhum resultado
+                if (visibleCount === 0 && searchTerm !== '') {
+                    noResultsMessage.style.display = 'block';
+                    totalPatientsSpan.textContent = '0';
+                } else {
+                    noResultsMessage.style.display = 'none';
+                    totalPatientsSpan.textContent = visibleCount > 0 ? visibleCount : '{{ patients|length }}';
                 }
             });
         }
+
+        // Hover effect
+        patientCards.forEach(card => {
+            const cardElement = card.querySelector('.card');
+            card.addEventListener('mouseenter', function () {
+                cardElement.style.transform = 'translateY(-4px)';
+                cardElement.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.15)';
+            });
+            card.addEventListener('mouseleave', function () {
+                cardElement.style.transform = 'translateY(0)';
+                cardElement.style.boxShadow = '';
+            });
+        });
     });
 </script>
 

@@ -493,9 +493,10 @@
         }
         
         const dadosModelo = {
+            id: Date.now() + Math.random(),  // ID único baseado em timestamp + random
             nome: nomeModelo.trim(),
             dados: coletarDadosFormulario(),
-            datasCriacao: new Date().toISOString(),
+            dataCriacao: new Date().toISOString(),
             usosCount: 0  // Iniciar contador de usos
         };
         
@@ -565,7 +566,6 @@
         
         let html = '<div class="list-group">';
         modelosExibidos.forEach((modelo, index) => {
-            const indiceOriginal = modelos.indexOf(modelo);
             const usosCount = modelo.usosCount || 0;
             const badgeUso = usosCount > 0 ? `<span class="badge bg-info ms-2">${usosCount} ${usosCount === 1 ? 'uso' : 'usos'}</span>` : '';
             
@@ -577,10 +577,10 @@
                             <small class="text-muted">Procedimento: ${modelo.dados.procedimento_solicitado || 'N/A'}</small>
                         </div>
                         <div class="d-flex gap-2 ms-3">
-                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${indiceOriginal})" title="Carregar modelo">
+                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${modelo.id})" title="Carregar modelo">
                                 <i class="fas fa-download me-1"></i>Carregar
                             </button>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${indiceOriginal})" title="Deletar modelo">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${modelo.id})" title="Deletar modelo">
                                 <i class="fas fa-trash me-1"></i>Deletar
                             </button>
                         </div>
@@ -608,10 +608,12 @@
     }
 
     // Função para carregar dados de um modelo
-    function carregarModelo(index) {
-        const modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+    function carregarModelo(modeloId) {
+        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
         
-        if (index < 0 || index >= modelos.length) {
+        // Encontrar modelo pelo ID
+        const index = modelos.findIndex(m => m.id === modeloId);
+        if (index === -1) {
             alert('Modelo não encontrado.');
             return;
         }
@@ -698,12 +700,19 @@
     }
 
     // Função para deletar modelo
-    function deletarModelo(index) {
+    function deletarModelo(modeloId) {
         if (!confirm('Tem certeza que deseja deletar este modelo?')) {
             return;
         }
         
         let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        const index = modelos.findIndex(m => m.id === modeloId);
+        
+        if (index === -1) {
+            alert('Modelo não encontrado.');
+            return;
+        }
+        
         const nomeModelo = modelos[index].nome;
         modelos.splice(index, 1);
         localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
