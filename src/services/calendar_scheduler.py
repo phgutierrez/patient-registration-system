@@ -87,12 +87,15 @@ def build_calendar_payload(surgery_request, patient) -> Dict:
     # Determinar ortopedista (assistente)
     orthopedist = surgery_request.assistente or "Não especificado"
     
-    # Processar OPME (pode ser texto livre ou lista)
+    # Processar OPME (string com itens separados por vírgula)
     opme_list = []
     opme_other = ""
     if surgery_request.opme:
-        # Por enquanto, tratar como texto livre
-        opme_other = surgery_request.opme
+        for part in [p.strip() for p in surgery_request.opme.split(',') if p.strip()]:
+            if part.lower().startswith('outro:'):
+                opme_other = part[6:].strip()
+            else:
+                opme_list.append(part)
     
     # Montar payload
     payload = {

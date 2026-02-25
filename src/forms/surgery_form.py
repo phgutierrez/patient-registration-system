@@ -1,7 +1,21 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, TextAreaField, SelectField, DateField, TimeField
-from wtforms import BooleanField, RadioField, SubmitField
+from wtforms import BooleanField, RadioField, SubmitField, SelectMultipleField
 from wtforms.validators import DataRequired, Optional
+from wtforms.widgets import ListWidget, CheckboxInput
+
+OPME_CHOICES = [
+    ('Ilizarov Adulto', 'Ilizarov Adulto'),
+    ('Ilizarov Infantil', 'Ilizarov Infantil'),
+    ('Caixa 3,5mm', 'Caixa 3,5mm'),
+    ('Caixa 4,5mm', 'Caixa 4,5mm'),
+    ('Placa angulada', 'Placa angulada'),
+    ('Fios de Kirschner', 'Fios de Kirschner'),
+    ('Parafuso Canulado', 'Parafuso Canulado'),
+    ('Âncora', 'Âncora'),
+    ('Placa em 8', 'Placa em 8'),
+    ('Artrodese Coluna', 'Artrodese Coluna'),
+]
 
 
 class SurgeryRequestForm(FlaskForm):
@@ -104,6 +118,13 @@ class SurgeryRequestForm(FlaskForm):
         'Prescrição para Internação', validators=[Optional()])
     exames_preop = TextAreaField(
         'Exames Pré-Operatórios', validators=[Optional()])
-    opme = TextAreaField('OPME', validators=[Optional()])
+    opme_items = SelectMultipleField(
+        'OPME',
+        validators=[Optional()],
+        choices=OPME_CHOICES,
+        widget=ListWidget(prefix_label=False),
+        option_widget=CheckboxInput()
+    )
+    opme_outro = StringField('Outro (OPME)', validators=[Optional()])
 
     submit = SubmitField('Solicitar Cirurgia')

@@ -303,15 +303,22 @@
                     {% endif %}
                 </div>
                 <div class="mb-3">
-                    {{ form.opme.label(class="form-label") }} <small class="text-muted">(Órteses, Próteses e Materiais
-                        Especiais)</small>
-                    {{ form.opme(class="form-control" + (" is-invalid" if form.opme.errors else ""), rows=3,
-                    placeholder="Liste os OPMEs necessários para a cirurgia") }}
-                    {% if form.opme.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.opme.errors | join(', ') }}
+                    <label class="form-label fw-semibold">OPME <small class="text-muted fw-normal">(Órteses, Próteses e Materiais Especiais)</small></label>
+                    <p class="text-muted small mb-2">Não obrigatório - Deixar em branco se não for utilizar OPME. Em caso de instrumental básico (caixa básica, serra, perfurador, gesso, etc.) colocar somente no aviso de cirurgia.</p>
+                    <div class="row g-2">
+                        {% for subfield in form.opme_items %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check">
+                                {{ subfield(class="form-check-input") }}
+                                {{ subfield.label(class="form-check-label") }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="col-md-4 col-sm-6 d-flex align-items-center gap-2">
+                            <label class="form-check-label text-nowrap">Outro:</label>
+                            {{ form.opme_outro(class="form-control form-control-sm", placeholder="Especifique") }}
+                        </div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>

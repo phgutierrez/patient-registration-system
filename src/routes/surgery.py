@@ -44,7 +44,10 @@ def request_surgery(patient_id):
                 evolucao_internacao=form.evolucao_internacao.data,
                 prescricao_internacao=form.prescricao_internacao.data,
                 exames_preop=form.exames_preop.data,
-                opme=form.opme.data
+                opme=', '.join([
+                    *( form.opme_items.data or [] ),
+                    *( [f'Outro: {form.opme_outro.data.strip()}'] if form.opme_outro.data and form.opme_outro.data.strip() else [] )
+                ]) or None
             )
 
             db.session.add(surgery_request)

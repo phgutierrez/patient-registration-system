@@ -416,6 +416,25 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
     
     if not opme_text or opme_text.strip() == "":
         return ([], "")
+
+    # --- Tentativa de parse estruturado (novo formato: itens separados por vírgula) ---
+    known_normalized = {opt.lower(): opt for opt in possible_opme_options}
+    parts = [p.strip() for p in opme_text.split(',') if p.strip()]
+    structured_matched = []
+    structured_others = []
+    for part in parts:
+        if part.lower() in known_normalized:
+            structured_matched.append(known_normalized[part.lower()])
+        elif part.lower().startswith('outro:'):
+            structured_others.append(part[6:].strip())
+        else:
+            structured_others.append(part)
+    # Se todos os itens foram reconhecidos como opções ou "Outro:", usar o parse direto
+    if structured_matched or structured_others:
+        other_text = ', '.join(structured_others)
+        current_app.logger.info(f"OPME parse estruturado: matched={structured_matched}, outro='{other_text}'")
+        return (structured_matched, other_text)
+    # --- Fim parse estruturado ---
     
     opme_normalized = opme_text.lower().strip()
     matched_options = []
