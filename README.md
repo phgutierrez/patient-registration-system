@@ -10,13 +10,13 @@
 
 Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias ortopédicas pediátricas com interface moderna, geração automática de PDFs e integração com Google Calendar.
 
-[📥 Instalação](#-instalação) • [🌐 Configuração de Rede](#-implantação-em-rede-lan) • [📖 Guia](INSTALLATION_GUIDE.md) • [🔧 Configuração](#-configuração)
+[📥 Instalação](#-instalação) • [🌐 Configuração de Rede](#-implantação-em-rede-lan) • [📖 Guia](docs/INSTALLATION_GUIDE.md) • [🔧 Configuração](#-configuração)
 
 </div>
 
 ---
 
-> ⚡ **Novo ao projeto?** Veja o [QUICK_START.md](QUICK_START.md) para instalação em 3 passos!
+> ⚡ **Novo ao projeto?** Veja o [QUICK_START.md](docs/QUICK_START.md) para instalação em 3 passos!
 
 ---
 
@@ -175,7 +175,7 @@ run_network.bat
    - **Alt+U** - Gerenciamento de usuários
 
 ### ⚠️ Problemas na Primeira Execução?
-- **Especialidades não aparecem**: Ver [TROUBLESHOOTING_ESPECIALIDADES.md](TROUBLESHOOTING_ESPECIALIDADES.md)
+- **Especialidades não aparecem**: Ver [TROUBLESHOOTING_ESPECIALIDADES.md](docs/TROUBLESHOOTING_ESPECIALIDADES.md)
 - **Outros erros**: Execute `verify_setup.bat` para diagnóstico
 - **Não consegue instalar**: Ver seção "[Instalação](#-instalação)" abaixo
 
@@ -210,7 +210,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-> 📖 **Guia Detalhado**: Veja [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) para instruções completas de implantação hospitalar.
+> 📖 **Guia Detalhado**: Veja [INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md) para instruções completas de implantação hospitalar.
 
 ## 🌐 Implantação em Rede (LAN)
 
@@ -470,7 +470,9 @@ taskkill /PID <process_id> /F
 
 ## 📖 Documentação Adicional
 
-- **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** - Guia completo de implantação hospitalar
+- **[INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md)** - Guia completo de implantação hospitalar
+- **[QUICK_START.md](docs/QUICK_START.md)** - Guia rápido para começar em 3 passos
+- **[TROUBLESHOOTING_ESPECIALIDADES.md](docs/TROUBLESHOOTING_ESPECIALIDADES.md)** - Diagnóstico e soluções
 - **[.env.example](.env.example)** - Modelo de configuração com todas as variáveis
 - **[Requirements](requirements.txt)** - Dependências Python com versões
 

@@ -1,7 +1,7 @@
 """Criar tabelas de especialidades e atualizar users e surgery_requests
 
 Revision ID: 007_add_specialties
-Revises: 005_create_calendar_event_status
+Revises: 006_add_conditional_get_support
 Create Date: 2026-02-24 00:00:00.000000
 """
 from alembic import op
