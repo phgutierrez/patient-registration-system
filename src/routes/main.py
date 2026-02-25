@@ -114,9 +114,36 @@ def agenda():
     """Exibe a agenda cirúrgica a partir do Google Calendar (ICS)"""
     from src.services.calendar_cache_service import get_calendar_cache_service
     from src.services.calendar_service import get_calendar_service
+    from src.services.specialty_service import get_specialty_settings
     from flask import current_app
     
     try:
+        # ───────────────────────────────────────────────────────────────────
+        # VALIDAÇÃO: Verificar se agenda está configurada para especialidade
+        # ───────────────────────────────────────────────────────────────────
+        specialty = get_active_specialty()
+        if not specialty:
+            return render_template('agenda.html', 
+                                   error='Especialidade não selecionada. Selecione uma especialidade antes de acessar a agenda.',
+                                   error_type='not_configured',
+                                   view='month',
+                                   grouped_events={},
+                                   sorted_dates=[],
+                                   meta_source='error',
+                                   total_events=0), 400
+        
+        settings = get_specialty_settings(specialty)
+        if not settings or not settings.agenda_url:
+            return render_template('agenda.html',
+                                   error=f'Agenda não configurada para {specialty.name}. <strong>Administrador:</strong> Configure o link da agenda nas <a href="/configuracoes/">Configurações de Especialidade</a>.',
+                                   error_type='not_configured',
+                                   specialty=specialty,
+                                   view='month',
+                                   grouped_events={},
+                                   sorted_dates=[],
+                                   meta_source='error',
+                                   total_events=0), 400
+        
         # Parâmetros de query
         view = request.args.get('view', 'month')  # week ou month (padrão: month)
         start_str = request.args.get('start')

@@ -13,6 +13,17 @@
                 <p><strong>Sucesso!</strong> A solicitação de cirurgia foi registrada com sucesso e o PDF foi gerado.</p>
             </div>
             
+            <!-- ERRO: Formulário Google Forms não configurado -->
+            {% if forms_error %}
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+                <i class="fas fa-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>⚠️ Formulário não configurado</strong><br>
+                    {{ forms_error|safe }}
+                </div>
+            </div>
+            {% endif %}
+            
             <h3>Detalhes da Solicitação</h3>
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -45,7 +56,7 @@
                 {% endif %}
                 
                 <!-- Novo botão de agendamento automático -->
-                <button type="button" class="btn btn-success btn-lg" id="btnSchedulePreview" data-surgery-id="{{ surgery.id }}">
+                <button type="button" class="btn btn-success btn-lg" id="btnSchedulePreview" data-surgery-id="{{ surgery.id }}" {% if not forms_configured %}disabled title="Configure o formulário antes de agendar"{% endif %}>
                     <i class="fas fa-calendar-plus me-2"></i>Adicionar à Agenda
                 </button>
                 
@@ -56,6 +67,11 @@
                    class="btn btn-outline-primary btn-lg">
                     <i class="fas fa-external-link-alt me-2"></i>Abrir Formulário ({{ specialty.name if specialty else 'Agendamento' }})
                 </a>
+                {% else %}
+                <!-- Botão desabilitado se forms_url não está configurado -->
+                <button type="button" class="btn btn-outline-secondary btn-lg" disabled title="Formulário não configurado para esta especialidade">
+                    <i class="fas fa-external-link-alt me-2"></i>Formulário não disponível
+                </button>
                 {% endif %}
             </div>
             

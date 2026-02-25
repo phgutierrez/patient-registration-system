@@ -141,13 +141,24 @@ def confirmation(surgery_id, pdf_name):
     # Usar a especialidade gravada na própria solicitação para evitar inconsistências
     sp = surgery_request.specialty or get_active_specialty()
     settings = get_specialty_settings(sp)
+    
+    # ───────────────────────────────────────────────────────────────────
+    # VALIDAÇÃO: Verificar se formulário Google Forms está configurado
+    # ───────────────────────────────────────────────────────────────────
+    forms_configured = settings and settings.forms_url
+    forms_error = None
+    
+    if not forms_configured:
+        forms_error = f'Formulário Google Forms não configurado para {sp.name}. Administrador: Configure o link do formulário nas <a href="/configuracoes/">Configurações de Especialidade</a>.'
 
     return render_template('surgery/confirmation.html',
                            surgery=surgery_request,
                            patient=patient,
                            pdf_name=pdf_name,
                            specialty=sp,
-                           specialty_settings=settings)
+                           specialty_settings=settings,
+                           forms_configured=forms_configured,
+                           forms_error=forms_error)
 
 
 @surgery.route('/surgery/debug/test-pdf-generation', methods=['GET'])
