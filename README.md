@@ -10,12 +10,14 @@
 
 Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias ortopédicas pediátricas com interface moderna, geração automática de PDFs e integração com Google Calendar.
 
-[📥 Instalação](#-instalação) • [🌐 Configuração de Rede](#-implantação-em-rede-lan) • [📖 Guia](docs/INSTALLATION_GUIDE.md) • [🔧 Configuração](#-configuração)
+[📥 Instalação](#-instalação) • [🌐 Configuração de Rede](#-implantação-em-rede-lan) • [📖 Documentação](docs/INDEX.md) • [🔧 Configuração](#-configuração)
 
 </div>
 
 ---
 
+> 📚 **Documentação Completa**: [Índice de Documentação](docs/INDEX.md) com busca por tópico
+>
 > ⚡ **Novo ao projeto?** Veja o [QUICK_START.md](docs/QUICK_START.md) para instalação em 3 passos!
 
 ---
