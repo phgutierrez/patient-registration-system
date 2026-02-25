@@ -13,12 +13,19 @@
 3. [Download & Atualização](#2-download--atualização)
 4. [Configuração do Ambiente](#3-configuração-do-ambiente)  
 5. [Configuração](#4-configuração)
+   - 5.1 Variáveis de Ambiente
+   - 5.2-5.5 Banco de Dados
+   - **5.6 Configuração de Especialidades e Agendas** ⭐ (NOVEMBRO 2.5)
 6. [Inicialização do Banco de Dados](#5-inicialização-do-banco-de-dados)
 7. [Implantação de Rede LAN](#6-implantação-de-rede-lan)
 8. [Configuração do Windows Firewall](#7-configuração-do-windows-firewall)
 9. [Modo de Serviço de Inicialização Automática](#8-modo-de-serviço-de-inicialização-automática)
 10. [Procedimentos de Manutenção](#9-procedimentos-de-manutenção)
 11. [Solução de Problemas](#10-solução-de-problemas)
+    - 10.1-10.3 Básicos
+    - **10.4 Integração de Calendário** (Atualizado v2.5)
+    - 10.5 Google Forms
+    - **10.6 Agendas de Especialidades** ⭐ (NOVO)
 12. [Segurança & Governança](#11-segurança--governança)
 13. [Apêndice](#12-apêndice)
 
@@ -439,6 +446,94 @@ remove-item instance\prontuario.db
 # Rodar setup novamente
 .\setup_windows.bat
 ```
+
+### 5.6 Configuração de Especialidades e Agendas Google Calendar
+
+> **IMPORTANTE (DESDE v2.5)**: Cada especialidade agora carrega sua própria agenda Google Calendar. Após a instalação inicial, você DEVE configurar a agenda para cada especialidade.
+
+**O que mudou:**
+- Antes: Sistema compartilhava um único calendário global (GOOGLE_CALENDAR_ID do .env)
+- Agora: Cada especialidade tem sua propriedade `agenda_url` única
+
+#### Passo 1: Acessar Configurações de Especialidades
+
+1. **Inicie o servidor:**
+   ```powershell
+   run_local.bat
+   # ou
+   run_network.bat
+   ```
+
+2. **Acesse o sistema:** http://localhost:5000 (ou http://seu-ip:5000)
+
+3. **Login com credenciais padrão:**
+   - Usuário: `pedro` (ou outro usuário disponível)
+   - Senha: `123456`
+
+4. **Navegue para:** Menu → Configurações → Especialidades
+
+#### Passo 2: Para CADA Especialidade, Configure a Agenda
+
+Para cada especialidade (ex: Ortopedia, Cirurgia Pediátrica):
+
+1. **Clique em "Editar"** na especialidade desejada
+
+2. **Preencha o campo "URL Agenda Google Calendar"** com a URL ICS:
+   ```
+   https://calendar.google.com/calendar/ical/SEU_CALENDARIO_ID/public/basic.ics
+   ```
+   
+   > Onde `SEU_CALENDARIO_ID` é obtido em:
+   > - Google Calendar → Configurações → Seu Calendário
+   > - Procure por "ID do Calendário" na seção "Integrar Calendário"
+
+3. **Preencha o campo "URL Formulário Google Forms"** (opcional, para entrada de dados):
+   ```
+   https://docs.google.com/forms/d/e/SEU_ID_PUBLICO/viewform
+   ```
+
+4. **Clique em "Salvar"**
+
+#### Exemplo: Configurar Ortopedia
+
+```
+Especialidade: Ortopedia
+├─ URL Agenda: https://calendar.google.com/calendar/ical/hospital-ortopedia%40group.calendar.google.com/public/basic.ics
+└─ URL Formulário: https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform
+```
+
+#### Exemplo: Configurar Cirurgia Pediátrica
+
+```
+Especialidade: Cirurgia Pediátrica
+├─ URL Agenda: https://calendar.google.com/calendar/ical/hospital-cipe%40group.calendar.google.com/public/basic.ics
+└─ URL Formulário: https://docs.google.com/forms/d/e/1FAIpQLTd.../viewform
+```
+
+#### Verificar Configuração
+
+Após configurar, teste acessando:
+
+1. **Selecione uma especialidade** no menu principal
+2. **Clique em "Agenda Cirúrgica"**
+3. Você deve ver:
+   - ✅ Calendário carregado com eventos da especialidade
+   - ❌ Mensagem de erro se não estiver configurada (com instruções para configurar)
+
+#### Solução de Problemas de Agenda
+
+**Problema: "Agenda não configurada para [Especialidade]"**
+- Solução: Volte a Configurações → Especialidades e preencha a URL Agenda
+
+**Problema: Calendário vazio (nenhum evento)**
+- Verificar se o calendário Google possui eventos
+- Verificar se URL está correta (copiar exatamente do Google)
+- Verificar se calendário está compartilhado como público
+
+**Problema: Erro 404 ao acessar agenda**
+- URL copiada incorretamente
+- Calendário não está no modo público
+- Considerar retirar "%40" da URL e colocar "@" (algumas versões invertemos isso)
 
 ---
 
@@ -864,17 +959,29 @@ del instance\prontuario.db
 
 ### 10.4 Problemas de Integração de Calendário
 
+**Problema: "Agenda não configurada para [Especialidade]"**
+
+Desde a versão 2.5, cada especialidade carrega sua própria agenda (não mais compartilhada globalmente).
+
+**Solução:**
+1. Acesse: Menu → Configurações → Especialidades
+2. Clique em "Editar" na especialidade com problema
+3. Preencha o campo "URL Agenda Google Calendar" com:
+   ```
+   https://calendar.google.com/calendar/ical/SEU_ID_CALENDARIO/public/basic.ics
+   ```
+4. Salvar e testar
+
+Veja seção 5.6 para instruções detalhadas.
+
 **Problema: Calendário não atualiza**
 ```powershell
 # Verificar acessibilidade da URL ICS
 curl "SUA_URL_ICS_DO_CALENDARIO"
 # Deve retornar dados do calendário
 
-# Testar endpoint de atualização de cache
-curl -X POST http://localhost:5000/agenda/cache/refresh
-
-# Verificar configurações de cache no .env
-type .env | findstr CALENDAR
+# Observação: Cada especialidade agora carrega sua própria URL
+# Cache é feito por especialidade, não globalmente
 ```
 
 **Problema: Fuso horário/datas incorretos**
@@ -886,7 +993,7 @@ print('Disponível:', 'America/Fortaleza' in pytz.all_timezones)
 print('TZ Atual:', pytz.timezone('America/Fortaleza'))
 "
 
-# Atualizar fuso horário no .env
+# Atualizar fuso horário no .env (afeta todos as especialidades)
 echo GOOGLE_CALENDAR_TZ=America/Fortaleza >> .env
 ```
 
@@ -897,13 +1004,32 @@ echo GOOGLE_CALENDAR_TZ=America/Fortaleza >> .env
 # Verificar formato da URL do formulário (ID PÚBLICO, não ID DE EDIÇÃO)
 # Correto: https://docs.google.com/forms/d/e/ID_PUBLICO/viewform
 # Errado:  https://docs.google.com/forms/d/ID_EDICAO/edit
-
-# Testar acessibilidade do formulário
-curl "https://docs.google.com/forms/d/e/SEU_ID_PUBLICO/viewform"
-# Deve retornar HTML do formulário
 ```
 
-### 10.6 Problemas de Inicialização Automática do Serviço
+### 10.6 Problema: Especialidades com agendas diferentes não carregam corretamente
+
+**Problema: Ao trocar de especialidade, a agenda anterior ainda aparece**
+
+Antes da v2.5, isto era um bug comum. Se ainda acontecer:
+
+**Causa possível:**
+- Cache do navegador não foi atualizado
+- Session da especialidade não foi alterada corretamente
+
+**Solução:**
+1. Limpar cache do navegador (Ctrl+Shift+Del)
+2. Fechar e reabrir navegador
+3. Fazer login novamente
+4. Selecionar especialidade novamente
+
+Caso ainda persista:
+```powershell
+# Reiniciar servidor
+# Pressione Ctrl+C para parar
+# Depois: run_local.bat ou run_network.bat
+```
+
+### 10.7 Problemas de Inicialização Automática do Serviço
 
 **Problema: Serviço não inicia no boot**
 ```powershell
