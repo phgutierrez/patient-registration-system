@@ -1,17 +1,16 @@
 """add_calendar_scheduling_fields
 
 Revision ID: 004_add_calendar_fields
-Revises: 001_create_calendar_cache
+Revises: 
 Create Date: 2026-02-05 14:30:00.000000
 
 """
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision = '004_add_calendar_fields'
-down_revision = '001_create_calendar_cache'
+down_revision = None
 branch_labels = None
 depends_on = None
 

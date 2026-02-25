@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from src.models.user import User
+from src.models.specialty import Specialty
 from src.extensions import db
 from src.forms.user_forms import UserRegistrationForm
 
@@ -46,6 +47,10 @@ def register_user():
         # Extrai o primeiro nome para usar como username
         username = full_name.split()[0].lower() if full_name else ''
         
+        specialty_id = request.form.get('specialty_id') or None
+        if specialty_id:
+            specialty_id = int(specialty_id)
+
         # Verifica se o usuário já existe
         if User.query.filter_by(username=username).first():
             flash(f'Usuário {username} já existe', 'error')
@@ -57,7 +62,8 @@ def register_user():
                     full_name=full_name,
                     cns=cns if cns else None,
                     crm=crm if crm else None,
-                    role='solicitante'
+                    role='solicitante',
+                    specialty_id=specialty_id,
                 )
                 db.session.add(user)
                 db.session.commit()
@@ -77,6 +83,8 @@ def register_user():
                 user.full_name = request.form.get('full_name')
                 user.cns = request.form.get('cns') or None
                 user.crm = request.form.get('crm') or None
+                sid = request.form.get('specialty_id') or None
+                user.specialty_id = int(sid) if sid else None
                 db.session.commit()
                 flash(f'Usuário {user.full_name} atualizado com sucesso!', 'success')
             except Exception as e:
@@ -108,5 +116,6 @@ def register_user():
     
     # Listar todos os usuários
     users = User.query.all()
-    
-    return render_template('user_registration.html', users=users)
+    specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.id).all()
+
+    return render_template('user_registration.html', users=users, specialties=specialties)

@@ -1,10 +1,34 @@
+"""
+Formulário de solicitação de cirurgia.
+
+Os choices de procedimento_solicitado e assistente são injetados
+dinamicamente pela rota, baseados na especialidade ativa.
+"""
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, TextAreaField, SelectField, DateField, TimeField
-from wtforms import BooleanField, RadioField, SubmitField
+from wtforms import (
+    StringField, FloatField, TextAreaField, SelectField,
+    DateField, TimeField, BooleanField, RadioField, SubmitField,
+    SelectMultipleField,
+)
 from wtforms.validators import DataRequired, Optional
+from wtforms.widgets import ListWidget, CheckboxInput
+
+OPME_CHOICES = [
+    ('Ilizarov Adulto', 'Ilizarov Adulto'),
+    ('Ilizarov Infantil', 'Ilizarov Infantil'),
+    ('Caixa 3,5mm', 'Caixa 3,5mm'),
+    ('Caixa 4,5mm', 'Caixa 4,5mm'),
+    ('Placa angulada', 'Placa angulada'),
+    ('Fios de Kirschner', 'Fios de Kirschner'),
+    ('Parafuso Canulado', 'Parafuso Canulado'),
+    ('Âncora', 'Âncora'),
+    ('Placa em 8', 'Placa em 8'),
+    ('Artrodese Coluna', 'Artrodese Coluna'),
+]
 
 
 class SurgeryRequestForm(FlaskForm):
+    # ── Dados Clínicos ────────────────────────────────────────────────────
     peso = FloatField('Peso (kg)', validators=[DataRequired()])
     sinais_sintomas = TextAreaField(
         'Sinais e Sintomas Clínicos', validators=[DataRequired()])
@@ -13,97 +37,54 @@ class SurgeryRequestForm(FlaskForm):
     resultados_diagnosticos = TextAreaField(
         'Resultados de Provas Diagnósticas', validators=[DataRequired()])
 
-    procedimento_solicitado = SelectField('Procedimento Solicitado', validators=[DataRequired()],
-                                          choices=[
-        ('', 'Selecione um procedimento'),
-        ('Epifisiodese femoral proximal in situ',
-         'Epifisiodese femoral proximal in situ'),
-        ('Osteotomia da Pelve',
-         'Osteotomia da Pelve'),
-        ('Realinhamento do mecanismo extensor do joelho',
-         'Realinhamento do mecanismo extensor do joelho'),
-        ('Redução Incruenta de Luxação congênita coxofemoral',
-         'Redução Incruenta de Luxação congênita coxofemoral'),
-        ('Revisão cirúrgica do Pé torto congênito',
-         'Revisão cirúrgica do Pé torto congênito'),
-        ('Tratamento cirúrgico de luxação coxofemoral congenita',
-         'Tratamento cirúrgico de luxação coxofemoral congenita'),
-        ('Tratamento cirúrgico de luxação espontânea / progressiva / paralitica do quadril',
-         'Tratamento cirúrgico de luxação espontânea / progressiva / paralitica do quadril'),
-        ('Talectomia', 'Talectomia'),
-        ('Tratamento cirúrgico de coalizão tarsal',
-         'Tratamento cirúrgico de coalizão tarsal'),
-        ('Tratamento cirúrgico de pé cavo',
-         'Tratamento cirúrgico de pé cavo'),
-        ('Tratamento cirúrgico de pé plano valgo',
-         'Tratamento cirúrgico de pé plano valgo'),
-        ('Tratamento cirúrgico de pé torto congênito',
-         'Tratamento cirúrgico de pé torto congênito'),
-        ('Tratamento cirúrgico de pé torto congênito inveterado',
-         'Tratamento cirúrgico de pé torto congênito inveterado'),
-        ('Tratamento cirúrgico de pseudoartrose congênita da tibia',
-         'Tratamento cirúrgico de pseudoartrose congênita da tibia'),
-        ('Alongamento / Encurtamento miotendinoso',
-         'Alongamento / Encurtamento miotendinoso'),
-        ('Osteotomia de ossos longos exceto da mão e do pé',
-         'Osteotomia de ossos longos exceto da mão e do pé'),
-        ('Ressecção de cisto sinovial',
-         'Ressecção de cisto sinovial'),
-        ('Retirada de fio ou pino intra-ósseo',
-         'Retirada de fio ou pino intra-ósseo'),
-        ('Retirada de Fixador externo',
-         'Retirada de Fixador externo'),
-        ('Retirada de Placa e/ou parafusos',
-         'Retirada de Placa e/ou parafusos'),
-        ('Transposição / Transferência miotendinosa única',
-         'Transposição / Transferência miotendinosa única'),
-        ('Neurolise não funcional',
-         'Neurolise não funcional')
-    ])
-
+    # ── Procedimento — choices injetados dinamicamente pela rota ──────────
+    procedimento_solicitado = SelectField(
+        'Procedimento Solicitado',
+        validators=[DataRequired()],
+        choices=[('', 'Selecione um procedimento')],
+        validate_choice=False,
+    )
     codigo_procedimento = StringField('Código do Procedimento')
-    tipo_cirurgia = RadioField('Tipo de Cirurgia', validators=[DataRequired()],
-                               choices=[('Eletiva', 'Eletiva'), ('Urgência', 'Urgência')])
 
-    data_cirurgia = DateField('Data da Cirurgia', validators=[
-                              DataRequired()], format='%Y-%m-%d')
+    tipo_cirurgia = RadioField(
+        'Tipo de Cirurgia',
+        validators=[DataRequired()],
+        choices=[('Eletiva', 'Eletiva'), ('Urgência', 'Urgência')],
+    )
+    data_cirurgia = DateField('Data da Cirurgia', validators=[DataRequired()], format='%Y-%m-%d')
     internar_antes = BooleanField('Internar 1 dia antes da cirurgia')
-    hora_cirurgia = TimeField('Hora da Cirurgia', validators=[
-                              DataRequired()], format='%H:%M')
+    hora_cirurgia = TimeField('Hora da Cirurgia', validators=[DataRequired()], format='%H:%M')
 
-    assistente = SelectField('Assistente', validators=[DataRequired()],
-                             choices=[('', 'Selecione um assistente'),
-                                      ('Dr. Pedro Henrique',
-                                       'Dr. Pedro Henrique'),
-                                      ('Dr. Francisco Laecio',
-                                       'Dr. Francisco Laecio'),
-                                      ('Dr. Brauner Cavalcanti',
-                                       'Dr. Brauner Cavalcanti'),
-                                      ('Dr. André Cristiano',
-                                       'Dr. André Cristiano'),
-                                      ('Dr. Sávio Bruno', 'Dr. Sávio Bruno'),
-                                      ('Dr. Bruno Montenegro',
-                                       'Dr. Bruno Montenegro'),
-                                      ('Dr. Luiz Eduardo Portela',
-                                       'Dr. Luiz Eduardo Portela'),
-                                      ('Dr. Jocemir Paulino', 'Dr. Jocemir Paulino')])
+    # ── Assistente — choices injetados dinamicamente pela rota ────────────
+    assistente = SelectField(
+        'Assistente',
+        validators=[DataRequired()],
+        choices=[('', 'Selecione um assistente')],
+        validate_choice=False,
+    )
 
-    aparelhos_especiais = StringField(
-        'Aparelhos Especiais', validators=[Optional()])
+    # ── Recursos ─────────────────────────────────────────────────────────
+    aparelhos_especiais = StringField('Aparelhos Especiais', validators=[Optional()])
     reserva_sangue = BooleanField('Reserva de Sangue')
-    quantidade_sangue = StringField(
-        'Quantidade Prevista', validators=[Optional()])
+    quantidade_sangue = StringField('Quantidade Prevista', validators=[Optional()])
     raio_x = BooleanField('Raio-X')
     reserva_uti = BooleanField('Reserva de Vaga UTI')
-    duracao_prevista = StringField(
-        'Duração Prevista', validators=[DataRequired()])
+    duracao_prevista = StringField('Duração Prevista', validators=[DataRequired()])
 
-    evolucao_internacao = TextAreaField(
-        'Evolução para Internação', validators=[Optional()])
-    prescricao_internacao = TextAreaField(
-        'Prescrição para Internação', validators=[Optional()])
-    exames_preop = TextAreaField(
-        'Exames Pré-Operatórios', validators=[Optional()])
-    opme = TextAreaField('OPME', validators=[Optional()])
+    # ── Informações para Internação ───────────────────────────────────────
+    evolucao_internacao = TextAreaField('Evolução para Internação', validators=[Optional()])
+    prescricao_internacao = TextAreaField('Prescrição para Internação', validators=[Optional()])
+    exames_preop = TextAreaField('Exames Pré-Operatórios', validators=[Optional()])
+
+    # ── OPME (checkboxes + campo livre) ──────────────────────────────────
+    opme_items = SelectMultipleField(
+        'OPME',
+        validators=[Optional()],
+        choices=OPME_CHOICES,
+        widget=ListWidget(prefix_label=False),
+        option_widget=CheckboxInput(),
+    )
+    opme_outro = StringField('Outro (OPME)', validators=[Optional()])
 
     submit = SubmitField('Solicitar Cirurgia')
+

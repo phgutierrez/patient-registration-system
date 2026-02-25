@@ -1,5 +1,9 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, redirect, url_for, flash
 from flask_login import login_required
+from src.services.specialty_service import (
+    get_active_specialty_slug, set_active_specialty_slug, get_active_specialty,
+)
+from src.models.specialty import Specialty
 import os
 import sys
 import threading
@@ -14,11 +18,40 @@ main = Blueprint('main', __name__)
 # Variável para rastrear última atividade
 last_activity = None
 
+
 @main.route('/')
 @main.route('/index')
 @login_required
 def index():
-    return render_template('index.html')
+    """Home: se especialidade já estiver na sessão, exibe dashboard; caso contrário, pede seleção."""
+    from flask import session
+    if not session.get('specialty_slug'):
+        specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.name).all()
+        return render_template('select_specialty.html', specialties=specialties)
+    return render_template('index.html', specialty=get_active_specialty())
+
+
+@main.route('/select-specialty', methods=['POST'])
+@login_required
+def select_specialty():
+    """Grava a especialidade escolhida na sessão e redireciona para a home."""
+    slug = request.form.get('specialty_slug', '').strip()
+    sp = Specialty.query.filter_by(slug=slug, is_active=True).first()
+    if not sp:
+        flash('Especialidade inválida.', 'error')
+        return redirect(url_for('main.index'))
+    set_active_specialty_slug(slug)
+    flash(f'Especialidade ativa: {sp.name}', 'success')
+    return redirect(url_for('main.index'))
+
+
+@main.route('/change-specialty')
+@login_required
+def change_specialty():
+    """Limpa especialidade da sessão para forçar nova seleção."""
+    from flask import session
+    session.pop('specialty_slug', None)
+    return redirect(url_for('main.index'))
 
 @main.route('/api/heartbeat', methods=['GET'])
 @login_required

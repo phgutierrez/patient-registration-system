@@ -5,9 +5,14 @@ from src.models.patient import Patient
 from src.extensions import db, csrf
 from src.utils.pdf_utils import preencher_formulario_internacao, preencher_requisicao_hemocomponente
 from src.forms.surgery_form import SurgeryRequestForm
+from src.services.specialty_service import (
+    get_active_specialty, get_procedure_choices, get_user_choices,
+    get_procedure_code_map, get_sus_code_for_procedure, get_specialty_settings,
+)
 from datetime import datetime
 import os
 import logging
+import json
 
 surgery = Blueprint('surgery', __name__)
 logger = logging.getLogger(__name__)
@@ -19,17 +24,35 @@ def request_surgery(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     form = SurgeryRequestForm()
 
+    # Carregar especialidade ativa e injetar choices
+    specialty = get_active_specialty()
+    form.procedimento_solicitado.choices = get_procedure_choices(specialty)
+    form.assistente.choices = get_user_choices(specialty)
+    procedure_code_map = get_procedure_code_map(specialty)
+
     if form.validate_on_submit():
+        # Derivar código SUS do banco (não aceitar apenas o que veio do form)
+        sus_code = (
+            form.codigo_procedimento.data
+            or get_sus_code_for_procedure(form.procedimento_solicitado.data, specialty)
+        )
+        # Montar campo opme a partir dos checkboxes
+        opme_value = ', '.join([
+            *(form.opme_items.data or []),
+            *([f'Outro: {form.opme_outro.data.strip()}'] if form.opme_outro.data and form.opme_outro.data.strip() else []),
+        ]) or None
+
         try:
             # Criar nova solicitação de cirurgia
             surgery_request = SurgeryRequest(
                 patient_id=patient.id,
+                specialty_id=specialty.id if specialty else None,
                 peso=form.peso.data,
                 sinais_sintomas=form.sinais_sintomas.data,
                 condicoes_justificativa=form.condicoes_justificativa.data,
                 resultados_diagnosticos=form.resultados_diagnosticos.data,
                 procedimento_solicitado=form.procedimento_solicitado.data,
-                codigo_procedimento=form.codigo_procedimento.data,
+                codigo_procedimento=sus_code,
                 tipo_cirurgia=form.tipo_cirurgia.data,
                 data_cirurgia=form.data_cirurgia.data,
                 internar_antes=form.internar_antes.data,
@@ -44,7 +67,7 @@ def request_surgery(patient_id):
                 evolucao_internacao=form.evolucao_internacao.data,
                 prescricao_internacao=form.prescricao_internacao.data,
                 exames_preop=form.exames_preop.data,
-                opme=form.opme.data
+                opme=opme_value,
             )
 
             db.session.add(surgery_request)
@@ -98,7 +121,13 @@ def request_surgery(patient_id):
             flash(f'Erro ao registrar solicitação: {str(e)}', 'danger')
             print(f"Erro ao salvar solicitação: {str(e)}")
 
-    return render_template('surgery/request.html', patient=patient, form=form)
+    return render_template(
+        'surgery/request.html',
+        patient=patient,
+        form=form,
+        specialty=specialty,
+        procedure_code_map=procedure_code_map,
+    )
 
 # Nova rota para página de confirmação
 
@@ -106,14 +135,19 @@ def request_surgery(patient_id):
 @surgery.route('/surgery/<int:surgery_id>/confirmation/<path:pdf_name>')
 @login_required
 def confirmation(surgery_id, pdf_name):
-    # Verificar se o registro de cirurgia existe
     surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
     patient = Patient.query.get_or_404(surgery_request.patient_id)
+
+    # Usar a especialidade gravada na própria solicitação para evitar inconsistências
+    sp = surgery_request.specialty or get_active_specialty()
+    settings = get_specialty_settings(sp)
 
     return render_template('surgery/confirmation.html',
                            surgery=surgery_request,
                            patient=patient,
-                           pdf_name=pdf_name)
+                           pdf_name=pdf_name,
+                           specialty=sp,
+                           specialty_settings=settings)
 
 
 @surgery.route('/surgery/debug/test-pdf-generation', methods=['GET'])

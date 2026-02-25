@@ -496,6 +496,15 @@
                 Solicitação de Cirurgia
             </h1>
             <small style="color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; margin-top: 0.5rem; display: block;">Sistema Integrado</small>
+            {% if current_user.is_authenticated and active_specialty_name %}
+            <a href="{{ url_for('main.change_specialty') }}" class="d-block mt-2 text-decoration-none"
+               title="Clique para trocar a especialidade">
+                <span class="badge text-bg-info" style="font-size: 0.75rem; cursor:pointer;">
+                    <i class="fas fa-stethoscope me-1"></i>{{ active_specialty_name }}
+                    <i class="fas fa-exchange-alt ms-1" style="font-size:.65rem;"></i>
+                </span>
+            </a>
+            {% endif %}
         </div>
         <nav>
             <ul class="nav-menu">
@@ -528,6 +537,12 @@
                     <a href="{{ url_for('auth.register_user') }}" class="nav-link">
                         <i class="fas fa-user-cog"></i>
                         Cadastro Usuário
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('specialty_settings.index') }}" class="nav-link">
+                        <i class="fas fa-sliders-h"></i>
+                        Configurações
                     </a>
                 </li>
                 {% else %}

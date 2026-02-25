@@ -83,12 +83,24 @@ def create_app(config_class=Config):
     from src.routes.patients import patients
     from src.routes.surgery import surgery
     from src.routes.lifecycle import bp as lifecycle_bp
+    from src.routes.specialty_settings import specialty_settings_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(main)
     app.register_blueprint(patients)
     app.register_blueprint(surgery)
     app.register_blueprint(lifecycle_bp)
+    app.register_blueprint(specialty_settings_bp)
+
+    # Context processor: especialidade ativa disponível em todos os templates
+    from src.services.specialty_service import specialty_context
+
+    @app.context_processor
+    def inject_specialty():
+        try:
+            return specialty_context()
+        except Exception:
+            return {'active_specialty': 'ortopedia', 'active_specialty_name': 'Ortopedia', 'active_specialty_obj': None}
 
     # Inicializar monitor de lifecycle (se o módulo estiver disponível)
     try:

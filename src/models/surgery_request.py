@@ -39,6 +39,10 @@ class SurgeryRequest(db.Model):
     exames_preop = db.Column(db.Text, nullable=True)
     opme = db.Column(db.Text, nullable=True)
     
+    # Especialidade da solicitação
+    specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True)
+    specialty = db.relationship('Specialty', back_populates='surgery_requests', foreign_keys=[specialty_id])
+
     # Metadados
     status = db.Column(db.String(20), default='Pendente')
     pdf_filename = db.Column(db.String(255), nullable=True)

@@ -19,13 +19,18 @@ class User(UserMixin, db.Model):
     crm = db.Column(db.String(20), nullable=True, unique=True,
                     info={'unique_constraint_name': 'uq_user_crm'})
 
-    def __init__(self, username, password, full_name, role='user', cns=None, crm=None):
+    # Especialidade vinculada (ortopedia por padrão)
+    specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True)
+    specialty = db.relationship('Specialty', back_populates='users', foreign_keys=[specialty_id])
+
+    def __init__(self, username, password, full_name, role='user', cns=None, crm=None, specialty_id=None):
         self.username = username
         self.set_password(password)
         self.full_name = full_name
         self.role = role
         self.cns = cns
         self.crm = crm
+        self.specialty_id = specialty_id
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

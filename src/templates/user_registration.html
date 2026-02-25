@@ -53,6 +53,15 @@
                             <input type="text" id="crm" name="crm" class="form-control" style="border: 2px solid #e2e8f0; border-left: none; padding: 0.75rem;" placeholder="Registro profissional">
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <label for="specialty_id" class="form-label" style="font-weight: 600;">Especialidade</label>
+                        <select id="specialty_id" name="specialty_id" class="form-select" style="border: 2px solid #e2e8f0; padding: 0.75rem;">
+                            <option value="">Todas / Geral</option>
+                            {% for esp in specialties %}
+                            <option value="{{ esp.id }}">{{ esp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="d-flex justify-content-end mt-4">
@@ -80,6 +89,7 @@
                             <th style="padding: 1rem; border: none;"><i class="fas fa-user me-2"></i>Nome Completo</th>
                             <th style="padding: 1rem; border: none;"><i class="fas fa-id-card me-2"></i>CNS</th>
                             <th style="padding: 1rem; border: none;"><i class="fas fa-user-md me-2"></i>CRM</th>
+                            <th style="padding: 1rem; border: none;"><i class="fas fa-stethoscope me-2"></i>Especialidade</th>
                             <th style="padding: 1rem; text-align: center; border: none;"><i class="fas fa-cog me-2"></i>Ações</th>
                         </tr>
                     </thead>
@@ -98,6 +108,21 @@
                             <td style="padding: 12px; border: 1px solid #dee2e6;">
                                 <span class="user-crm-{{ user.id }}">{{ user.crm or '-' }}</span>
                                 <input type="text" id="edit-crm-{{ user.id }}" value="{{ user.crm or '' }}" style="display: none; width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                            </td>
+                            <td style="padding: 12px; border: 1px solid #dee2e6;">
+                                <span class="user-specialty-{{ user.id }}">
+                                    {% if user.specialty %}
+                                        <span class="badge bg-primary">{{ user.specialty.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Todas</span>
+                                    {% endif %}
+                                </span>
+                                <select id="edit-specialty-{{ user.id }}" style="display: none; width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                                    <option value="">Todas / Geral</option>
+                                    {% for esp in specialties %}
+                                    <option value="{{ esp.id }}" {{ 'selected' if user.specialty_id == esp.id else '' }}>{{ esp.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </td>
                             <td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">
                                 <div style="display: flex; gap: 5px; flex-wrap: wrap; justify-content: center;">
@@ -121,7 +146,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="4" style="padding: 12px; text-align: center; color: #6c757d;">
+    <td colspan="5" style="padding: 12px; text-align: center; color: #6c757d;">
                             Nenhum solicitante registrado
                         </td>
                     </tr>
@@ -145,6 +170,8 @@ function toggleEditMode(userId) {
     const cnsInput = document.getElementById('edit-cns-' + userId);
     const crmSpan = document.querySelector('.user-crm-' + userId);
     const crmInput = document.getElementById('edit-crm-' + userId);
+    const specialtySpan = document.querySelector('.user-specialty-' + userId);
+    const specialtySelect = document.getElementById('edit-specialty-' + userId);
     const editBtn = document.querySelector('[onclick="toggleEditMode(' + userId + ')"]');
     const saveBtn = document.getElementById('save-btn-' + userId);
     const editBtnText = document.querySelector('.edit-btn-text-' + userId);
@@ -159,6 +186,8 @@ function toggleEditMode(userId) {
         cnsInput.style.display = 'block';
         crmSpan.style.display = 'none';
         crmInput.style.display = 'block';
+        specialtySpan.style.display = 'none';
+        specialtySelect.style.display = 'block';
         saveBtn.style.display = 'inline-block';
         editBtnText.style.display = 'none';
         editBtnCancel.style.display = 'inline';
@@ -170,6 +199,8 @@ function toggleEditMode(userId) {
         cnsInput.style.display = 'none';
         crmSpan.style.display = 'inline';
         crmInput.style.display = 'none';
+        specialtySpan.style.display = 'inline';
+        specialtySelect.style.display = 'none';
         saveBtn.style.display = 'none';
         editBtnText.style.display = 'inline';
         editBtnCancel.style.display = 'none';
@@ -180,6 +211,7 @@ function saveUser(userId) {
     const fullName = document.getElementById('edit-full_name-' + userId).value;
     const cns = document.getElementById('edit-cns-' + userId).value;
     const crm = document.getElementById('edit-crm-' + userId).value;
+    const specialtyId = document.getElementById('edit-specialty-' + userId).value;
     
     const form = document.createElement('form');
     form.method = 'POST';
@@ -209,6 +241,11 @@ function saveUser(userId) {
     crmInput.type = 'hidden';
     crmInput.name = 'crm';
     crmInput.value = crm;
+
+    const specialtyInput = document.createElement('input');
+    specialtyInput.type = 'hidden';
+    specialtyInput.name = 'specialty_id';
+    specialtyInput.value = specialtyId;
     
     const csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';
@@ -220,6 +257,7 @@ function saveUser(userId) {
     form.appendChild(fullNameInput);
     form.appendChild(cnsInput);
     form.appendChild(crmInput);
+    form.appendChild(specialtyInput);
     form.appendChild(csrfInput);
     
     document.body.appendChild(form);
