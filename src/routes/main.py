@@ -112,8 +112,7 @@ def shutdown():
 @main.route('/agenda')
 def agenda():
     """Exibe a agenda cirúrgica a partir do Google Calendar (ICS)"""
-    from src.services.calendar_cache_service import get_calendar_cache_service
-    from src.services.calendar_service import get_calendar_service
+    from src.services.calendar_service import CalendarService
     from src.services.specialty_service import get_specialty_settings
     from flask import current_app
     
@@ -187,22 +186,26 @@ def agenda():
             start_date = today
             end_date = today + timedelta(days=7)
         
-        # Get cached calendar data using the new cache service
-        cache_service = get_calendar_cache_service()
-        calendar_data = cache_service.get_calendar_data()
+        # ───────────────────────────────────────────────────────────────────
+        # USAR AGENDA ESPECÍFICA DA ESPECIALIDADE (não cache global)
+        # ───────────────────────────────────────────────────────────────────
+        # Criar CalendarService com a URL específica da especialidade
+        calendar_service = CalendarService(
+            calendar_id=f"specialty_{specialty.id}",  # ID único para esta especialidade
+            ics_url=settings.agenda_url  # Usar URL configurada para a especialidade
+        )
         
-        # Get calendar service for filtering
-        calendar_service = get_calendar_service(current_app)
+        # Buscar eventos diretamente (sem cache global compartilhado)
+        events, error = calendar_service.fetch_events()
         
-        # Use the events from cache
-        events = calendar_data.events
-        meta_source = calendar_data.source_status
-        error = calendar_data.last_error
+        if error:
+            logger.warning(f"Erro ao buscar agenda de {specialty.name}: {error}")
+            meta_source = 'error'
+        else:
+            meta_source = 'ok'
         
-        # Add age information for debugging
-        if calendar_data.fetched_at:
-            age_seconds = (datetime.utcnow() - calendar_data.fetched_at).total_seconds()
-            logger.debug(f"Using calendar cache: {meta_source}, age: {age_seconds:.1f}s")
+        # Use the events from API
+        events = events if not error else []
         
         # Filtrar por intervalo e query
         filtered_events = calendar_service.filter_events(events, start_date, end_date, query)
@@ -320,17 +323,12 @@ def agenda():
             'formatted_dates': formatted_dates,
             'meta_source': meta_source,
             'error': error,
+            'specialty': specialty,
             'total_events': len(filtered_events),
             'weeks': weeks,  # Estrutura de semanas para o grid mensal
             'month_name': month_name,
             'year': year,
-            'current_month': current_month,
-            # Add cache info for debugging/monitoring
-            'cache_info': {
-                'fetched_at': calendar_data.fetched_at.isoformat() if calendar_data.fetched_at else None,
-                'age_seconds': (datetime.utcnow() - calendar_data.fetched_at).total_seconds() if calendar_data.fetched_at else None,
-                'ttl_seconds': current_app.config.get('CALENDAR_CACHE_TTL_SECONDS', 60)
-            }
+            'current_month': current_month
         }
         
         return render_template('agenda.html', **context)
