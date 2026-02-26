@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitação de Cirurgia Confirmada{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow mb-4">
+        <div class="card-header bg-success text-white">
+            <h2><i class="fas fa-check-circle me-2"></i>Solicitação de Cirurgia Registrada</h2>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-success">
+                <p><strong>Sucesso!</strong> A solicitação de cirurgia foi registrada com sucesso e o PDF foi gerado.</p>
+            </div>
+            
+            <!-- ERRO: Formulário Google Forms não configurado -->
+            {% if forms_error %}
+            <div class="alert alert-warning d-flex align-items-center" role="alert">
+                <i class="fas fa-exclamation-triangle me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>⚠️ Formulário não configurado</strong><br>
+                    {{ forms_error|safe }}
+                </div>
+            </div>
+            {% endif %}
+            
+            <h3>Detalhes da Solicitação</h3>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="info-group">
+                        <h5>Paciente</h5>
+                        <p><strong>Nome:</strong> {{ patient.nome }}</p>
+                        <p><strong>Prontuário:</strong> {{ patient.prontuario }}</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="info-group">
+                        <h5>Cirurgia</h5>
+                        <p><strong>Procedimento:</strong> {{ surgery.procedimento_solicitado }}</p>
+                        <p><strong>Data:</strong> {{ surgery.data_cirurgia.strftime('%d/%m/%Y') }}</p>
+                        <p><strong>Hora:</strong> {{ surgery.hora_cirurgia.strftime('%H:%M') }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mb-4">
+                <a href="{{ url_for('surgery.download_pdf', surgery_id=surgery.id, pdf_name=pdf_name) }}" class="btn btn-primary btn-lg mr-3">
+                    <i class="fas fa-download me-2"></i>Baixar PDF da Solicitação
+                </a>
+                
+                {% if surgery.reserva_sangue and surgery.pdf_hemocomponente %}
+                <a href="{{ url_for('surgery.download_pdf_hemocomponente', surgery_id=surgery.id, pdf_name=surgery.pdf_hemocomponente) }}" class="btn btn-danger btn-lg mr-3">
+                    <i class="fas fa-print me-2"></i>Imprimir Requisição de Hemocomponente
+                </a>
+                {% endif %}
+                
+                <!-- Novo botão de agendamento automático -->
+                <button type="button" class="btn btn-success btn-lg" id="btnSchedulePreview" data-surgery-id="{{ surgery.id }}" {% if not forms_configured %}disabled title="Configure o formulário antes de agendar"{% endif %}>
+                    <i class="fas fa-calendar-plus me-2"></i>Adicionar à Agenda
+                </button>
+                
+                {% if specialty_settings and specialty_settings.forms_url %}
+                <!-- Link dinâmico do Google Forms para esta especialidade -->
+                <a href="{{ specialty_settings.forms_url }}"
+                   target="_blank"
+                   class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-external-link-alt me-2"></i>Abrir Formulário ({{ specialty.name if specialty else 'Agendamento' }})
+                </a>
+                {% else %}
+                <!-- Botão desabilitado se forms_url não está configurado -->
+                <button type="button" class="btn btn-outline-secondary btn-lg" disabled title="Formulário não configurado para esta especialidade">
+                    <i class="fas fa-external-link-alt me-2"></i>Formulário não disponível
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="pdf-preview">
+                <h4>Prévia do Documento</h4>
+                <div class="embed-responsive embed-responsive-4by3">
+                    <iframe class="embed-responsive-item" src="{{ url_for('static', filename='preenchidos/' + pdf_name) }}"></iframe>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-footer">
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-user me-2"></i>Voltar para Perfil do Paciente
+                </a>
+                
+                <a href="{{ url_for('main.index') }}" class="btn btn-info">
+                    <i class="fas fa-home me-2"></i>Ir para Página Inicial
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 960px;
+        margin: 2rem auto;
+    }
+    
+    .card {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .info-group {
+        border: 1px solid #e3e3e3;
+        border-radius: 6px;
+        padding: 15px;
+        background-color: #f9f9f9;
+    }
+    
+    .info-group h5 {
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        color: #2c3e50;
+    }
+    
+    .pdf-preview {
+        margin-top: 2rem;
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 6px;
+    }
+    
+    .pdf-preview h4 {
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    
+    .embed-responsive {
+        position: relative;
+        display: block;
+        height: 600px;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .embed-responsive-item {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+</style>
+
+<!-- Modal de Preview do Agendamento -->
+<div class="modal fade" id="schedulePreviewModal" tabindex="-1" aria-labelledby="schedulePreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="schedulePreviewLabel">
+                    <i class="fas fa-calendar-check me-2"></i>Pré-visualização do Agendamento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="schedulePreviewContent">
+                <!-- Conteúdo carregado via AJAX -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Carregando preview...</p>
+                </div>
+            </div>
+            <div class="modal-footer" id="schedulePreviewFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btnConfirmSchedule" disabled>
+                    <i class="fas fa-check me-1"></i>Confirmar Agendamento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnSchedulePreview = document.getElementById('btnSchedulePreview');
+        const scheduleModal = new bootstrap.Modal(document.getElementById('schedulePreviewModal'));
+        const modalContent = document.getElementById('schedulePreviewContent');
+        const modalFooter = document.getElementById('schedulePreviewFooter');
+        const btnConfirmSchedule = document.getElementById('btnConfirmSchedule');
+        
+        let surgeryId = null;
+        
+        // Abrir modal de preview
+        if (btnSchedulePreview) {
+            btnSchedulePreview.addEventListener('click', function() {
+                surgeryId = this.getAttribute('data-surgery-id');
+                loadPreview(surgeryId);
+                scheduleModal.show();
+            });
+        }
+        
+        // Confirmar agendamento
+        btnConfirmSchedule.addEventListener('click', function() {
+            if (!surgeryId) return;
+            confirmSchedule(surgeryId);
+        });
+        
+        function loadPreview(id) {
+            // Reset modal
+            modalContent.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Carregando preview...</p>
+                </div>
+            `;
+            btnConfirmSchedule.disabled = true;
+            
+            // Fetch preview
+            fetch(`/surgery_requests/${id}/schedule/preview`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        renderPreview(data.preview, data.already_scheduled, data.scheduled_at, data.event_link);
+                        btnConfirmSchedule.disabled = data.already_scheduled;
+                    } else {
+                        showError(data.message || 'Erro ao carregar preview');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showError('Erro de conexão ao carregar preview');
+                });
+        }
+        
+        function renderPreview(preview, alreadyScheduled, scheduledAt, eventLink) {
+            let html = '<div class="preview-container">';
+            
+            // Alerta se já agendado
+            if (alreadyScheduled) {
+                html += `
+                    <div class="alert alert-info d-flex align-items-center mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <div>
+                            <strong>Este procedimento já foi agendado!</strong><br>
+                            Agendado em: ${new Date(scheduledAt).toLocaleString('pt-BR')}
+                        </div>
+                    </div>
+                `;
+                if (eventLink) {
+                    html += `
+                        <div class="text-center mb-3">
+                            <a href="${eventLink}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>Abrir Evento no Google Calendar
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Preview do evento
+            html += `
+                <h6 class="mb-3"><i class="fas fa-clipboard-check me-2"></i>Dados que serão enviados ao Google Calendar:</h6>
+                
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">${escapeHtml(preview.title)}</h5>
+                        <p class="mb-1"><strong>Data:</strong> ${escapeHtml(preview.date_display)}</p>
+                        <p class="mb-1"><strong>Tipo:</strong> ${preview.all_day ? 'Dia inteiro' : 'Horário específico'}</p>
+                        <p class="mb-1"><strong>Ortopedista:</strong> ${escapeHtml(preview.orthopedist)}</p>
+                        <p class="mb-1"><strong>Necessita UTI:</strong> ${preview.needs_icu_display}</p>
+                        <p class="mb-3"><strong>OPME:</strong> ${escapeHtml(preview.opme_display)}</p>
+                        
+                        <div class="border-top pt-2">
+                            <h6 class="mb-2">Descrição completa:</h6>
+                            <pre class="bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; max-height: 300px; overflow-y: auto;">${escapeHtml(preview.description)}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            html += '</div>';
+            modalContent.innerHTML = html;
+        }
+        
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        function confirmSchedule(id) {
+            // Desabilitar botão e mostrar loading
+            btnConfirmSchedule.disabled = true;
+            btnConfirmSchedule.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Agendando...';
+            
+            // Enviar confirmação
+            fetch(`/surgery_requests/${id}/schedule/confirm`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    // Sucesso
+                    modalContent.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>${data.message}</strong>
+                        </div>
+                        ${data.eventLink ? `
+                            <div class="text-center">
+                                <a href="${data.eventLink}" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>Abrir Evento no Google Calendar
+                                </a>
+                            </div>
+                        ` : ''}
+                    `;
+                    modalFooter.innerHTML = `
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    `;
+                    
+                    // Atualizar botão principal
+                    btnSchedulePreview.classList.remove('btn-success');
+                    btnSchedulePreview.classList.add('btn-outline-success');
+                    btnSchedulePreview.innerHTML = '<i class="fas fa-check-circle me-2"></i>Já Agendado';
+                    btnSchedulePreview.disabled = true;
+                } else {
+                    // Erro
+                    showError(data.message || 'Erro ao confirmar agendamento', data.details);
+                    btnConfirmSchedule.disabled = false;
+                    btnConfirmSchedule.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Agendamento';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                showError('Erro de conexão ao confirmar agendamento');
+                btnConfirmSchedule.disabled = false;
+                btnConfirmSchedule.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Agendamento';
+            });
+        }
+        
+        function showError(message, details) {
+            let html = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>${escapeHtml(message)}</strong>
+                </div>
+            `;
+            if (details) {
+                html += `<pre class="bg-light p-2 rounded small">${escapeHtml(JSON.stringify(details, null, 2))}</pre>`;
+            }
+            modalContent.innerHTML = html;
+        }
+        
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+    });
+</script>
+{% endblock %}

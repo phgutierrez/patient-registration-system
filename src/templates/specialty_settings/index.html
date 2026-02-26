@@ -1,0 +1,227 @@
+{# src/templates/specialty_settings/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Configurações de Especialidades{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:1100px;">
+
+  <!-- Cabeçalho -->
+  <div class="card border-0 shadow-sm mb-4"
+       style="background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color:white;">
+    <div class="card-body py-4">
+      <h1 class="mb-1" style="font-size:2rem;font-weight:700;">
+        <i class="fas fa-cog me-3"></i>Configurações de Especialidades
+      </h1>
+      <p class="mb-0" style="opacity:.9;">
+        Gerencie procedimentos, códigos SUS e links de cada especialidade.
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Accordion de especialidades -->
+  <div class="accordion shadow-sm" id="accEsp">
+    {% for esp in specialties %}
+    <div class="accordion-item mb-3 border rounded" id="esp-{{ esp.id }}">
+
+      <!-- Header -->
+      <h2 class="accordion-header" id="hdg-{{ esp.id }}">
+        <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-semibold"
+                type="button" data-bs-toggle="collapse"
+                data-bs-target="#col-{{ esp.id }}"
+                aria-expanded="{{ 'true' if loop.first else 'false' }}">
+          <span class="badge {{ 'bg-primary' if esp.slug == 'ortopedia' else 'bg-success' }} me-3">
+            {{ esp.slug }}
+          </span>
+          {{ esp.name }}
+          <small class="ms-3 text-muted fw-normal">
+            {{ esp.procedures | selectattr('is_active') | list | length }} procedimentos ativos
+          </small>
+        </button>
+      </h2>
+
+      <!-- Body -->
+      <div id="col-{{ esp.id }}"
+           class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+           data-bs-parent="#accEsp">
+        <div class="accordion-body p-4">
+
+          <!-- ── Links da especialidade ── -->
+          <h5 class="mb-3"><i class="fas fa-link me-2 text-primary"></i>Links de Integração</h5>
+          <form method="POST"
+                action="{{ url_for('specialty_settings.save_settings', specialty_id=esp.id) }}"
+                class="mb-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">URL da Agenda (Google Calendar)</label>
+                <input type="url" name="agenda_url" class="form-control"
+                       value="{{ esp.settings.agenda_url if esp.settings else '' }}"
+                       placeholder="https://calendar.google.com/...">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">URL do Formulário de Agendamento (Google Forms)</label>
+                <input type="url" name="forms_url" class="form-control"
+                       value="{{ esp.settings.forms_url if esp.settings else '' }}"
+                       placeholder="https://docs.google.com/forms/...">
+              </div>
+            </div>
+            <div class="mt-3">
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-save me-1"></i>Salvar Links
+              </button>
+            </div>
+          </form>
+
+          <hr>
+
+          <!-- ── Lista de procedimentos ── -->
+          <h5 class="mb-3"><i class="fas fa-list-ul me-2 text-success"></i>Procedimentos</h5>
+
+          {% if esp.procedures %}
+          <div class="table-responsive mb-4">
+            <table class="table table-sm table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:3rem;">#</th>
+                  <th>Descrição</th>
+                  <th style="width:10rem;">Código SUS</th>
+                  <th style="width:6rem;">Ordem</th>
+                  <th style="width:5rem;">Status</th>
+                  <th style="width:9rem;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for proc in esp.procedures | sort(attribute='sort_order') %}
+                <tr class="{{ '' if proc.is_active else 'table-secondary text-muted' }}">
+                  <td>{{ proc.id }}</td>
+                  <td>
+                    <span class="proc-label-{{ proc.id }}">{{ proc.descricao }}</span>
+                  </td>
+                  <td>
+                    <span class="proc-code-{{ proc.id }}">{{ proc.codigo_sus or '—' }}</span>
+                  </td>
+                  <td>{{ proc.sort_order }}</td>
+                  <td>
+                    {% if proc.is_active %}
+                      <span class="badge bg-success">Ativo</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Inativo</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <!-- Editar (modal trigger) -->
+                    <button class="btn btn-outline-secondary btn-sm me-1"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editProc{{ proc.id }}">
+                      <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    <!-- Ativar/Desativar -->
+                    <form method="POST"
+                          action="{{ url_for('specialty_settings.toggle_procedure', proc_id=proc.id) }}"
+                          class="d-inline">
+                      <button type="submit"
+                              class="btn btn-sm {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}"
+                              title="{{ 'Desativar' if proc.is_active else 'Ativar' }}">
+                        <i class="fas {{ 'fa-eye-slash' if proc.is_active else 'fa-eye' }}"></i>
+                      </button>
+                    </form>
+                    <!-- Remover -->
+                    <form method="POST"
+                          action="{{ url_for('specialty_settings.delete_procedure', proc_id=proc.id) }}"
+                          class="d-inline"
+                          onsubmit="return confirm('Remover este procedimento?')">
+                      <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+
+                <!-- Modal editar procedimento -->
+                <div class="modal fade" id="editProc{{ proc.id }}" tabindex="-1">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Editar Procedimento #{{ proc.id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <form method="POST"
+                            action="{{ url_for('specialty_settings.edit_procedure', proc_id=proc.id) }}">
+                        <div class="modal-body">
+                          <div class="mb-3">
+                            <label class="form-label fw-semibold">Descrição *</label>
+                            <input type="text" name="descricao" class="form-control"
+                                   value="{{ proc.descricao }}" required>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label fw-semibold">Código SUS</label>
+                            <input type="text" name="codigo_sus" class="form-control"
+                                   value="{{ proc.codigo_sus or '' }}">
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label fw-semibold">Ordem de exibição</label>
+                            <input type="number" name="sort_order" class="form-control"
+                                   value="{{ proc.sort_order }}" min="0">
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                          <button type="submit" class="btn btn-primary">Salvar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted">Nenhum procedimento cadastrado ainda.</p>
+          {% endif %}
+
+          <!-- Formulário: adicionar procedimento -->
+          <h6 class="mb-2"><i class="fas fa-plus-circle me-1 text-primary"></i>Adicionar Procedimento</h6>
+          <form method="POST"
+                action="{{ url_for('specialty_settings.add_procedure', specialty_id=esp.id) }}">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-5">
+                <label class="form-label form-label-sm">Descrição *</label>
+                <input type="text" name="descricao" class="form-control form-control-sm"
+                       placeholder="Nome do procedimento" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label form-label-sm">Código SUS</label>
+                <input type="text" name="codigo_sus" class="form-control form-control-sm"
+                       placeholder="0408040130">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm">Ordem</label>
+                <input type="number" name="sort_order" class="form-control form-control-sm"
+                       placeholder="0" min="0" value="0">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-success btn-sm w-100">
+                  <i class="fas fa-plus me-1"></i>Adicionar
+                </button>
+              </div>
+            </div>
+          </form>
+
+        </div>{# /accordion-body #}
+      </div>{# /collapse #}
+    </div>{# /accordion-item #}
+    {% endfor %}
+  </div>{# /accordion #}
+
+</div>
+{% endblock %}

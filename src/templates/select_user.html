@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if step == 'specialty' %}Selecionar Especialidade{% else %}Identificar Solicitante{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 640px; margin: 4rem auto;">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} alert-dismissible fade show mb-3" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ══════════════════════════════════════════════════════════
+     PASSO 1 — Seleção de especialidade (antes do login)
+     ══════════════════════════════════════════════════════════ #}
+  {% if step == 'specialty' %}
+
+  <div class="card border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+    <div class="card-header text-center py-4"
+         style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color:white; border:none;">
+      <img src="{{ url_for('static', filename='logo ortoped.png') }}"
+           alt="Logo" style="height:40px; margin-bottom:.75rem;">
+      <h1 style="font-size:1.6rem; font-weight:700; margin:0;">Sistema de Solicitação de Cirurgia</h1>
+      <p style="margin:.5rem 0 0; opacity:.85; font-size:.95rem;">Selecione a especialidade para iniciar</p>
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" action="{{ url_for('auth.set_specialty_pre_login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3 justify-content-center">
+          {% for sp in specialties %}
+          <div class="col-sm-6">
+            <label class="d-block h-100" style="cursor:pointer;">
+              <input type="radio" name="specialty_slug" value="{{ sp.slug }}"
+                     class="d-none specialty-radio" id="sp_{{ sp.slug }}"
+                     {% if loop.first %}checked{% endif %}>
+              <div class="specialty-card border rounded-3 p-4 text-center h-100
+                           d-flex flex-column align-items-center justify-content-center"
+                   id="card_{{ sp.slug }}"
+                   style="transition:all .2s;
+                          {% if loop.first %}border-color:#3b82f6!important;background:#eff6ff;{% endif %}">
+                {% if sp.slug == 'ortopedia' %}
+                  <i class="fas fa-bone fa-3x mb-3" style="color:#3b82f6;"></i>
+                {% elif sp.slug == 'cirurgia_pediatrica' %}
+                  <i class="fas fa-child fa-3x mb-3" style="color:#10b981;"></i>
+                {% else %}
+                  <i class="fas fa-stethoscope fa-3x mb-3" style="color:#6366f1;"></i>
+                {% endif %}
+                <h5 class="mb-0 fw-semibold">{{ sp.name }}</h5>
+              </div>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="d-grid mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-arrow-right me-2"></i>Próximo
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ══════════════════════════════════════════════════════════
+     PASSO 2 — Seleção de solicitante (filtrado por especialidade)
+     ══════════════════════════════════════════════════════════ #}
+  {% else %}
+
+  <div class="card border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+
+    {# Cabeçalho com especialidade selecionada #}
+    <div class="card-header text-center py-4"
+         style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; border:none;">
+      <i class="fas fa-user-circle" style="font-size:3rem; margin-bottom:.75rem;"></i>
+      <h1 style="font-size:1.6rem; font-weight:700; margin:0;">Identificação do Solicitante</h1>
+      {% if specialty %}
+      <div class="mt-2">
+        <span class="badge" style="background:rgba(255,255,255,.2); font-size:.85rem; padding:.45em .9em;">
+          {% if specialty.slug == 'ortopedia' %}<i class="fas fa-bone me-1"></i>
+          {% elif specialty.slug == 'cirurgia_pediatrica' %}<i class="fas fa-child me-1"></i>
+          {% else %}<i class="fas fa-stethoscope me-1"></i>{% endif %}
+          {{ specialty.name }}
+        </span>
+        <a href="{{ url_for('main.change_specialty') }}"
+           class="ms-2 text-white-50 text-decoration-none" style="font-size:.8rem;">
+          <i class="fas fa-exchange-alt me-1"></i>Trocar
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card-body p-4">
+
+      {# ─── Nenhum solicitante cadastrado para esta especialidade ─── #}
+      {% if no_users %}
+      <div class="alert alert-warning d-flex align-items-center gap-3 mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle fa-lg"></i>
+        <div>
+          <strong>Nenhum solicitante cadastrado</strong> para
+          <strong>{{ specialty.name if specialty else 'esta especialidade' }}</strong>.<br>
+          Cadastre o primeiro solicitante para continuar.
+        </div>
+      </div>
+
+      {# Formulário rápido de cadastro inline #}
+      <div class="card border-0 bg-light p-4 mb-3" style="border-radius:12px;">
+        <h5 class="mb-3 fw-semibold">
+          <i class="fas fa-user-plus me-2 text-primary"></i>Cadastrar Solicitante
+        </h5>
+        <form method="POST" action="{{ url_for('auth.register_user') }}">
+          <input type="hidden" name="action" value="add_user">
+          {% if specialty %}
+          <input type="hidden" name="specialty_id" value="{{ specialty.id }}">
+          {% endif %}
+          <div class="row g-2">
+            <div class="col-12">
+              <input type="text" name="full_name" class="form-control" placeholder="Nome completo *" required
+                     style="border:2px solid #e2e8f0;">
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="cns" class="form-control" placeholder="CNS (opcional)"
+                     style="border:2px solid #e2e8f0;">
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="crm" class="form-control" placeholder="CRM (opcional)"
+                     style="border:2px solid #e2e8f0;">
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-success w-100">
+                <i class="fas fa-plus-circle me-2"></i>Cadastrar e Entrar
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {# ─── Lista de solicitantes disponíveis ─── #}
+      {% else %}
+      <form method="POST" action="{{ url_for('auth.select_user') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-4">
+          <label for="username" class="form-label fw-semibold" style="font-size:1rem;">
+            <i class="fas fa-user-md me-2" style="color:#3b82f6;"></i>Quem está solicitando?
+          </label>
+          <select id="username" name="username" required class="form-select"
+                  style="padding:1rem; border:2px solid #e2e8f0; border-radius:8px; font-size:1rem;">
+            <option value="">-- Escolha um solicitante --</option>
+            {% for user in users %}
+              <option value="{{ user.username }}">{{ user.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100" style="border-radius:8px;">
+          <i class="fas fa-arrow-right me-2"></i>Entrar
+        </button>
+      </form>
+      {% endif %}
+
+      {# ─── Rodapé: link para gerenciar solicitantes ─── #}
+      <div class="text-center mt-4 pt-3" style="border-top:1px solid #e2e8f0;">
+        <a href="{{ url_for('auth.register_user') }}"
+           style="color:#3b82f6; text-decoration:none; font-weight:600;">
+          <i class="fas fa-user-cog me-2"></i>Gerenciar solicitantes
+        </a>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+  .specialty-card:hover {
+    border-color: #3b82f6 !important;
+    background: #eff6ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  }
+  .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59,130,246,.1);
+  }
+</style>
+
+<script>
+document.querySelectorAll('.specialty-radio').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.querySelectorAll('.specialty-card').forEach(function(c) {
+      c.style.borderColor = '';
+      c.style.background = '';
+    });
+    const card = document.getElementById('card_' + this.value);
+    if (card) {
+      card.style.borderColor = '#3b82f6';
+      card.style.background = '#eff6ff';
+    }
+  });
+});
+</script>
+{% endblock %}

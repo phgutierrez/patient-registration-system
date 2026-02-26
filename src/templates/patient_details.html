@@ -1,0 +1,26 @@
+<div class="card-body">
+    <form method="POST" action="{{ url_for('surgery_request', patient_id=patient.id) }}">
+        <div class="mb-3">
+            <label for="procedimento_solicitado" class="form-label">Procedimento Solicitado</label>
+            <input type="text" class="form-control" id="procedimento_solicitado" name="procedimento_solicitado"
+                value="{{ patient.procedimento_solicitado or '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="cid_procedimento" class="form-label">CID do Procedimento</label>
+            <input type="text" class="form-control" id="cid_procedimento" name="cid_procedimento"
+                value="{{ patient.cid_procedimento or '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="data_prevista_cirurgia" class="form-label">Data Prevista da Cirurgia</label>
+            <input type="datetime-local" class="form-control" id="data_prevista_cirurgia" name="data_prevista_cirurgia"
+                value="{{ patient.data_prevista_cirurgia.strftime('%Y-%m-%dT%H:%M') if patient.data_prevista_cirurgia else '' }}"
+                required>
+        </div>
+        <div class="mb-3">
+            <label for="observacoes" class="form-label">Observações</label>
+            <textarea class="form-control" id="observacoes" name="observacoes"
+                rows="3">{{ patient.observacoes or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Salvar Solicitação</button>
+    </form>
+</div>

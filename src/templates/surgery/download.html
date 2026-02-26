@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Solicitação de Cirurgia</h1>
+    
+    <div class="alert alert-success">
+        <h4>Solicitação registrada com sucesso!</h4>
+        <p>A solicitação de cirurgia para o paciente <strong>{{ patient.nome }}</strong> foi registrada.</p>
+    </div>
+    
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header">
+            <h3>Formulário de Internação</h3>
+        </div>
+        <div class="card-body">
+            <p>O formulário de internação foi preenchido automaticamente com os dados do paciente.</p>
+            <p>Clique no botão abaixo para baixar o formulário:</p>
+            
+            <a href="{{ url_for('surgery.serve_pdf', pdf_name=pdf_name) }}" class="btn btn-primary">
+                <i class="fas fa-download me-2"></i>Baixar Formulário
+            </a>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
+            Voltar para Detalhes do Paciente
+        </a>
+        <a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-secondary">
+            Voltar para Lista de Pacientes
+        </a>
+    </div>
+</div>
+{% endblock %}
