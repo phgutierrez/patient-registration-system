@@ -284,12 +284,15 @@ def preencher_formulario_internacao(patient, surgery_data):
         logger.info(f"\nTotal de campos preenchidos: {len(form_data)}")
 
         # Determinar número de páginas a incluir no PDF
-        # Se OPME estiver vazio, incluir apenas as 5 primeiras páginas
+        # Se OPME estiver vazio ou "Não se aplica", incluir apenas as 5 primeiras páginas
         opme_value = (surgery_data.opme or "").strip()
         num_pages = None  # Por padrão, incluir todas as páginas
         
-        if not opme_value:
-            logger.info("OPME está vazio - gerando PDF com apenas 5 páginas (sem páginas 6-7)")
+        # Verificar se OPME está vazio ou é "Não se aplica"
+        is_opme_empty = not opme_value or opme_value.lower() == "não se aplica"
+        
+        if is_opme_empty:
+            logger.info("OPME está vazio ou é 'Não se aplica' - gerando PDF com apenas 5 páginas (sem páginas 6-7)")
             num_pages = 5
         else:
             logger.info(f"OPME preenchido ({len(opme_value)} caracteres) - gerando PDF com todas as 7 páginas")

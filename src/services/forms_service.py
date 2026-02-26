@@ -390,17 +390,26 @@ def find_matching_orthopedist(user_full_name: str) -> str:
 
 def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
     """
-    Encontra as opções de OPME mais próximas do texto livre usando fuzzy matching.
+    Encontra as opções de OPME com suporte a múltiplos formatos.
+    
+    Suporta dois formatos:
+    1. NOVO - Estruturado (recomendado): "Caixa 3,5mm, Placa em 8, Outro: Prótese especial"
+    2. ANTIGO - Texto livre (compatibilidade): "Ilizarov para caso especial"
+    
+    Detecta automaticamente o formato e processa adequadamente.
     
     Args:
-        opme_text: Texto livre do campo OPME do sistema
+        opme_text: Texto do campo OPME
         
     Returns:
         Tupla (lista de opções selecionadas, texto para campo "Outro")
-        Exemplo: (["Caixa 3,5mm", "Placa em 8"], "")
-                 (["Outro"], "Prótese especial importada")
+        Exemplos:
+            "Caixa 3,5mm, Placa em 8" → (["Caixa 3,5mm", "Placa em 8"], "")
+            "Ilizarov adulto para caso especial" → ([], "Ilizarov adulto para caso especial")
+            "" → ([], "")
+            "Não se aplica" → (["Não se aplica"], "")
     """
-    # Opções disponíveis no Google Forms
+    # Opções disponíveis (DEVE coincidir com OPME_CHOICES em surgery_form.py)
     possible_opme_options = [
         "Ilizarov Adulto",
         "Ilizarov Infantil",
@@ -412,14 +421,85 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
         "Âncora",
         "Placa em 8",
         "Artrodese Coluna",
+        "Não se aplica",
     ]
     
+    # Casos vazios
     if not opme_text or opme_text.strip() == "":
         return ([], "")
     
-    opme_normalized = opme_text.lower().strip()
+    opme_normalized = opme_text.strip()
+    
+    # ────────────────────────────────────────────────────────────────────
+    # NOVO: Detectar formato estruturado (vírgulas separando opções)
+    # ────────────────────────────────────────────────────────────────────
+    
+    # Verificar se tem padrão "Outro:" (indicador de formato estruturado)
+    has_outro_marker = "Outro:" in opme_text or "outro:" in opme_text.lower()
+    
+    # Parser estruturado por reconhecimento greedy:
+    # Tenta casar prefixos do texto com opções conhecidas, avançando o ponteiro.
+    # Isso lida corretamente com opções que contêm vírgula interna (ex: "Caixa 3,5mm").
+    def _parse_structured(text: str):
+        """Retorna (lista_de_opcoes, outro_texto) fazendo parse greedy."""
+        options_lower = [(opt, opt.lower()) for opt in possible_opme_options]
+        result_opts = []
+        result_other = ""
+        
+        remaining = text.strip()
+        
+        while remaining:
+            matched_option = None
+            
+            # Tentar casar com opção conhecida (greedy, case-insensitive)
+            for opt, opt_lower in options_lower:
+                if remaining.lower().startswith(opt_lower):
+                    matched_option = opt
+                    remaining = remaining[len(opt):].lstrip()
+                    # Consumir separador vírgula/espaço após opção
+                    if remaining.startswith(','):
+                        remaining = remaining[1:].lstrip()
+                    result_opts.append(matched_option)
+                    break
+            
+            if matched_option:
+                continue
+            
+            # Verificar marcador "Outro:"
+            if remaining.lower().startswith("outro:"):
+                result_other = remaining[6:].strip()
+                break
+            
+            # Nenhuma opção casou → não é formato estruturado (retornar None)
+            return None
+        
+        return (result_opts, result_other)
+    
+    structured_result = _parse_structured(opme_normalized)
+    is_structured_format = (structured_result is not None and (
+        len(structured_result[0]) >= 1 or structured_result[1]
+    )) or has_outro_marker
+    
+    if is_structured_format and structured_result is not None:
+        # PARSER ESTRUTURADO: retorna diretamente sem fuzzy matching
+        matched_options, other_text = structured_result
+        
+        if has_outro_marker and not matched_options and not other_text:
+            # Tem marcador Outro: mas parse não capturou, re-parsear
+            pass
+        else:
+            current_app.logger.info(f"OPME formato estruturado detectado")
+            current_app.logger.info(f"OPME estruturado: {matched_options} + '{other_text}'")
+            return (matched_options, other_text)
+    
+    # ────────────────────────────────────────────────────────────────────
+    # ANTIGO: Fuzzy matching para texto livre (compatibilidade com dados antigos)
+    # ────────────────────────────────────────────────────────────────────
+    
+    current_app.logger.info(f"OPME formato texto livre (fuzzy match)")
+    opme_lower = opme_normalized.lower()
     matched_options = []
-    remaining_text = opme_text
+    remaining_text = opme_normalized
     
     # Mapa de keywords - TODAS devem estar presentes para dar match
     keywords_map = {
@@ -433,6 +513,7 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
         "Âncora": [["ancora"], ["âncora"]],
         "Placa em 8": [["placa", "8"], ["placa em 8"]],
         "Artrodese Coluna": [["artrodese", "coluna"], ["artrodese"]],
+        "Não se aplica": [["não", "aplica"], ["nao", "aplica"], ["não aplicável"]],
     }
     
     # Tentar fazer match com cada opção
@@ -440,18 +521,17 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
         option_normalized = option.lower()
         
         # Match exato (case insensitive)
-        if option_normalized in opme_normalized or opme_normalized in option_normalized:
-            # Verificar se é match legítimo (não match parcial indesejado)
-            # Por exemplo, "3,5" não deve dar match em "4,5"
-            if option == "Caixa 4,5mm" and ("3.5" in opme_normalized or "3,5" in opme_normalized):
+        if option_normalized in opme_lower or opme_lower in option_normalized:
+            # Verificar exclusões para evitar falsos positivos
+            if option == "Caixa 4,5mm" and ("3.5" in opme_lower or "3,5" in opme_lower):
                 continue
-            if option == "Caixa 3,5mm" and ("4.5" in opme_normalized or "4,5" in opme_normalized):
+            if option == "Caixa 3,5mm" and ("4.5" in opme_lower or "4,5" in opme_lower):
                 continue
-            if option == "Ilizarov Infantil" and ("adulto" in opme_normalized):
+            if option == "Ilizarov Infantil" and "adulto" in opme_lower:
                 continue
-            if option == "Ilizarov Adulto" and ("infantil" in opme_normalized or "criança" in opme_normalized):
+            if option == "Ilizarov Adulto" and any(x in opme_lower for x in ["infantil", "criança", "pediátrico"]):
                 continue
-                
+            
             matched_options.append(option)
             remaining_text = remaining_text.replace(option, "").strip()
             continue
@@ -460,17 +540,17 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
         keyword_combos = keywords_map.get(option, [])
         for keyword_combo in keyword_combos:
             # TODAS as keywords da combinação devem estar presentes
-            if all(keyword.lower() in opme_normalized for keyword in keyword_combo):
-                # Verificar exclusões para evitar falsos positivos
+            if all(keyword.lower() in opme_lower for keyword in keyword_combo):
+                # Verificar exclusões
                 should_skip = False
                 
-                if option == "Ilizarov Infantil" and "adulto" in opme_normalized:
+                if option == "Caixa 4,5mm" and ("3.5" in opme_lower or "3,5" in opme_lower):
                     should_skip = True
-                if option == "Ilizarov Adulto" and any(x in opme_normalized for x in ["infantil", "criança", "pediátrico"]):
+                if option == "Caixa 3,5mm" and ("4.5" in opme_lower or "4,5" in opme_lower):
                     should_skip = True
-                if option == "Caixa 4,5mm" and ("3.5" in opme_normalized or "3,5" in opme_normalized):
+                if option == "Ilizarov Infantil" and "adulto" in opme_lower:
                     should_skip = True
-                if option == "Caixa 3,5mm" and ("4.5" in opme_normalized or "4,5" in opme_normalized):
+                if option == "Ilizarov Adulto" and any(x in opme_lower for x in ["infantil", "criança", "pediátrico"]):
                     should_skip = True
                 
                 if not should_skip:
@@ -483,13 +563,14 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
     # O que sobrou vai para "Outro"
     remaining_text = remaining_text.replace(",", "").replace(";", "").strip()
     
-    # Se não encontrou nenhum match ou tem texto sobrando significativo, usar "Outro"
-    if not matched_options or (remaining_text and len(remaining_text) > 3):
-        other_text = remaining_text if remaining_text else opme_text
+    # Se não encontrou nenhum match, usar texto original como "Outro"
+    if not matched_options:
+        other_text = opme_normalized
         current_app.logger.info(f"OPME sem match direto, usando 'Outro': {other_text}")
         return ([], other_text)
     
-    current_app.logger.info(f"OPME matched: {matched_options}")
+    # Se encontrou opções, retornar mesmo que haja texto sobrando
+    current_app.logger.info(f"OPME fuzzy matched: {matched_options}")
     return (matched_options, "")
 
 
@@ -563,12 +644,21 @@ def build_forms_payload(surgery_request, patient) -> Dict[str, any]:
         if patient.contato:
             description_parts.append(f"Contato: {patient.contato}")
     
-    # OPME - fazer fuzzy matching com as opções do Forms
+    # OPME - fazer matching (estruturado ou fuzzy)
+    # Se vazio ou "Não se aplica", seleciona automaticamente "Não se aplica" no Forms
     opme_list = []
+    opme_other_text = ""
     
-    if surgery_request.opme:
+    if surgery_request.opme and surgery_request.opme.strip():
         opme_list, opme_other_text = find_matching_opme(surgery_request.opme)
+        
+        # Se encontrou "Não se aplica", garantir que é só essa opção
+        if "Não se aplica" in opme_list:
+            opme_list = ["Não se aplica"]
+            opme_other_text = ""
     else:
+        # Se campo OPME está vazio, selecionar "Não se aplica" no Forms
+        opme_list = ["Não se aplica"]
         opme_other_text = ""
     
     # UTI - obrigatório no Forms
