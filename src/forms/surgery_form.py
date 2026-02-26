@@ -24,6 +24,7 @@ OPME_CHOICES = [
     ('Âncora', 'Âncora'),
     ('Placa em 8', 'Placa em 8'),
     ('Artrodese Coluna', 'Artrodese Coluna'),
+    ('Não se aplica', 'Não se aplica'),
 ]
 
 
