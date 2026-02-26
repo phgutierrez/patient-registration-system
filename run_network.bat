@@ -46,15 +46,31 @@ REM ===================================================================
 echo [VERIFICACAO] Procurando arquivo .env...
 
 if not exist ".env" (
-    echo.
-    echo [ERRO] Arquivo .env nao encontrado!
-    echo.
-    echo Solucao:
-    echo   1. Copie .env.example para .env
-    echo   2. Configure as variaveis conforme INSTALLATION_GUIDE.md
-    echo.
-    pause
-    exit /b 1
+    echo   [AVISO] Arquivo .env nao encontrado. Criando com configuracoes padrao...
+    (
+        echo # =================================================================
+        echo # Patient Registration System - Configuracao do Ambiente
+        echo # Gerado automaticamente pelo run_network.bat
+        echo # =================================================================
+        echo.
+        echo SECRET_KEY=patient-reg-secret-key-2026-change-in-production
+        echo FLASK_ENV=production
+        echo FLASK_DEBUG=0
+        echo SERVER_HOST=0.0.0.0
+        echo SERVER_PORT=5000
+        echo DESKTOP_MODE=false
+        echo GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
+        echo GOOGLE_CALENDAR_TZ=America/Fortaleza
+        echo CALENDAR_CACHE_TTL_SECONDS=60
+        echo CALENDAR_CACHE_TTL_MINUTES=5
+        echo GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+        echo GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
+        echo GOOGLE_FORMS_TIMEOUT=10
+        echo APPS_SCRIPT_SCHEDULER_URL=
+        echo LIFECYCLE_TIMEOUT_SECONDS=30
+        echo LIFECYCLE_HEARTBEAT_SECONDS=5
+    ) > .env
+    echo   [OK] Arquivo .env criado com configuracoes padrao
 )
 
 echo   [OK] Arquivo .env encontrado
@@ -149,6 +165,12 @@ echo Parar o servidor: Pressione CTRL+C
 echo.
 echo ===============================================================================
 echo.
+
+REM ===================================================================
+REM Abrir Navegador Automaticamente
+REM ===================================================================
+echo [NAVEGADOR] Abrindo http://localhost:%SERVER_PORT% em 2 segundos...
+start /b cmd /c "ping -n 3 127.0.0.1 > nul && start http://localhost:%SERVER_PORT%"
 
 REM ===================================================================
 REM Iniciar Servidor Waitress

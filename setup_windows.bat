@@ -12,7 +12,7 @@ echo  SETUP DO SISTEMA - Patient Registration System
 echo ===============================================================================
 echo.
 echo Este script realizara tudo que eh necessario para rodar o sistema:
-echo   1. Verificar Python 3.11
+echo   1. Verificar Python 3.9+
 echo   2. Criar ambiente virtual
 echo   3. Instalar dependencias
 echo   4. Criar banco de dados
@@ -38,9 +38,9 @@ echo   [OK] Arquivo requirements.txt encontrado.
 echo.
 
 REM ===================================================================
-REM VERIFICACAO CRITICA - Python 3.11
+REM VERIFICACAO CRITICA - Python 3.9+
 REM ===================================================================
-echo [VERIFICACAO] Verificando Python 3.11...
+echo [VERIFICACAO] Verificando Python 3.9+...
 echo.
 
 python --version > nul 2>&1
@@ -61,7 +61,7 @@ if errorlevel 1 (
 )
 
 REM Verificar versao exata do Python
-for /f "tokens=2" %%i in ('python --version 2>&1') do set PYTHON_VERSION=%%i
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
 
 echo   Python encontrado: %PYTHON_VERSION%
 
@@ -71,14 +71,14 @@ for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VERSION%") do (
     set MINOR=%%b
 )
 
-REM Verificar se eh Python 3.11+
+REM Verificar se eh Python 3.9+
 if "%MAJOR%"=="3" (
-    if %MINOR% GEQ 11 (
-        echo   [OK] Python 3.%MINOR% atende aos requisitos ^(3.11+ necessario^)
+    if %MINOR% GEQ 9 (
+        echo   [OK] Python 3.%MINOR% atende aos requisitos ^(3.9+ necessario^)
     ) else (
         echo.
         echo [ERRO] Python 3.%MINOR% eh uma versao antiga!
-        echo        Este sistema requer Python 3.11 ou posterior.
+        echo        Este sistema requer Python 3.9 ou posterior.
         echo.
         echo Solucoes:
         echo   1. Instale Python 3.11 via winget:
@@ -95,7 +95,7 @@ if "%MAJOR%"=="3" (
 ) else (
     echo.
     echo [ERRO] Python %MAJOR%.%MINOR% nao eh compativel!
-    echo        Este sistema requer Python 3.11 ou posterior.
+    echo        Este sistema requer Python 3.9 ou posterior.
     echo.
     echo Solucoes:
     echo   1. Instale Python 3.11 via winget:
@@ -195,13 +195,15 @@ echo   - Atualizando pip...
 python -m pip install --upgrade pip --quiet
 
 echo   - Instalando dependencias do requirements.txt...
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt
 
 if errorlevel 1 (
     echo.
-    echo [AVISO] Houve erro ao instalar algumas dependencias
-    echo         Isto pode ser apenas um aviso. Continuando...
+    echo [ERRO] Falha ao instalar dependencias!
+    echo        Verifique os erros acima e tente novamente.
     echo.
+    pause
+    exit /b 1
 ) else (
     echo   [OK] Dependencias instaladas com sucesso
 )
@@ -231,112 +233,7 @@ REM ===================================================================
 echo [PASSO 5/5] Inicializando dados do sistema...
 echo.
 
-python << PYTHON_SCRIPT
-import sys
-import os
-sys.path.insert(0, os.getcwd())
-
-success = True
-
-try:
-    from src.app import create_app
-    from src.extensions import db
-    from src.models.user import User
-    from src.models.specialty import Specialty
-    from sqlalchemy import inspect
-    
-    app = create_app()
-    
-    with app.app_context():
-        print("   - Verificando tabelas do banco de dados...")
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        
-        if 'specialties' not in tables:
-            print("   [ERRO] Tabela 'specialties' nao encontrada!")
-            print("          Isto significa que as migracoes nao foram aplicadas.")
-            print("          Execute manualmente: alembic upgrade head")
-            sys.exit(1)
-        
-        print("   [OK] Tabelas de banco de dados verificadas")
-        print()
-        
-        # Criar especialidades
-        print("   - Criando/Verificando especialidades...")
-        spec_count = Specialty.query.count()
-        
-        if spec_count == 0:
-            print("     (Nenhuma encontrada, criando...)")
-            
-            specs = [
-                Specialty(slug='ortopedia', name='Ortopedia', is_active=True),
-                Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediatrica', is_active=True),
-            ]
-            for spec in specs:
-                db.session.add(spec)
-                print("       + " + spec.name)
-            
-            db.session.commit()
-            print("   [OK] Especialidades criadas com sucesso")
-        else:
-            print("   [OK] " + str(spec_count) + " especialidade(s) ja existem")
-        
-        print()
-        
-        # Criar usuarios
-        print("   - Criando/Verificando usuarios...")
-        user_count = User.query.count()
-        
-        if user_count == 0:
-            print("     (Nenhum encontrado, criando...)")
-            users_data = [
-                {'username': 'pedro', 'full_name': 'Pedro Freitas'},
-                {'username': 'andre', 'full_name': 'Andre Cristiano'},
-                {'username': 'brauner', 'full_name': 'Brauner Cavalcanti'},
-                {'username': 'savio', 'full_name': 'Savio Bruno'},
-                {'username': 'laecio', 'full_name': 'Laecio Damaceno'},
-            ]
-            
-            for user_data in users_data:
-                user = User(
-                    username=user_data['username'],
-                    password='123456',
-                    full_name=user_data['full_name'],
-                    specialty_id=1,
-                    role='solicitante'
-                )
-                db.session.add(user)
-                print("       + " + user_data['username'] + " (" + user_data['full_name'] + ")")
-            
-            db.session.commit()
-            print("   [OK] Usuarios criados com sucesso")
-        else:
-            print("   [OK] " + str(user_count) + " usuario(s) ja existe(m)")
-        
-        print()
-        print("   [OK] Dados inicializados com sucesso!")
-        print()
-        print("===============================================================================")
-        print("  RESUMO DA INICIALIZACAO:")
-        print("===============================================================================")
-        print("  - Especialidades: " + str(Specialty.query.count()))
-        print("  - Usuarios: " + str(User.query.count()))
-        print()
-        
-except ImportError as e:
-    print("   [ERRO] Falha ao importar modulos do sistema")
-    print("          Detalhes: " + str(e))
-    success = False
-    
-except Exception as e:
-    print("   [ERRO] Erro nao esperado durante inicializacao")
-    print("          Detalhes: " + str(e))
-    success = False
-
-if not success:
-    sys.exit(1)
-
-PYTHON_SCRIPT
+python setup_init_data.py
 
 if errorlevel 1 (
     echo.

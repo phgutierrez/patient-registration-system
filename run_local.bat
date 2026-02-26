@@ -147,6 +147,12 @@ echo ===========================================================================
 echo.
 
 REM ===================================================================
+REM Abrir Navegador Automaticamente
+REM ===================================================================
+echo [NAVEGADOR] Abrindo http://localhost:%SERVER_PORT% em 2 segundos...
+start /b cmd /c "ping -n 3 127.0.0.1 > nul && start http://localhost:%SERVER_PORT%"
+
+REM ===================================================================
 REM Iniciar Servidor Waitress
 REM ===================================================================
 waitress-serve --listen=%SERVER_HOST%:%SERVER_PORT% wsgi:application
