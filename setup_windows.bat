@@ -111,6 +111,40 @@ if "%MAJOR%"=="3" (
 echo.
 
 REM ===================================================================
+REM PRE-SETUP: Criar .env se nao existir
+REM ===================================================================
+if not exist ".env" (
+    echo [PRE-SETUP] Criando arquivo .env com configuracoes padrao...
+    (
+        echo # =================================================================
+        echo # Patient Registration System - Configuracao do Ambiente
+        echo # Gerado automaticamente pelo setup_windows.bat
+        echo # =================================================================
+        echo.
+        echo SECRET_KEY=patient-reg-secret-key-2026-change-in-production
+        echo FLASK_ENV=production
+        echo FLASK_DEBUG=0
+        echo SERVER_HOST=127.0.0.1
+        echo SERVER_PORT=5000
+        echo DESKTOP_MODE=false
+        echo GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
+        echo GOOGLE_CALENDAR_TZ=America/Fortaleza
+        echo CALENDAR_CACHE_TTL_SECONDS=60
+        echo CALENDAR_CACHE_TTL_MINUTES=5
+        echo GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+        echo GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
+        echo GOOGLE_FORMS_TIMEOUT=10
+        echo APPS_SCRIPT_SCHEDULER_URL=
+        echo LIFECYCLE_TIMEOUT_SECONDS=30
+        echo LIFECYCLE_HEARTBEAT_SECONDS=5
+    ) > .env
+    echo   [OK] Arquivo .env criado com sucesso
+) else (
+    echo [PRE-SETUP] Arquivo .env ja existe ^(configuracoes preservadas^).
+)
+echo.
+
+REM ===================================================================
 REM PASSO 1: Criar/Verificar Ambiente Virtual
 REM ===================================================================
 echo [PASSO 1/5] Verificando ambiente virtual...
@@ -185,35 +219,6 @@ python create_tables_direct.py
 if errorlevel 1 (
     echo   [AVISO] Erro ao executar create_tables_direct.py
     echo           O banco pode ja existir. Continuando...
-)
-
-REM Aplicar migrations (OBRIGATORIO - cria tabela de especialidades)
-echo   - Aplicando migracoes com Alembic...
-
-if exist "alembic.ini" (
-    alembic upgrade head
-    
-    if errorlevel 1 (
-        echo.
-        echo [ERRO] Falha ao aplicar migracoes!
-        echo        Isto eh OBRIGATORIO para criar a tabela de especialidades.
-        echo.
-        echo Tente manualmente:
-        echo   - Ative o ambiente: .venv\Scripts\activate.bat
-        echo   - Execute: alembic upgrade head
-        echo.
-        pause
-        exit /b 1
-    ) else (
-        echo   [OK] Migracoes aplicadas com sucesso
-    )
-) else (
-    echo.
-    echo [ERRO] alembic.ini nao encontrado!
-    echo        Certifique-se de estar no diretorio correto.
-    echo.
-    pause
-    exit /b 1
 )
 
 echo   [OK] Banco de dados criado/atualizado
@@ -340,6 +345,25 @@ if errorlevel 1 (
     echo.
     pause
     exit /b 1
+)
+
+echo.
+
+REM ===================================================================
+REM PASSO FINAL: Registrar estado das migracoes
+REM ===================================================================
+echo [FINAL] Registrando estado das migracoes...
+
+if exist "migrations\" (
+    set FLASK_APP=src/app.py
+    flask db stamp head
+
+    if errorlevel 1 (
+        echo   [AVISO] Nao foi possivel registrar estado das migracoes.
+        echo           Isto pode ser ignorado. O sistema deve funcionar normalmente.
+    ) else (
+        echo   [OK] Estado das migracoes registrado com sucesso
+    )
 )
 
 echo.

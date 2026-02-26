@@ -204,11 +204,18 @@ Se sua organização exigir instalações portáveis:
 ## 4. Configuração
 
 ### 4.1 Criar Arquivo de Ambiente
-```powershell
-# Copiar template
-copy .env.example .env
 
-# Editar com notepad ou editor de sua preferência
+> **Nota:** O `setup_windows.bat` e o `run_local.bat` criam o `.env` automaticamente com valores padrão caso ele não exista. Não é necessário criar manualmente para uso básico.
+
+Se precisar personalizar (ex: outro Calendar ID, chave secreta própria):
+```powershell
+# Editar com notepad
+notepad .env
+```
+
+Ou recriar a partir do template:
+```powershell
+copy .env.example .env
 notepad .env
 ```
 
@@ -354,18 +361,7 @@ Tabelas criadas: ['calendar_cache', 'calendar_event_status', 'patient', 'special
 ✓ Colunas ETag e Last-Modified foram criadas corretamente!
 ```
 
-**Passo 4: Aplicar Migrations (Especialidades e Dados)**
-```powershell
-alembic upgrade head
-```
-
-**Saída esperada:**
-```
-INFO [alembic.runtime.migration] Context impl SQLiteImpl.
-INFO [alembic.runtime.migration] Running upgrade 006_add_conditional_get_support -> 007_add_specialties
-```
-
-**Passo 5: Inicializar Dados**
+**Passo 4: Inicializar Dados**
 ```powershell
 python init_db.py
 ```
@@ -375,8 +371,26 @@ python init_db.py
 Inicializando banco de dados...
 Removendo tabelas existentes...
 Criando novas tabelas...
+Criando especialidades iniciais...
 Criando usuários iniciais...
-Banco de dados inicializado com sucesso!
+
+✅ Banco de dados inicializado com sucesso!
+```
+
+**Passo 5: Registrar Estado das Migrations**
+
+> **IMPORTANTE:** Executar *após* o `init_db.py`, pois ele recria as tabelas e limpa o registro de versão.
+
+```powershell
+set FLASK_APP=src/app.py
+flask db stamp head
+```
+
+**Saída esperada:**
+```
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -> 007_add_specialties
 ```
 
 ### 5.3 Verificar se Banco está Pronto
@@ -875,8 +889,9 @@ nssm start "PatientRegistrationSystem"
 # Recriar esquema do banco de dados
 python create_tables_direct.py
 
-# Aplicar migrations para criar tabelas de especialidades
-alembic upgrade head
+# Registrar estado das migrations (tabelas já foram criadas pelo create_tables_direct.py)
+set FLASK_APP=src/app.py
+flask db stamp head
 
 # Verificar se tabelas existem
 python -c "
@@ -903,8 +918,9 @@ Isso pode acontecer se:
 # 1. Ativar ambiente virtual
 .venv\Scripts\activate.bat
 
-# 2. Aplicar todas as migrations (inclusive 007_add_specialties)
-alembic upgrade head
+# 2. Registrar estado das migrations (create_tables_direct.py já criou as tabelas)
+set FLASK_APP=src/app.py
+flask db stamp head
 
 # 3. Verificar se tabela 'specialties' existe
 python -c "
@@ -920,7 +936,7 @@ with app.app_context():
     if 'specialties' in tables:
         print('✓ Tabela specialties existe')
     else:
-        print('✗ Tabela specialties NÃO existe! Execute: alembic upgrade head')
+        print('✗ Tabela specialties NÃO existe! Execute: python create_tables_direct.py && set FLASK_APP=src/app.py && flask db stamp head')
     
     # Verificar se há dados
     from src.models.specialty import Specialty
