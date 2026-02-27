@@ -61,6 +61,8 @@ if not exist ".env" (
         echo DESKTOP_MODE=false
         echo GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
         echo GOOGLE_CALENDAR_TZ=America/Fortaleza
+        echo GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com/public/basic.ics
+        echo ORTOPEDIA_AGENDA_URL=https://calendar.google.com/calendar/ical/s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com/public/basic.ics
         echo CALENDAR_CACHE_TTL_SECONDS=60
         echo CALENDAR_CACHE_TTL_MINUTES=5
         echo GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw

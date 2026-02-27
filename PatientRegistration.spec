@@ -1,47 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import copy_metadata
 
-datas = [
-    ('src', 'src'),
-    ('migrations', 'migrations'),
-    ('alembic.ini', '.'),
-    ('.env.example', '.'),
-]
-
-hiddenimports = [
-    'sqlalchemy.sql.default_comparator',
-    'waitress',
-    'flask',
-    'flask_sqlalchemy',
-    'flask_login',
-    'flask_wtf',
-    'flask_migrate',
-    'sqlalchemy',
-    'alembic',
-    'PyPDF2',
-    'fillpdf',
-    'pyodbc',
-    'requests',
-    'icalendar',
-    'dateutil',
-    'pytz',
-    'werkzeug',
-    'wtforms',
-]
-
+datas = [('src', 'src'), ('migrations', 'migrations'), ('alembic.ini', '.'), ('.env.example', '.')]
+hiddenimports = ['sqlalchemy.sql.default_comparator', 'waitress', 'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf', 'flask_migrate', 'sqlalchemy', 'alembic', 'PyPDF2', 'fillpdf', 'pyodbc', 'requests', 'icalendar', 'dateutil', 'pytz', 'werkzeug', 'wtforms']
 datas += copy_metadata('flask')
 datas += copy_metadata('flask-sqlalchemy')
 datas += copy_metadata('flask-login')
 datas += copy_metadata('flask-wtf')
 datas += copy_metadata('waitress')
-
 hiddenimports += collect_submodules('flask')
 hiddenimports += collect_submodules('sqlalchemy')
 hiddenimports += collect_submodules('wtforms')
 
 
 a = Analysis(
-    ['server.py'],
+    ['D:\\Users\\phgut\\OneDrive\\Documentos\\patient-registration-system\\server.py'],
     pathex=[],
     binaries=[],
     datas=datas,
@@ -67,7 +41,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='x86',
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
 )

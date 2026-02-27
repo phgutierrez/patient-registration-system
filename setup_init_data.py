@@ -60,6 +60,12 @@ with app.app_context():
     print()
 
     now = datetime.utcnow()
+    calendar_id = os.getenv('GOOGLE_CALENDAR_ID', 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com').strip()
+    default_ortopedia_agenda_url = (
+        os.getenv('ORTOPEDIA_AGENDA_URL')
+        or os.getenv('GOOGLE_CALENDAR_ICS_URL')
+        or (f'https://calendar.google.com/calendar/ical/{calendar_id}/public/basic.ics' if calendar_id else '')
+    ).strip()
 
     # ── Especialidades ────────────────────────────────────────────────────
     print("   - Verificando especialidades...")
@@ -80,14 +86,20 @@ with app.app_context():
     ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
     cirurgia  = Specialty.query.filter_by(slug='cirurgia_pediatrica').first()
 
-    if ortopedia and not SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first():
-        db.session.add(SpecialtySettings(
-            specialty_id=ortopedia.id,
-            forms_url='https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform',
-            agenda_url='',
-            created_at=now, updated_at=now,
-        ))
-        print("       + SpecialtySettings: Ortopedia (forms_url pre-configurado)")
+    if ortopedia:
+        ortopedia_settings = SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first()
+        if not ortopedia_settings:
+            db.session.add(SpecialtySettings(
+                specialty_id=ortopedia.id,
+                forms_url='https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform',
+                agenda_url=default_ortopedia_agenda_url,
+                created_at=now, updated_at=now,
+            ))
+            print("       + SpecialtySettings: Ortopedia (forms_url e agenda_url pre-configurados)")
+        elif not (ortopedia_settings.agenda_url or '').strip() and default_ortopedia_agenda_url:
+            ortopedia_settings.agenda_url = default_ortopedia_agenda_url
+            ortopedia_settings.updated_at = now
+            print("       + SpecialtySettings: Ortopedia agenda_url atualizado para valor padrão")
 
     if cirurgia and not SpecialtySettings.query.filter_by(specialty_id=cirurgia.id).first():
         db.session.add(SpecialtySettings(

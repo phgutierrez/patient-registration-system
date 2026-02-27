@@ -23,6 +23,59 @@ logger = logging.getLogger(__name__)
 # Variável global para controlar o servidor
 server_running = True
 
+DEFAULT_CALENDAR_ID = 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com'
+DEFAULT_CALENDAR_TZ = 'America/Fortaleza'
+
+
+def build_default_ortopedia_agenda_url(calendar_id: str) -> str:
+    cid = (calendar_id or '').strip()
+    if not cid:
+        return ''
+    return f'https://calendar.google.com/calendar/ical/{cid}/public/basic.ics'
+
+
+def ensure_env_file(base_dir: str):
+    """Cria .env com defaults seguros quando não existir (útil no executável)."""
+    env_path = os.path.join(base_dir, '.env')
+    if os.path.exists(env_path):
+        return
+
+    calendar_id = os.getenv('GOOGLE_CALENDAR_ID', DEFAULT_CALENDAR_ID)
+    calendar_tz = os.getenv('GOOGLE_CALENDAR_TZ', DEFAULT_CALENDAR_TZ)
+    ortopedia_agenda_url = (
+        os.getenv('ORTOPEDIA_AGENDA_URL')
+        or os.getenv('GOOGLE_CALENDAR_ICS_URL')
+        or build_default_ortopedia_agenda_url(calendar_id)
+    )
+
+    content = f"""# =================================================================
+# Patient Registration System - Configuracao do Ambiente
+# Gerado automaticamente pelo executavel
+# =================================================================
+
+SECRET_KEY=patient-reg-secret-key-2026-change-in-production
+FLASK_ENV=production
+FLASK_DEBUG=0
+SERVER_HOST=127.0.0.1
+SERVER_PORT=5000
+DESKTOP_MODE=true
+GOOGLE_CALENDAR_ID={calendar_id}
+GOOGLE_CALENDAR_TZ={calendar_tz}
+GOOGLE_CALENDAR_ICS_URL={ortopedia_agenda_url}
+ORTOPEDIA_AGENDA_URL={ortopedia_agenda_url}
+CALENDAR_CACHE_TTL_SECONDS=60
+CALENDAR_CACHE_TTL_MINUTES=5
+GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
+GOOGLE_FORMS_TIMEOUT=10
+APPS_SCRIPT_SCHEDULER_URL=
+LIFECYCLE_TIMEOUT_SECONDS=30
+LIFECYCLE_HEARTBEAT_SECONDS=5
+"""
+    with open(env_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    logger.info(f"Arquivo .env criado automaticamente em: {env_path}")
+
 def get_base_dir():
     """Retorna o diretório base correto, mesmo quando empacotado com PyInstaller"""
     if getattr(sys, 'frozen', False):
@@ -50,12 +103,55 @@ def open_browser(host, port, delay=2):
     except Exception as e:
         logger.warning(f'Não foi possível abrir o navegador automaticamente: {e}')
 
-def create_initial_users(app):
-    """Cria usuários iniciais se o banco estiver vazio"""
+def create_initial_data(app):
+    """Cria dados iniciais mínimos (especialidades/settings/usuários) se ausentes."""
     with app.app_context():
         from src.extensions import db
         from src.models.user import User
-        
+        from src.models.specialty import Specialty, SpecialtySettings
+
+        # Especialidades padrão
+        ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
+        cirurgia = Specialty.query.filter_by(slug='cirurgia_pediatrica').first()
+        if not ortopedia:
+            ortopedia = Specialty(slug='ortopedia', name='Ortopedia', is_active=True)
+            db.session.add(ortopedia)
+            logger.info('  [OK] Especialidade criada: Ortopedia')
+        if not cirurgia:
+            cirurgia = Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediatrica', is_active=True)
+            db.session.add(cirurgia)
+            logger.info('  [OK] Especialidade criada: Cirurgia Pediatrica')
+        db.session.flush()
+
+        # Configuração inicial da agenda de Ortopedia
+        ortopedia_agenda_url = (
+            os.getenv('ORTOPEDIA_AGENDA_URL')
+            or os.getenv('GOOGLE_CALENDAR_ICS_URL')
+            or build_default_ortopedia_agenda_url(os.getenv('GOOGLE_CALENDAR_ID', DEFAULT_CALENDAR_ID))
+        )
+        ortopedia_forms_url = 'https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform'
+
+        ortopedia_settings = SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first()
+        if not ortopedia_settings:
+            db.session.add(SpecialtySettings(
+                specialty_id=ortopedia.id,
+                agenda_url=ortopedia_agenda_url,
+                forms_url=ortopedia_forms_url,
+            ))
+            logger.info('  [OK] Configuração criada: agenda/formulário da Ortopedia')
+        elif not (ortopedia_settings.agenda_url or '').strip() and ortopedia_agenda_url:
+            ortopedia_settings.agenda_url = ortopedia_agenda_url
+            logger.info('  [OK] Configuração atualizada: agenda padrão da Ortopedia')
+
+        cirurgia_settings = SpecialtySettings.query.filter_by(specialty_id=cirurgia.id).first()
+        if not cirurgia_settings:
+            db.session.add(SpecialtySettings(
+                specialty_id=cirurgia.id,
+                agenda_url='',
+                forms_url='',
+            ))
+            logger.info('  [OK] Configuração criada: Cirurgia Pediatrica')
+
         # Verificar se já existem usuários
         user_count = User.query.count()
         
@@ -80,15 +176,16 @@ def create_initial_users(app):
                     role='solicitante'
                 )
                 db.session.add(user)
-                logger.info(f'  ✓ Usuário criado: {user_data["full_name"]}')
+                logger.info(f'  [OK] Usuário criado: {user_data["full_name"]}')
             
             db.session.commit()
             logger.info('=' * 60)
-            logger.info('✅ Usuários iniciais criados com sucesso!')
+            logger.info('[OK] Dados iniciais criados com sucesso')
             logger.info('   Usuários: Pedro, André, Brauner, Sávio, Laecio')
             logger.info('   Senha padrão: 123456')
             logger.info('=' * 60)
         else:
+            db.session.commit()
             logger.info(f'Banco já possui {user_count} usuário(s) cadastrado(s)')
 
 def initialize_app():
@@ -96,6 +193,7 @@ def initialize_app():
     try:
         # Definir o diretório base antes de importar app
         base_dir = get_base_dir()
+        ensure_env_file(base_dir)
         
         # Configurar caminhos para instance e PDFs
         instance_path = os.path.join(base_dir, 'instance')
@@ -121,6 +219,7 @@ def initialize_app():
             from src.models.user import User
             from src.models.patient import Patient
             from src.models.surgery_request import SurgeryRequest
+            import src.models  # noqa: F401
             
             try:
                 # Criar tabelas se não existirem
@@ -130,12 +229,12 @@ def initialize_app():
                 logger.error(f'Erro ao inicializar banco de dados: {e}')
                 logger.warning('Continuando sem banco de dados...')
         
-        # Criar usuários iniciais se necessário
+        # Criar dados iniciais se necessário
         try:
-            create_initial_users(app)
+            create_initial_data(app)
         except Exception as e:
-            logger.error(f'Erro ao criar usuários iniciais: {e}')
-            logger.warning('Continuando sem usuários iniciais...')
+            logger.error(f'Erro ao criar dados iniciais: {e}')
+            logger.warning('Continuando sem dados iniciais...')
         
         return app
     except Exception as e:
