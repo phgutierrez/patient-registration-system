@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 class Config:
     # Detectar se está rodando como executável PyInstaller
@@ -10,6 +11,11 @@ class Config:
     else:
         # Se executado como script Python, usar o diretório do projeto
         BASE_DIR = Path(__file__).resolve().parent.parent
+
+    # Carregar .env do diretório base (prioritário no executável)
+    load_dotenv(BASE_DIR / '.env', override=False)
+    # Fallback para execução a partir do diretório corrente
+    load_dotenv(override=False)
     
     INSTANCE_PATH = BASE_DIR / 'instance'
     INSTANCE_PATH.mkdir(exist_ok=True)
@@ -28,6 +34,10 @@ class Config:
     GOOGLE_CALENDAR_ID = os.getenv('GOOGLE_CALENDAR_ID', 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com')
     GOOGLE_CALENDAR_TZ = os.getenv('GOOGLE_CALENDAR_TZ', 'America/Fortaleza')
     GOOGLE_CALENDAR_ICS_URL = os.getenv('GOOGLE_CALENDAR_ICS_URL', None)  # Se None, será construído
+    ORTOPEDIA_AGENDA_URL = os.getenv(
+        'ORTOPEDIA_AGENDA_URL',
+        f'https://calendar.google.com/calendar/ical/{GOOGLE_CALENDAR_ID}/public/basic.ics'
+    )
     
     # Calendar cache TTL (60 seconds for fast updates)
     CALENDAR_CACHE_TTL_SECONDS = int(os.getenv('CALENDAR_CACHE_TTL_SECONDS', '60'))

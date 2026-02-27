@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.app import create_app
 from src.extensions import db
+import src.models  # noqa: F401 - garante registro de todos os modelos no metadata
 
 def create_tables():
     """Criar todas as tabelas definidas nos modelos"""
