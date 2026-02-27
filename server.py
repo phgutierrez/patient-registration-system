@@ -149,13 +149,19 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
         
-        host = os.getenv('HOST', '127.0.0.1')
-        port = int(os.getenv('PORT', 5000))
+        # Compatível com run_local.bat (.env usa SERVER_HOST/SERVER_PORT)
+        host = os.getenv('SERVER_HOST') or os.getenv('HOST', '127.0.0.1')
+        port = int(os.getenv('SERVER_PORT') or os.getenv('PORT', 5000))
+
+        # Em executável desktop, manter comportamento local por padrão
+        if getattr(sys, 'frozen', False) and 'DESKTOP_MODE' not in os.environ:
+            os.environ['DESKTOP_MODE'] = 'true'
         
         logger.info('=' * 60)
         logger.info('Patient Registration System')
         logger.info('=' * 60)
         logger.info(f'Iniciando servidor em http://{host}:{port}')
+        logger.info(f"Desktop Mode: {os.getenv('DESKTOP_MODE', 'false')}")
         logger.info('Pressione CTRL+C para parar o servidor')
         logger.info('Ou use o botão "Sair do Sistema" na interface')
         logger.info('=' * 60)

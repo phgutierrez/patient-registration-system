@@ -78,6 +78,8 @@ class SurgeryRequestForm(FlaskForm):
     exames_preop = TextAreaField('Exames Pré-Operatórios', validators=[Optional()])
 
     # ── OPME (checkboxes + campo livre) ──────────────────────────────────
+    # Compatibilidade com template legado que ainda usa textarea `opme`.
+    opme = TextAreaField('OPME', validators=[Optional()])
     opme_items = SelectMultipleField(
         'OPME',
         validators=[Optional()],

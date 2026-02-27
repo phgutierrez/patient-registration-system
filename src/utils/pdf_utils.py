@@ -12,6 +12,7 @@ from flask_login import current_user
 import traceback
 import logging
 from datetime import datetime
+import unicodedata
 from PyPDF2 import PdfWriter, PdfReader
 from io import BytesIO
 
@@ -26,6 +27,13 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_text(value):
+    if not value:
+        return ''
+    text = unicodedata.normalize('NFKD', str(value))
+    return ''.join(ch for ch in text if not unicodedata.combining(ch)).strip().lower()
 
 
 def get_pdf_fields(pdf_path):
@@ -139,6 +147,12 @@ def preencher_formulario_internacao(patient, surgery_data):
         # Formatar telefone de contato (remover caracteres especiais)
         telefone_contato = ''.join(filter(str.isdigit, patient.contato)) if patient.contato else ''
 
+        # Regra de negócio: não imprimir OPME quando for "Não se aplica"
+        opme_raw = (surgery_data.opme or "").strip()
+        normalized_opme = _normalize_text(opme_raw)
+        should_hide_opme = (not opme_raw) or (normalized_opme == 'nao se aplica')
+        opme_display = '' if should_hide_opme else opme_raw
+
         # Mapeamento direto dos campos
         field_mapping = {
             # Campos de nome do paciente (incluindo variações numeradas)
@@ -231,12 +245,12 @@ def preencher_formulario_internacao(patient, surgery_data):
             'DataSolicitacao7': datetime.now().strftime("%d/%m/%Y"),
             'DataSolicitacao8': datetime.now().strftime("%d/%m/%Y"),
             'CRM': current_user.crm or '',
-            'OPME': surgery_data.opme or '',
-            'OPME1': surgery_data.opme or '',
-            'OPME2': surgery_data.opme or '',
-            'OPME3': surgery_data.opme or '',
-            'MaterialEspecial': surgery_data.opme or '',
-            'MaterialEspecial1': surgery_data.opme or '',
+            'OPME': opme_display,
+            'OPME1': opme_display,
+            'OPME2': opme_display,
+            'OPME3': opme_display,
+            'MaterialEspecial': opme_display,
+            'MaterialEspecial1': opme_display,
             'Endereco1': patient.endereco or '',
             'Endereco4': patient.endereco or '',
             'Endereco5': patient.endereco or '',
@@ -245,7 +259,7 @@ def preencher_formulario_internacao(patient, surgery_data):
 
         # Lógica para combinar Aparelhos Especiais e OPME
         aparelhos = surgery_data.aparelhos_especiais or ""
-        opme_data = surgery_data.opme or ""
+        opme_data = opme_display
         combined_aparelhos_opme = aparelhos.strip()
         if combined_aparelhos_opme and opme_data.strip():
             combined_aparelhos_opme += " / OPME: " + opme_data.strip()
@@ -265,7 +279,7 @@ def preencher_formulario_internacao(patient, surgery_data):
             # Tentar encontrar correspondência exata
             if pdf_field in field_mapping:
                 form_data[pdf_field] = str(field_mapping[pdf_field])
-                logger.info(f"  ✓ Campo '{pdf_field}' -> '{field_mapping[pdf_field]}'")
+                logger.info(f"  [OK] Campo '{pdf_field}' -> '{field_mapping[pdf_field]}'")
                 continue
 
             # Tentar encontração case-insensitive
@@ -273,23 +287,23 @@ def preencher_formulario_internacao(patient, surgery_data):
             for key, value in field_mapping.items():
                 if key.lower() == pdf_field.lower():
                     form_data[pdf_field] = str(value)
-                    logger.info(f"  ✓ Campo '{pdf_field}' (case-insensitive match com '{key}') -> '{value}'")
+                    logger.info(f"  [OK] Campo '{pdf_field}' (case-insensitive match com '{key}') -> '{value}'")
                     found = True
                     break
             
             if not found:
-                logger.warning(f"  ✗ Campo '{pdf_field}' não encontrado no mapeamento")
+                logger.warning(f"  [WARN] Campo '{pdf_field}' não encontrado no mapeamento")
                 form_data[pdf_field] = ""
 
         logger.info(f"\nTotal de campos preenchidos: {len(form_data)}")
 
         # Determinar número de páginas a incluir no PDF
         # Se OPME estiver vazio ou "Não se aplica", incluir apenas as 5 primeiras páginas
-        opme_value = (surgery_data.opme or "").strip()
+        opme_value = opme_display
         num_pages = None  # Por padrão, incluir todas as páginas
         
         # Verificar se OPME está vazio ou é "Não se aplica"
-        is_opme_empty = not opme_value or opme_value.lower() == "não se aplica"
+        is_opme_empty = not opme_value
         
         if is_opme_empty:
             logger.info("OPME está vazio ou é 'Não se aplica' - gerando PDF com apenas 5 páginas (sem páginas 6-7)")
@@ -301,9 +315,9 @@ def preencher_formulario_internacao(patient, surgery_data):
         logger.info("Iniciando preenchimento do PDF com PyPDF2...")
         preencer_pdf_com_pypdf2(str(template_pdf), str(output_pdf), form_data, num_pages=num_pages)
 
-        logger.info(f"✓ PDF gerado com sucesso: {output_pdf}")
+        logger.info(f"[OK] PDF gerado com sucesso: {output_pdf}")
         file_size = os.path.getsize(output_pdf)
-        logger.info(f"✓ Tamanho do arquivo: {file_size} bytes")
+        logger.info(f"[OK] Tamanho do arquivo: {file_size} bytes")
         logger.info("=" * 80)
 
         return str(output_pdf)
@@ -360,7 +374,7 @@ def preencer_pdf_com_pypdf2(template_pdf, output_pdf, form_data, num_pages=None)
             try:
                 writer.update_page_form_field_values(page, form_data_str)
                 preenchidos += 1
-                logger.info(f"  ✓ Campos aplicados na página {page_index + 1}")
+                logger.info(f"  [OK] Campos aplicados na página {page_index + 1}")
             except Exception as e:
                 logger.warning(f"  ⚠ Não foi possível preencher a página {page_index + 1}: {str(e)}")
 
@@ -370,9 +384,9 @@ def preencer_pdf_com_pypdf2(template_pdf, output_pdf, form_data, num_pages=None)
         with open(output_pdf, 'wb') as out_file:
             writer.write(out_file)
         
-        logger.info(f"✓ PDF salvo: {output_pdf}")
-        logger.info(f"✓ Tamanho: {os.path.getsize(output_pdf)} bytes")
-        logger.info(f"✓ Total de páginas no PDF gerado: {len(writer.pages)}")
+        logger.info(f"[OK] PDF salvo: {output_pdf}")
+        logger.info(f"[OK] Tamanho: {os.path.getsize(output_pdf)} bytes")
+        logger.info(f"[OK] Total de páginas no PDF gerado: {len(writer.pages)}")
         logger.info("=" * 60)
         
     except Exception as e:
@@ -433,6 +447,9 @@ def preencher_formulario_internacao_direto(paciente, cirurgia, dados_medicos):
         logger.info("Output: {output_path}")
 
         # Mapeamento EXATO dos campos do PDF (baseado na inspeção)
+        opme_raw = (cirurgia.opme or '').strip()
+        opme_display = '' if _normalize_text(opme_raw) == 'nao se aplica' else opme_raw
+
         campos_exatos = {
             "NomePaciente": paciente.nome,
             "NomePaciente1": paciente.nome,
@@ -538,8 +555,8 @@ def preencher_formulario_internacao_direto(paciente, cirurgia, dados_medicos):
 
             "CRM": current_user.crm if hasattr(current_user, 'crm') else '',
 
-            "AparelhosEspeciais": cirurgia.aparelhos_especiais + (" / OPME: " + cirurgia.opme if cirurgia.opme else ""),
-            "OPME": cirurgia.opme or ''
+            "AparelhosEspeciais": (cirurgia.aparelhos_especiais or "") + ((" / OPME: " + opme_display) if opme_display else ""),
+            "OPME": opme_display
         }
 
         logger.info("\nCampos exatos para preenchimento (fillpdfs):")
@@ -681,7 +698,7 @@ def preencher_requisicao_hemocomponente(patient, surgery_data):
             # Tentar encontrar correspondência exata
             if pdf_field in field_mapping:
                 form_data[pdf_field] = str(field_mapping[pdf_field])
-                logger.info(f"  ✓ Campo '{pdf_field}' -> '{field_mapping[pdf_field]}'")
+                logger.info(f"  [OK] Campo '{pdf_field}' -> '{field_mapping[pdf_field]}'")
                 continue
 
             # Tentar encontração case-insensitive
@@ -689,12 +706,12 @@ def preencher_requisicao_hemocomponente(patient, surgery_data):
             for key, value in field_mapping.items():
                 if key.lower() == pdf_field.lower():
                     form_data[pdf_field] = str(value)
-                    logger.info(f"  ✓ Campo '{pdf_field}' (case-insensitive match com '{key}') -> '{value}'")
+                    logger.info(f"  [OK] Campo '{pdf_field}' (case-insensitive match com '{key}') -> '{value}'")
                     found = True
                     break
             
             if not found:
-                logger.warning(f"  ✗ Campo '{pdf_field}' não encontrado no mapeamento; deixando em branco")
+                logger.warning(f"  [WARN] Campo '{pdf_field}' não encontrado no mapeamento; deixando em branco")
                 form_data[pdf_field] = ""
 
         logger.info(f"\nTotal de campos preenchidos: {len(form_data)}")
@@ -703,9 +720,9 @@ def preencher_requisicao_hemocomponente(patient, surgery_data):
         logger.info("Iniciando preenchimento do PDF com PyPDF2...")
         preencer_pdf_com_pypdf2(str(template_pdf), str(output_pdf), form_data)
 
-        logger.info(f"✓ PDF de hemocomponente gerado com sucesso: {output_pdf}")
+        logger.info(f"[OK] PDF de hemocomponente gerado com sucesso: {output_pdf}")
         file_size = os.path.getsize(output_pdf)
-        logger.info(f"✓ Tamanho do arquivo: {file_size} bytes")
+        logger.info(f"[OK] Tamanho do arquivo: {file_size} bytes")
         logger.info("=" * 80)
 
         return str(output_pdf)

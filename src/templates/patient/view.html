@@ -142,6 +142,10 @@
                             <td><span class="badge bg-secondary">{{ surgery.status or 'Pendente' }}</span></td> {#
                             Adicionar classe de cor baseada no status se desejar #}
                             <td>
+                                <a href="{{ url_for('surgery.edit_surgery_request', surgery_id=surgery.id) }}"
+                                    class="btn btn-warning btn-sm me-1" title="Editar solicitação">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </a>
                                 {# Link para download do PDF, se existir #}
                                 {% if surgery.pdf_filename %}
                                 <a href="{{ url_for('surgery.download_pdf', surgery_id=surgery.id, pdf_name=surgery.pdf_filename) }}"
