@@ -6,9 +6,12 @@ from src.extensions import db
 from src.forms.patient_form import PatientForm
 from sqlalchemy.exc import SQLAlchemyError
 import pyodbc
+import time
+import logging
 from pathlib import Path
 
 patients = Blueprint('patients', __name__, url_prefix='/patients')
+logger = logging.getLogger(__name__)
 
 
 @patients.route('/patient/new', methods=['GET', 'POST'])

@@ -13,9 +13,135 @@ from datetime import datetime
 import os
 import logging
 import json
+import unicodedata
+import re
 
 surgery = Blueprint('surgery', __name__)
 logger = logging.getLogger(__name__)
+
+
+def _normalize_text(value):
+    """Normaliza texto para comparação sem acentos/case."""
+    if not value:
+        return ''
+    text = unicodedata.normalize('NFKD', str(value))
+    return ''.join(ch for ch in text if not unicodedata.combining(ch)).strip().lower()
+
+
+def _is_nao_se_aplica(value):
+    return _normalize_text(value) == 'nao se aplica'
+
+
+def _build_opme_value(form):
+    """
+    Constrói o valor textual de OPME.
+    Regra: se OPME for apenas 'Não se aplica', retorna None para não imprimir no PDF.
+    """
+    selected_items = [item.strip() for item in (form.opme_items.data or []) if item and item.strip()]
+    other_text = (form.opme_outro.data or '').strip()
+
+    # Fallback legado para textarea opme, se os novos campos vierem vazios
+    if not selected_items and not other_text and getattr(form, 'opme', None) and form.opme.data:
+        legacy_value = form.opme.data.strip()
+        return None if _is_nao_se_aplica(legacy_value) else legacy_value
+
+    selected_items = [item for item in selected_items if not _is_nao_se_aplica(item)]
+    parts = [*selected_items]
+    if other_text:
+        parts.append(f'Outro: {other_text}')
+    # Separador com baixa chance de colisão com descrições que contêm vírgula.
+    return ' | '.join(parts) or None
+
+
+def _prefill_opme_fields(form, surgery_request):
+    """Preenche opme_items/opme_outro a partir do texto salvo no banco."""
+    raw_value = (surgery_request.opme or '').strip()
+    if not raw_value or _is_nao_se_aplica(raw_value):
+        form.opme_items.data = []
+        form.opme_outro.data = ''
+        if getattr(form, 'opme', None):
+            form.opme.data = ''
+        return
+
+    known_choices = [choice_value for choice_value, _ in form.opme_items.choices]
+    selected = []
+    other_parts = []
+
+    # Formato novo (separado por " | ")
+    if ' | ' in raw_value:
+        tokens = [token.strip() for token in raw_value.split(' | ') if token and token.strip()]
+        for token in tokens:
+            if token in known_choices and not _is_nao_se_aplica(token):
+                selected.append(token)
+                continue
+            if token.lower().startswith('outro:'):
+                value = token.split(':', 1)[1].strip()
+                if value:
+                    other_parts.append(value)
+                continue
+            if not _is_nao_se_aplica(token):
+                other_parts.append(token)
+    else:
+        # Formato legado: pode estar separado por vírgula e conter itens com vírgula no texto.
+        legacy_text = raw_value
+        outro_match = re.search(r'Outro:\s*(.+)$', legacy_text, flags=re.IGNORECASE)
+        if outro_match:
+            outro_value = outro_match.group(1).strip(' ,|')
+            if outro_value:
+                other_parts.append(outro_value)
+            legacy_text = legacy_text[:outro_match.start()].strip(' ,|')
+
+        # Detecta os itens conhecidos por presença textual
+        for choice in sorted(known_choices, key=len, reverse=True):
+            if choice and choice in legacy_text and not _is_nao_se_aplica(choice):
+                selected.append(choice)
+                legacy_text = legacy_text.replace(choice, ' ')
+
+        leftovers = legacy_text.replace(',', ' ').replace('|', ' ').strip()
+        leftovers = ' '.join(leftovers.split())
+        if leftovers and not _is_nao_se_aplica(leftovers):
+            other_parts.append(leftovers)
+
+    form.opme_items.data = selected
+    form.opme_outro.data = ', '.join(other_parts)
+    if getattr(form, 'opme', None):
+        form.opme.data = raw_value
+
+
+def _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value):
+    surgery_request.specialty_id = specialty.id if specialty else None
+    surgery_request.peso = form.peso.data
+    surgery_request.sinais_sintomas = form.sinais_sintomas.data
+    surgery_request.condicoes_justificativa = form.condicoes_justificativa.data
+    surgery_request.resultados_diagnosticos = form.resultados_diagnosticos.data
+    surgery_request.procedimento_solicitado = form.procedimento_solicitado.data
+    surgery_request.codigo_procedimento = sus_code
+    surgery_request.tipo_cirurgia = form.tipo_cirurgia.data
+    surgery_request.data_cirurgia = form.data_cirurgia.data
+    surgery_request.internar_antes = form.internar_antes.data
+    surgery_request.hora_cirurgia = form.hora_cirurgia.data
+    surgery_request.assistente = form.assistente.data
+    surgery_request.aparelhos_especiais = form.aparelhos_especiais.data
+    surgery_request.reserva_sangue = form.reserva_sangue.data
+    surgery_request.quantidade_sangue = form.quantidade_sangue.data if form.reserva_sangue.data else None
+    surgery_request.raio_x = form.raio_x.data
+    surgery_request.reserva_uti = form.reserva_uti.data
+    surgery_request.duracao_prevista = form.duracao_prevista.data
+    surgery_request.evolucao_internacao = form.evolucao_internacao.data
+    surgery_request.prescricao_internacao = form.prescricao_internacao.data
+    surgery_request.exames_preop = form.exames_preop.data
+    surgery_request.opme = opme_value
+
+
+def _safe_remove_generated_file(filename):
+    if not filename:
+        return
+    try:
+        file_path = os.path.join(current_app.root_path, 'static', 'preenchidos', filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        logger.warning(f"Não foi possível remover arquivo antigo '{filename}': {e}")
 
 
 @surgery.route('/patient/<int:patient_id>/surgery/request', methods=['GET', 'POST'])
@@ -36,39 +162,12 @@ def request_surgery(patient_id):
             form.codigo_procedimento.data
             or get_sus_code_for_procedure(form.procedimento_solicitado.data, specialty)
         )
-        # Montar campo opme a partir dos checkboxes
-        opme_value = ', '.join([
-            *(form.opme_items.data or []),
-            *([f'Outro: {form.opme_outro.data.strip()}'] if form.opme_outro.data and form.opme_outro.data.strip() else []),
-        ]) or None
+        opme_value = _build_opme_value(form)
 
         try:
             # Criar nova solicitação de cirurgia
-            surgery_request = SurgeryRequest(
-                patient_id=patient.id,
-                specialty_id=specialty.id if specialty else None,
-                peso=form.peso.data,
-                sinais_sintomas=form.sinais_sintomas.data,
-                condicoes_justificativa=form.condicoes_justificativa.data,
-                resultados_diagnosticos=form.resultados_diagnosticos.data,
-                procedimento_solicitado=form.procedimento_solicitado.data,
-                codigo_procedimento=sus_code,
-                tipo_cirurgia=form.tipo_cirurgia.data,
-                data_cirurgia=form.data_cirurgia.data,
-                internar_antes=form.internar_antes.data,
-                hora_cirurgia=form.hora_cirurgia.data,
-                assistente=form.assistente.data,
-                aparelhos_especiais=form.aparelhos_especiais.data,
-                reserva_sangue=form.reserva_sangue.data,
-                quantidade_sangue=form.quantidade_sangue.data if form.reserva_sangue.data else None,
-                raio_x=form.raio_x.data,
-                reserva_uti=form.reserva_uti.data,
-                duracao_prevista=form.duracao_prevista.data,
-                evolucao_internacao=form.evolucao_internacao.data,
-                prescricao_internacao=form.prescricao_internacao.data,
-                exames_preop=form.exames_preop.data,
-                opme=opme_value,
-            )
+            surgery_request = SurgeryRequest(patient_id=patient.id)
+            _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value)
 
             db.session.add(surgery_request)
             # Commit inicial para obter o ID da cirurgia antes de gerar nome do PDF
@@ -127,6 +226,90 @@ def request_surgery(patient_id):
         form=form,
         specialty=specialty,
         procedure_code_map=procedure_code_map,
+        is_edit_mode=False,
+        surgery_request=None,
+    )
+
+
+@surgery.route('/surgery/<int:surgery_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_surgery_request(surgery_id):
+    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    patient = Patient.query.get_or_404(surgery_request.patient_id)
+
+    form = SurgeryRequestForm(obj=surgery_request)
+
+    specialty = surgery_request.specialty or get_active_specialty()
+    form.procedimento_solicitado.choices = get_procedure_choices(specialty)
+    form.assistente.choices = get_user_choices(specialty)
+    procedure_code_map = get_procedure_code_map(specialty)
+
+    if request.method == 'GET':
+        _prefill_opme_fields(form, surgery_request)
+
+    if form.validate_on_submit():
+        sus_code = (
+            form.codigo_procedimento.data
+            or get_sus_code_for_procedure(form.procedimento_solicitado.data, specialty)
+        )
+        opme_value = _build_opme_value(form)
+
+        try:
+            old_pdf_filename = surgery_request.pdf_filename
+            old_hemo_filename = surgery_request.pdf_hemocomponente
+
+            _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value)
+            db.session.flush()
+
+            # Regenerar PDF principal para a mesma solicitação (substituição)
+            pdf_path = preencher_formulario_internacao(patient, surgery_request)
+            if pdf_path:
+                new_pdf_filename = os.path.basename(pdf_path)
+                surgery_request.pdf_filename = new_pdf_filename
+                if old_pdf_filename and old_pdf_filename != new_pdf_filename:
+                    _safe_remove_generated_file(old_pdf_filename)
+
+            # Regenerar PDF de hemocomponente, quando aplicável
+            if surgery_request.reserva_sangue:
+                try:
+                    pdf_hemocomponente = preencher_requisicao_hemocomponente(patient, surgery_request)
+                    surgery_request.pdf_hemocomponente = (
+                        os.path.basename(pdf_hemocomponente) if pdf_hemocomponente else None
+                    )
+                    if (
+                        old_hemo_filename
+                        and surgery_request.pdf_hemocomponente
+                        and old_hemo_filename != surgery_request.pdf_hemocomponente
+                    ):
+                        _safe_remove_generated_file(old_hemo_filename)
+                except Exception as e:
+                    logger.warning(f"Erro ao regenerar PDF de hemocomponente na edição: {e}")
+            else:
+                surgery_request.pdf_hemocomponente = None
+                _safe_remove_generated_file(old_hemo_filename)
+
+            db.session.commit()
+            flash('Solicitação atualizada com sucesso. PDF de internação substituído.', 'success')
+            if surgery_request.pdf_filename:
+                return redirect(url_for(
+                    'surgery.confirmation',
+                    surgery_id=surgery_request.id,
+                    pdf_name=surgery_request.pdf_filename
+                ))
+            return redirect(url_for('patients.view_patient', id=patient.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao atualizar solicitação: {str(e)}', 'danger')
+            logger.exception("Erro ao editar solicitação de cirurgia")
+
+    return render_template(
+        'surgery/request.html',
+        patient=patient,
+        form=form,
+        specialty=specialty,
+        procedure_code_map=procedure_code_map,
+        is_edit_mode=True,
+        surgery_request=surgery_request,
     )
 
 # Nova rota para página de confirmação
@@ -306,7 +489,7 @@ def schedule_confirm(id):
     Confirma e envia agendamento submetendo resposta ao Google Forms.
     O Apps Script da planilha (onFormSubmit) criará o evento no calendário.
     """
-    from src.services.forms_service import build_forms_payload, submit_form
+    from src.services.forms_service import build_forms_payload, submit_form, get_forms_configuration
     
     try:
         # Buscar solicitação e paciente

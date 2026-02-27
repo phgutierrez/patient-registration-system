@@ -1,13 +1,13 @@
 {# src/templates/surgery/request.html #}
 {% extends "base.html" %}
 
-{% block title %}Solicitar Cirurgia - {{ patient.nome }}{% endblock %}
+{% block title %}{{ 'Editar Solicitação' if is_edit_mode else 'Solicitar Cirurgia' }} - {{ patient.nome }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h1 class="mb-0">Solicitar Cirurgia</h1>
+            <h1 class="mb-0">{{ 'Editar Solicitação de Cirurgia' if is_edit_mode else 'Solicitar Cirurgia' }}</h1>
             {% if specialty %}
             <span class="badge text-bg-primary mt-1" style="font-size:.8rem;">
                 <i class="fas fa-stethoscope me-1"></i>{{ specialty.name }}
@@ -310,13 +310,31 @@
                     {% endif %}
                 </div>
                 <div class="mb-3">
-                    {{ form.opme.label(class="form-label") }} <small class="text-muted">(Órteses, Próteses e Materiais
-                        Especiais)</small>
-                    {{ form.opme(class="form-control" + (" is-invalid" if form.opme.errors else ""), rows=3,
-                    placeholder="Liste os OPMEs necessários para a cirurgia") }}
-                    {% if form.opme.errors %}
+                    {{ form.opme_items.label(class="form-label d-block mb-2") }}
+                    <small class="text-muted d-block mb-2">(Órteses, Próteses e Materiais Especiais)</small>
+                    <div class="row row-cols-1 row-cols-md-2 g-2">
+                        {% for subfield in form.opme_items %}
+                        <div class="col">
+                            <div class="form-check">
+                                {{ subfield(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ subfield.id }}">{{ subfield.label.text }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.opme_items.errors %}
                     <div class="invalid-feedback d-block">
-                        {{ form.opme.errors | join(', ') }}
+                        {{ form.opme_items.errors | join(', ') }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.opme_outro.label(class="form-label") }}
+                    {{ form.opme_outro(class="form-control" + (" is-invalid" if form.opme_outro.errors else ""),
+                    placeholder="Descreva outro OPME, se necessário") }}
+                    {% if form.opme_outro.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.opme_outro.errors | join(', ') }}
                     </div>
                     {% endif %}
                 </div>
@@ -337,7 +355,7 @@
                 <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
                     <i class="fas fa-times me-1 me-2"></i>Cancelar
                 </a>
-                {{ form.submit(class="btn btn-primary", value="Solicitar Cirurgia") }}
+                {{ form.submit(class="btn btn-primary", value=('Salvar Alterações' if is_edit_mode else 'Solicitar Cirurgia')) }}
             </div>
         </div>
     </form>
@@ -473,7 +491,8 @@
             evolucao_internacao: formData.get('evolucao_internacao'),
             prescricao_internacao: formData.get('prescricao_internacao'),
             exames_preop: formData.get('exames_preop'),
-            opme: formData.get('opme')
+            opme_items: formData.getAll('opme_items'),
+            opme_outro: formData.get('opme_outro')
         };
         
         return dados;
@@ -642,7 +661,7 @@
         document.querySelector('[name="evolucao_internacao"]').value = dados.evolucao_internacao || '';
         document.querySelector('[name="prescricao_internacao"]').value = dados.prescricao_internacao || '';
         document.querySelector('[name="exames_preop"]').value = dados.exames_preop || '';
-        document.querySelector('[name="opme"]').value = dados.opme || '';
+        document.querySelector('[name="opme_outro"]').value = dados.opme_outro || '';
         
         // Preencher radio buttons
         if (dados.tipo_cirurgia) {
@@ -668,6 +687,42 @@
         const reservaUtiField = document.querySelector('[name="reserva_uti"]');
         if (reservaUtiField) {
             reservaUtiField.checked = dados.reserva_uti || false;
+        }
+
+        // Preencher OPME (novo formato) com fallback para modelos legados
+        const opmeItemsFields = document.querySelectorAll('[name="opme_items"]');
+        const selectedOpme = Array.isArray(dados.opme_items) ? dados.opme_items : [];
+        opmeItemsFields.forEach(field => {
+            field.checked = selectedOpme.includes(field.value);
+        });
+
+        if ((!dados.opme_items || !Array.isArray(dados.opme_items)) && dados.opme) {
+            const opmeTokens = dados.opme.split(',').map(item => item.trim()).filter(Boolean);
+            let opmeOutroLegacy = '';
+
+            opmeItemsFields.forEach(field => {
+                if (opmeTokens.includes(field.value)) {
+                    field.checked = true;
+                }
+            });
+
+            const outroPrefix = 'Outro:';
+            const outroItem = opmeTokens.find(item => item.startsWith(outroPrefix));
+            if (outroItem) {
+                opmeOutroLegacy = outroItem.substring(outroPrefix.length).trim();
+            }
+
+            if (!opmeOutroLegacy) {
+                const knownValues = new Set(Array.from(opmeItemsFields).map(field => field.value));
+                const unknownTokens = opmeTokens.filter(item => !knownValues.has(item) && !item.startsWith(outroPrefix));
+                if (unknownTokens.length > 0) {
+                    opmeOutroLegacy = unknownTokens.join(', ');
+                }
+            }
+
+            if (opmeOutroLegacy) {
+                document.querySelector('[name="opme_outro"]').value = opmeOutroLegacy;
+            }
         }
         
         // Disparar evento para atualizar a quantidade de sangue se necessário
