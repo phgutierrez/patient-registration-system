@@ -2,8 +2,8 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-2.3.3-black?logo=flask&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.1.3-black?logo=flask&logoColor=white)
 ![Waitress](https://img.shields.io/badge/Server-Waitress-green?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Pronto%20para%20Produção-success)
@@ -38,12 +38,20 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
 - 💾 **Armazenamento Confiável** - Banco de dados SQLite com gerenciamento automático de esquema
 
+### 🆕 Atualizações Recentes (Março/2026)
+
+- ✅ Seed do executável alinhado ao setup completo (especialidades + usuários + procedimentos)
+- ✅ Usuários iniciais do EXE vinculados à especialidade (evita ortopedista sem especialidade)
+- ✅ Procedimentos e códigos SUS carregados corretamente por especialidade
+- ✅ Modelos de solicitação isolados por especialidade + usuário (sem carregamento cruzado)
+- ✅ Dependências de segurança atualizadas (`Flask`, `Werkzeug`, `waitress`, `requests`)
+
 ---
 
 ## 🏗️ Arquitetura
 
 ### Stack Tecnológico
-- **Backend**: Flask 2.3.3, SQLAlchemy, SQLite
+- **Backend**: Flask 3.1.3, SQLAlchemy, SQLite
 - **Frontend**: Templates Jinja2, Bootstrap 5, CSS/JS modernos
 - **Servidor**: Servidor WSGI Waitress (pronto para produção)
 - **Integrações**: Google Calendar (ICS), Google Forms, parsing iCalendar
@@ -194,6 +202,8 @@ run_network.bat
 > 💡 **Importante**: Mantenha a estrutura completa de pastas. Não mova apenas o arquivo .exe!
 
 ### Opção 2: Instalação Python
+
+> Requisito de versão: Python **3.9+**
 
 ```bash
 # 1. Clone o repositório

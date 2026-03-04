@@ -109,12 +109,12 @@ O script fará automaticamente:
 - **DNS**: Resolução de hostname para o servidor (opcional mas recomendado)
 
 ### 1.4 Pré-requisitos de Software
-**Python 3.11 ou posterior** (se usando método de instalação Python):
+**Python 3.9 ou posterior** (se usando método de instalação Python):
 ```powershell
 # Download de: https://www.python.org/downloads/
 # Ou verificar se instalado:
 python --version
-# Deve mostrar Python 3.11.x ou posterior
+# Deve mostrar Python 3.9.x ou posterior
 ```
 
 **Git** (opcional, para atualizações):
@@ -1309,7 +1309,7 @@ Para suporte técnico ou assistência na implantação:
 
 **Lista de Verificação de Implantação:**
 - [ ] Servidor atende requisitos de hardware
-- [ ] Python 3.11+ instalado e funcionando
+- [ ] Python 3.9+ instalado e funcionando
 - [ ] Banco de dados criado e acessível
 - [ ] Arquivo .env configurado com todas as variáveis obrigatórias
 - [ ] Regra do Windows Firewall criada e testada

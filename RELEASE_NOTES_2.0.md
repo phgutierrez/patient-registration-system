@@ -39,7 +39,6 @@
 **Commits:**
 - `2c86e03` - refactor: agrupar documentacoes em docs/, remover build 64bits
 - `cf88c83` - docs: adiciona INDEX.md
-- `a089e9b` - docs: adiciona REORGANIZACAO_V2.5.md
 
 ### 3. **Setup Corrigido** 🔧
 - **CRÍTICO**: Ordem de migrações corrigida (migrations agora rodam ANTES da criação de dados)
@@ -111,7 +110,7 @@ Antes (v1.0.4):
 - tests/ (sem CI/CD)
 
 Depois (v2.0):
-- docs/ (14 arquivos .md organizados)
+- docs/ (arquivos .md organizados)
 - migrations/ com README
 - Apenas build 32bits
 - Sem pasta tests/
@@ -175,7 +174,8 @@ deactivate
 
 ## 📦 Requisitos
 
-- **Python**: 3.11+ (enforçado durante setup)
+- **Python (geral)**: 3.11+ para setup padrão (`setup_windows.bat`)
+- **Python (build EXE 32bits)**: 3.9.x 32-bit suportado e recomendado no fluxo legado de build
 - **Windows**: 7, 8, 8.1, 10, 11 (32-bit e 64-bit)
 - **Navegador**: Qualquer um moderno (Chrome, Firefox, Edge, Safari)
 - **RAM**: Mínimo 2GB (recomendado 4GB)
@@ -230,6 +230,16 @@ run_local.bat
 - [Documentação Completa](docs/INDEX.md)
 - [Guia Rápido](docs/QUICK_START.md)
 - [Issues & Bug Reports](https://github.com/phgutierrez/patient-registration-system/issues)
+
+---
+
+## 📌 Nota de manutenção (Março/2026)
+
+- Seed do EXE alinhado ao setup completo (especialidades, usuários e procedimentos de Ortopedia).
+- Correção de usuários sem especialidade no fluxo do executável.
+- Procedimentos e códigos SUS carregados corretamente por especialidade.
+- Modelos de solicitação isolados por especialidade + usuário (sem cruzamento).
+- Dependências de segurança atualizadas em `requirements.txt`.
 
 ---
 

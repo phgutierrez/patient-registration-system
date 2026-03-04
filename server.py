@@ -108,7 +108,8 @@ def create_initial_data(app):
     with app.app_context():
         from src.extensions import db
         from src.models.user import User
-        from src.models.specialty import Specialty, SpecialtySettings
+        from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
+        from src.services.default_seed_data import ORTOPEDIA_PROCEDURES
 
         # Especialidades padrão
         ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
@@ -152,6 +153,19 @@ def create_initial_data(app):
             ))
             logger.info('  [OK] Configuração criada: Cirurgia Pediatrica')
 
+        # Procedimentos padrão de Ortopedia
+        ortopedia_proc_count = SpecialtyProcedure.query.filter_by(specialty_id=ortopedia.id).count()
+        if ortopedia_proc_count == 0:
+            for i, (descricao, codigo_sus) in enumerate(ORTOPEDIA_PROCEDURES):
+                db.session.add(SpecialtyProcedure(
+                    specialty_id=ortopedia.id,
+                    descricao=descricao,
+                    codigo_sus=codigo_sus,
+                    is_active=True,
+                    sort_order=i,
+                ))
+            logger.info(f'  [OK] Procedimentos de Ortopedia criados: {len(ORTOPEDIA_PROCEDURES)}')
+
         # Verificar se já existem usuários
         user_count = User.query.count()
         
@@ -173,7 +187,8 @@ def create_initial_data(app):
                     full_name=user_data['full_name'],
                     cns=user_data['cns'],
                     crm=user_data['crm'],
-                    role='solicitante'
+                    role='solicitante',
+                    specialty_id=ortopedia.id,
                 )
                 db.session.add(user)
                 logger.info(f'  [OK] Usuário criado: {user_data["full_name"]}')
@@ -185,6 +200,13 @@ def create_initial_data(app):
             logger.info('   Senha padrão: 123456')
             logger.info('=' * 60)
         else:
+            # Backfill para instalações antigas: garantir vínculo com especialidade
+            usuarios_sem_especialidade = User.query.filter(User.specialty_id.is_(None)).all()
+            if usuarios_sem_especialidade:
+                for user in usuarios_sem_especialidade:
+                    user.specialty_id = ortopedia.id
+                logger.info(f'  [OK] Usuários atualizados com especialidade Ortopedia: {len(usuarios_sem_especialidade)}')
+
             db.session.commit()
             logger.info(f'Banco já possui {user_count} usuário(s) cadastrado(s)')
 

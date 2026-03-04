@@ -48,9 +48,9 @@ if errorlevel 1 (
     echo [ERRO] Python nao foi encontrado no PATH!
     echo.
     echo Solucoes:
-    echo   1. Instale Python 3.11 via winget:
+    echo   1. Instale Python 3.9 via winget:
     echo      - Abra PowerShell como administrador
-    echo      - Execute: winget install Python.Python.3.11
+    echo      - Execute: winget install Python.Python.3.9
     echo.
     echo   2. Ou baixe em: https://www.python.org/downloads/
     echo.
@@ -81,9 +81,9 @@ if "%MAJOR%"=="3" (
         echo        Este sistema requer Python 3.9 ou posterior.
         echo.
         echo Solucoes:
-        echo   1. Instale Python 3.11 via winget:
+        echo   1. Instale Python 3.9 via winget:
         echo      - Abra PowerShell como administrador
-        echo      - Execute: winget install Python.Python.3.11
+        echo      - Execute: winget install Python.Python.3.9
         echo.
         echo   2. Ou baixe em: https://www.python.org/downloads/
         echo.
@@ -98,9 +98,9 @@ if "%MAJOR%"=="3" (
     echo        Este sistema requer Python 3.9 ou posterior.
     echo.
     echo Solucoes:
-    echo   1. Instale Python 3.11 via winget:
+    echo   1. Instale Python 3.9 via winget:
     echo      - Abra PowerShell como administrador
-    echo      - Execute: winget install Python.Python.3.11
+    echo      - Execute: winget install Python.Python.3.9
     echo.
     echo   2. Ou baixe em: https://www.python.org/downloads/
     echo.
