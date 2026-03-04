@@ -1,24 +1,20 @@
 # 📚 Documentação Completa
 
-Bem-vindo à pasta de documentação!
+Bem-vindo à pasta de documentação do sistema.
 
-## 🗂️ Onde Procurar?
+## 🗂️ Comece por aqui
 
-### Para nova instalação ou dúvidas
-👉 **[INDEX.md](INDEX.md)** - Índice completo com busca por tópico
+👉 **[INDEX.md](INDEX.md)** — índice oficial da documentação.
 
-### Começar agora mesmo
-👉 **[QUICK_START.md](QUICK_START.md)** - 3 passos para começar
+👉 **[QUICK_START.md](QUICK_START.md)** — instalação rápida.
 
-### Instalação completa
-👉 **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** - Guia detalhado
+👉 **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** — guia detalhado.
 
-### Problemas com especialidades/agenda?
-👉 **[TROUBLESHOOTING_ESPECIALIDADES.md](TROUBLESHOOTING_ESPECIALIDADES.md)**
+👉 **[TROUBLESHOOTING_ESPECIALIDADES.md](TROUBLESHOOTING_ESPECIALIDADES.md)** — diagnóstico e correção.
 
 ---
 
-## 📄 Todos os Documentos
+## 📄 Documentos disponíveis
 
 ```
 AGENDAMENTO_AUTOMATICO.md    - Integração Google Calendar
@@ -31,11 +27,11 @@ INSTALLATION_GUIDE.md        - Guia de instalação
 PRD.md                       - Especificações do projeto
 QUICK_START.md               - Instalação rápida
 REVERSAO_FORMS.md            - Como reverter formulários
-REVERSAO_RESUMO.md           - Sumário de reversão
-SESSION_SUMMARY.md           - Resumo técnico da sessão
 TROUBLESHOOTING_ESPECIALIDADES.md - Solução de problemas
 ```
 
 ---
+
+Versão da documentação: **v2.6** (março/2026)
 
 **→ [Ir para INDEX.md](INDEX.md)**

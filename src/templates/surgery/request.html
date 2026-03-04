@@ -394,6 +394,25 @@
 <script>
     let modelosModalInstance = null;
     let mostrarTodosModelos = false;
+    const MODELOS_STORAGE_NAMESPACE = 'cirurgiaModelos';
+    const activeSpecialtySlug = {{ (specialty.slug if specialty else 'ortopedia') | tojson }};
+    const activeUserId = {{ (current_user.id if current_user.is_authenticated else 0) | tojson }};
+
+    function getModelosStorageKey() {
+        return `${MODELOS_STORAGE_NAMESPACE}:${activeSpecialtySlug}:u${activeUserId}`;
+    }
+
+    function loadModelos() {
+        return JSON.parse(localStorage.getItem(getModelosStorageKey())) || [];
+    }
+
+    function saveModelos(modelos) {
+        localStorage.setItem(getModelosStorageKey(), JSON.stringify(modelos));
+    }
+
+    function generateModeloId() {
+        return `mdl_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         const reservaSangueCheck = document.getElementById('reserva_sangue_check');
@@ -512,17 +531,17 @@
         }
         
         const dadosModelo = {
-            id: Date.now() + Math.random(),  // ID único baseado em timestamp + random
+            id: generateModeloId(),
             nome: nomeModelo.trim(),
             dados: coletarDadosFormulario(),
             dataCriacao: new Date().toISOString(),
             usosCount: 0  // Iniciar contador de usos
         };
         
-        // Salvar no localStorage
-        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        // Salvar no localStorage (escopo: especialidade + usuário)
+        let modelos = loadModelos();
         modelos.push(dadosModelo);
-        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
+        saveModelos(modelos);
         
         alert(`Modelo "${nomeModelo}" salvo com sucesso!`);
     }
@@ -548,7 +567,7 @@
     function carregarModelos(termoBusca = '') {
         const modelosList = document.getElementById('modelosList');
         const botaoExpandir = document.getElementById('botaoExpandir');
-        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        let modelos = loadModelos();
         
         if (modelos.length === 0) {
             modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo salvo ainda.</p>';
@@ -596,10 +615,10 @@
                             <small class="text-muted">Procedimento: ${modelo.dados.procedimento_solicitado || 'N/A'}</small>
                         </div>
                         <div class="d-flex gap-2 ms-3">
-                            <button type="button" class="btn btn-sm btn-primary" onclick="carregarModelo(${modelo.id})" title="Carregar modelo">
+                            <button type="button" class="btn btn-sm btn-primary" onclick='carregarModelo(${JSON.stringify(modelo.id)})' title="Carregar modelo">
                                 <i class="fas fa-download me-1"></i>Carregar
                             </button>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="deletarModelo(${modelo.id})" title="Deletar modelo">
+                            <button type="button" class="btn btn-sm btn-danger" onclick='deletarModelo(${JSON.stringify(modelo.id)})' title="Deletar modelo">
                                 <i class="fas fa-trash me-1"></i>Deletar
                             </button>
                         </div>
@@ -628,10 +647,10 @@
 
     // Função para carregar dados de um modelo
     function carregarModelo(modeloId) {
-        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
+        let modelos = loadModelos();
         
         // Encontrar modelo pelo ID
-        const index = modelos.findIndex(m => m.id === modeloId);
+        const index = modelos.findIndex(m => String(m.id) === String(modeloId));
         if (index === -1) {
             alert('Modelo não encontrado.');
             return;
@@ -643,7 +662,7 @@
         // Incrementar contador de usos
         modelo.usosCount = (modelo.usosCount || 0) + 1;
         modelos[index] = modelo;
-        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
+        saveModelos(modelos);
         
         // Preencher campos de texto
         document.querySelector('[name="peso"]').value = dados.peso || '';
@@ -760,8 +779,8 @@
             return;
         }
         
-        let modelos = JSON.parse(localStorage.getItem('cirurgiaModelos')) || [];
-        const index = modelos.findIndex(m => m.id === modeloId);
+        let modelos = loadModelos();
+        const index = modelos.findIndex(m => String(m.id) === String(modeloId));
         
         if (index === -1) {
             alert('Modelo não encontrado.');
@@ -770,7 +789,7 @@
         
         const nomeModelo = modelos[index].nome;
         modelos.splice(index, 1);
-        localStorage.setItem('cirurgiaModelos', JSON.stringify(modelos));
+        saveModelos(modelos);
         
         carregarModelos(); // Recarregar lista
         alert(`Modelo "${nomeModelo}" deletado com sucesso!`);

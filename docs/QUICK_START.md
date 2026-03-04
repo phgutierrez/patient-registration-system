@@ -50,8 +50,8 @@ run_network.bat
 
 ## Credenciais Padrão
 
-**Usuário**: `pedro`
-**Senha**: `1234`
+**Usuário**: `pedro` (ou `andre`, `brauner`, `savio`, `laecio`)
+**Senha**: `123456`
 
 (Todos os usuários no setup inicial usam a mesma senha)
 
@@ -64,7 +64,7 @@ verify_setup.bat
 Ver [TROUBLESHOOTING_ESPECIALIDADES.md](./TROUBLESHOOTING_ESPECIALIDADES.md)
 
 ### ❌ "Python não encontrado"
-Instalar Python 3.11+:
+Instalar Python 3.9+:
 - Windows: `winget install python`
 - Ou baixar de: https://www.python.org/downloads/
 
@@ -83,13 +83,14 @@ Editar arquivo `.env` e adicionar:
 FLASK_PORT=5001
 ```
 
-### ❌ "Erro ao conectar no Google Calendar"
-Verificar no arquivo de especialidades (`src/models/calendar_event_status.py`):
-```python
-# Cada especialidade precisa de agenda_url configurada
+### ❌ "Procedimentos/Código SUS não aparecem"
+```bash
+verify_setup.bat
+python setup_init_data.py
 ```
 
-Ver: [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md) - Seção 5.6
+### ❌ "Erro ao conectar no Google Calendar"
+Ver: [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md) - Seção 5.6 (agenda por especialidade)
 
 ## Próximos Passos
 
@@ -115,7 +116,9 @@ Se não existir arquivo `.env`, criar com:
 FLASK_ENV=production
 FLASK_DEBUG=0
 SECRET_KEY=sua-chave-secreta-mudar-isso-aqui-1234567890
-DATABASE_URL=sqlite:///instance/prontuario.db
+SERVER_HOST=127.0.0.1
+SERVER_PORT=5000
+DESKTOP_MODE=true
 ```
 
 ## Arquitetura Rápida
@@ -156,8 +159,8 @@ Se tiver problema:
 
 ---
 
-**Última atualização**: v2.5
-- ✅ Ordem de migrations corrigida
-- ✅ setup_windows.bat reescrito
-- ✅ Suporte para especialidades múltiplas
-- ✅ verify_setup.bat adicionado
+**Última atualização**: v2.6 (março/2026)
+- ✅ Seed do EXE alinhado com setup completo
+- ✅ Usuários iniciais com especialidade vinculada
+- ✅ Procedimentos e código SUS carregados por especialidade
+- ✅ Modelos salvos isolados por especialidade + usuário

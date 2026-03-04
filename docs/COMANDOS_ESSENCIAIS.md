@@ -1,167 +1,127 @@
-# ⚡ COMANDOS ESSENCIAIS - Copiar e Colar
+# ⚡ Comandos Essenciais (Windows)
 
-## 🎯 Guia para Copiar e Executar
-
-Todos os comandos necessários para setup, build e release em um único arquivo de referência.
-
-**Nota**: Este guia é para executar no **Windows** com Python 32bits.
+Referência rápida para setup, execução, migração e build do executável.
 
 ---
 
-## 📋 FASE 1: SETUP INICIAL (primeira vez)
+## 1) Setup inicial
 
-### 1.1 - Instalar Python 32bits
-```
-Acesse: https://www.python.org/downloads/release/python-3119/
-Procure por: Windows installer (32-bit)
-Baixe e execute como administrador
-Não marque "Add Python to PATH"
-```
-
-### 1.2 - Criar Ambiente Virtual 32bits
 ```powershell
-C:\Python311_32\python.exe -m venv .venv32
+# Na raiz do projeto
+cd C:\caminho\patient-registration-system
+
+# Setup completo (venv + dependências + banco + dados iniciais)
+.\setup_windows.bat
+
+# Verificação pós-setup
+.\verify_setup.bat
 ```
 
-### 1.3 - Ativar Ambiente 32bits
+Credenciais padrão criadas no setup:
+- Usuários: `pedro`, `andre`, `brauner`, `savio`, `laecio`
+- Senha: `123456`
+
+---
+
+## 2) Executar aplicação
+
 ```powershell
-.\.venv32\Scripts\Activate.ps1
+# Modo local (somente este PC)
+.\run_local.bat
+
+# Modo rede LAN (acesso de outros PCs)
+.\run_network.bat
 ```
 
-### 1.4 - Permitir Execução dcat > /Users/pedrofreitas/Programacao/patient-registration-system/docs/COMANDOS_ESSENCIAIS.md << 'EOF'
-# ⚡ COMANDOS ESSENCIAIS - Copiar e Colar
-
-## 🎯 Guia para Copiar e Executar
-
-Todos ``# ⚡ COMANDOS ESSENCIAIS - Copiar e Colar
-
-## 🎯 Guia para Copiar e Executar
-
-Todos os comandos ne1.
-## 🎯 Guia para Copiar e Executar
-
-Todrsh
-Todos os comandos necessários pa
-pi
-**Nota**: Este guia é para executar no **Windows** com Python 32bits.
-
 ---
 
-## 📋 FASE 1: ???
----
+## 3) Ambiente virtual manual (opcional)
 
-## 📋 FASE 1: SETUP INICIAL (primeira vez)
-
-### 1.1 - Instala.\.
-#nv3
-### 1.1 - Instalar Python 32bits
-```
-Acessits```
-Acesse: https:/o esperado:**
-Ac`
-Procure por: Windows installer (32-bit)
-Baixe e execute comoxeBaixe e execute como administrador
-NãitNão marque "Ad
-.\dist\Sistema32bit```
-
-### 1.2 - Criar Ambiente Vgi
-#rat```powershell
-C:\Python311_32\python.eegC:\Python311 e```
-
-### 1.3 - Ativar Ambiente 32bits
-```SE
-#: D```powershell
-.\.venv32\Scripts Pasta para Dist```
-
-### 1.4 - Permitir Execu-I
-#m -# ⚡ COMANDOS ESSENCIAIS - Copiar e Colar
-
-## 🎯 Guia para Copiar e Executar
-
-Todos ``# ⚡ COMANDOS ESSENCIAIS - Copiar e Colar
-ri
-## 🎯 Guia para Copiar e Executar
-
-TodPat
-Todos ``# ⚡ COMANDOS ESSENCIAIStra
-## 🎯 Guia para Copiar e Executar
-
-Todos os cowin
-Todos os comandos ne1.
-## 🎯 Gu VA## 🎯 Guia para Cop##
-Todrsh
-Todos os comandos necessáávTodos`ppi
-**Nota**: Este guia é para ea3*bi
----
-
-## 📋 FASE 1: ???
----
-
-## 📋 FASE 1: SETUP INICIAL (pri
-
----
-
-
-# ?--
-
-## 📋 FASE EN
-#ÃO
-### 1.1 - Instala.\.
-#nv3
-### 1.1 - Instll
-Re#nv3
-### 1.1 - Inst-F###e ```
-Acessits```
-Acesse: https:/mbAcntAcesse: ht32Ac`
-Procure por: Windows intePr-RBaixe e execute comoxeBaixe e execute 2\NãitNão marque "Ad
-.\dist\Sistema32bit```
-
-### 1.2 - s1
-pip install -r requi
-### 1.2 - Crip install #rat```powershell
-C:\Python
-dC:\Python311_32\--
-
-## 🔧 TROUBLESHOOTING
-
-### Verificar Pyth```SE
-#: D```powershell
-.\.venvon#: D32.\.venv32\Scriptrs
-### 1.4 - Permitir Execu-I
-#m -# ?
-
-#m -# ⚡ COMANDOS ESSENC:\
-## 🎯 Guia para Copiar e Exec.venv32
-.\.venv3
-Todos ``# ⚡ COMANDOS ESSENCIAIS -rri
-## 🎯 Guia para Copiar e Executar
-
-TodPat
-Towaitr
-TodPat
-Todos ``# ⚡ COMANDOS ESSoweTodosl
-## 🎯 Guia para Copiar e Executaron
-Todos os cowin
-Todos eactivate
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-Todos os coma`p## 🎯 Gu VA## 🎯 emTodrsh
-Todos os comandos necessááReTodosat**Nota**: Este guia é para ea3*bi
---/C---
-
-## 📋 FASE 1: ???
 ---
 
-## al
-#ado---
+## 4) Migrações Alembic
 
-## 📋 FASE 
-?# St
+```powershell
+# Aplicar todas as migrações
+alembic upgrade head
+
+# Ver histórico
+alembic history
+
+# Ver migração atual
+alembic current
+
+# Criar nova migração (quando necessário)
+alembic revision -m "descricao_da_migracao"
+```
+
 ---
 
+## 5) Build do executável (32 bits)
 
-# ?--
+```powershell
+# Com ambiente ativo e dependências instaladas
+python .\build_exe_32bits.py
+```
 
-## 📋 FASE EN
-#nas
+Saída esperada:
+- Executável em `dist\Sistema32bits\PatientRegistration\PatientRegistration.exe`
+
+---
+
+## 6) Troubleshooting rápido
+
+```powershell
+# Verificar Python
+python --version
+
+# Verificar dependências
+pip check
+
+# Reinstalar dependências
+pip install -r requirements.txt --upgrade
+
+# Recriar banco local (CUIDADO: apaga dados)
+del .\instance\prontuario.db
+.\setup_windows.bat
+```
+
+Porta 5000 em uso:
+
+```powershell
+netstat -ano | findstr :5000
+```
+
+Especialidades/procedimentos não aparecem:
+
+```powershell
+.\verify_setup.bat
+python .\setup_init_data.py
+```
+
+---
+
+## 7) Comandos úteis no desenvolvimento
+
+```powershell
+# Rodar app direto em Python
+python run.py
+
+# Rodar servidor de produção local
+python server.py
+
+# Atualizar schema (utilitário do projeto)
+python update_db.py
+```
+
+---
+
+Última atualização: março/2026 (v2.6)
 

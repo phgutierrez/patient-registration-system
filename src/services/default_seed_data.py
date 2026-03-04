@@ -1,0 +1,26 @@
+"""Dados padrão compartilhados para seed inicial da aplicação."""
+
+ORTOPEDIA_PROCEDURES = [
+    ('Epifisiodese femoral proximal in situ',                                   '0408040130'),
+    ('Osteotomia da Pelve',                                                     '0408040157'),
+    ('Realinhamento do mecanismo extensor do joelho',                           '0408050128'),
+    ('Reducao Incruenta de Luxacao congenita coxofemoral',                      '0408040181'),
+    ('Revisao cirurgica do Pe torto congenito',                                 '0408050349'),
+    ('Tratamento cirurgico de luxacao coxofemoral congenita',                   '0408040327'),
+    ('Tratamento cirurgico de luxacao espontanea / progressiva / paralitica do quadril', '0408040343'),
+    ('Talectomia',                                                              '0408050365'),
+    ('Tratamento cirurgico de coalizao tarsal',                                 '0408050446'),
+    ('Tratamento cirurgico de pe cavo',                                         '0408050730'),
+    ('Tratamento cirurgico de pe plano valgo',                                  '0408050748'),
+    ('Tratamento cirurgico de pe torto congenito',                              '0408050764'),
+    ('Tratamento cirurgico de pe torto congenito inveterado',                   '0408050772'),
+    ('Tratamento cirurgico de pseudoartrose congenita da tibia',                '0408050853'),
+    ('Alongamento / Encurtamento miotendinoso',                                 '0408060018'),
+    ('Osteotomia de ossos longos exceto da mao e do pe',                        '0408060190'),
+    ('Resseccao de cisto sinovial',                                             '0408060212'),
+    ('Retirada de fio ou pino intra-osseo',                                     '0408060352'),
+    ('Retirada de Fixador externo',                                             '0408060360'),
+    ('Retirada de Placa e/ou parafusos',                                        '0408060379'),
+    ('Transposicao / Transferencia miotendinosa unica',                         '0408060549'),
+    ('Neurolise nao funcional',                                                 '0403020077'),
+]
