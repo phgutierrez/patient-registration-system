@@ -229,16 +229,28 @@ python run.py
 Para **implantação hospitalar multi-usuário**:
 
 ```bash
-# Opção 1: Script automatizado (recomendado)
+# Opção 1 (Windows): Script automatizado
 run_network.bat
 
-# Opção 2: Configuração manual
+# Opção 2 (Linux): Setup + execução de rede
+bash linux/setup_linux.sh
+bash linux/run_network.sh
+
+# Opção 3: Configuração manual (Windows)
 set SERVER_HOST=0.0.0.0
 set SERVER_PORT=5000
 set DESKTOP_MODE=false
 set FLASK_ENV=production
 waitress-serve --listen=0.0.0.0:5000 wsgi:application
 ```
+
+Para servidor Linux em produção (recomendado para TI hospitalar), use:
+- Gunicorn
+- systemd
+- Nginx (reverse proxy)
+- PostgreSQL
+
+Guia completo: [LINUX_DEPLOYMENT.md](docs/LINUX_DEPLOYMENT.md)
 
 **Acesso na Rede:**
 - **Servidor local**: http://localhost:5000
@@ -454,7 +466,7 @@ taskkill /PID <process_id> /F
 ### ⚠️ Limitações Conhecidas
 - **Sem autenticação avançada** - Sistema simples de seleção de usuário
 - **Sem logs de auditoria** - Rastreamento limitado de atividades
-- **Banco único** - Apenas SQLite (sem PostgreSQL/MySQL)
+- **Modo legado SQLite** - Ainda existe para cenários locais/simples
 - **Sem permissões de usuário** - Todos os usuários têm acesso completo
 - **Sem backup automatizado** - Backup manual necessário
 - **Viés para português brasileiro** - Alguns formulários/validações para o Brasil
@@ -462,7 +474,7 @@ taskkill /PID <process_id> /F
 ### 🔮 Roadmap
 - [ ] Controle de acesso baseado em papéis (Admin/Médico/Enfermeiro)
 - [ ] Logs de auditoria abrangentes
-- [ ] Suporte PostgreSQL para implantações maiores
+- [x] Suporte PostgreSQL para implantação Linux em rede
 - [ ] Integração LDAP/Active Directory
 - [ ] Agendamento de backup automatizado
 - [ ] Suporte multi-idioma (Inglês/Espanhol)
@@ -471,10 +483,11 @@ taskkill /PID <process_id> /F
 
 ### 🏥 Status de Implantação Hospitalar
 - ✅ **Windows Server pronto** - Testado no Windows 10/11/Server
+- ✅ **Linux Server pronto** - Fluxo com Gunicorn + systemd + Nginx documentado
 - ✅ **Otimizado para LAN** - Binding 0.0.0.0 com instruções de firewall
-- ✅ **Servidor de produção** - Waitress WSGI (sem servidor de desenvolvimento)
+- ✅ **Servidor de produção** - Waitress (Windows) e Gunicorn (Linux)
 - ✅ **Eficiente em recursos** - <50MB RAM, uso mínimo de CPU
-- ✅ **Persistência de dados** - SQLite com segurança de transação
+- ✅ **Persistência de dados** - PostgreSQL para ambiente Linux hospitalar
 - ⚠️ **Backup obrigatório** - Backup manual do banco necessário
 - ⚠️ **Servidor único** - Sem clustering/alta disponibilidade
 
@@ -483,6 +496,7 @@ taskkill /PID <process_id> /F
 ## 📖 Documentação Adicional
 
 - **[INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md)** - Guia completo de implantação hospitalar
+- **[LINUX_DEPLOYMENT.md](docs/LINUX_DEPLOYMENT.md)** - Guia Linux para TI (Gunicorn + systemd + Nginx + PostgreSQL)
 - **[QUICK_START.md](docs/QUICK_START.md)** - Guia rápido para começar em 3 passos
 - **[TROUBLESHOOTING_ESPECIALIDADES.md](docs/TROUBLESHOOTING_ESPECIALIDADES.md)** - Diagnóstico e soluções
 - **[.env.example](.env.example)** - Modelo de configuração com todas as variáveis

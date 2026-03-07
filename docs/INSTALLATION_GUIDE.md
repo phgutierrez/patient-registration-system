@@ -4,6 +4,8 @@
 
 *Guia completo de implantação para ambientes hospitalares/clínicas Windows*
 
+> Para implantação em servidor Linux (PostgreSQL + Gunicorn + systemd + Nginx), use o guia dedicado: [LINUX_DEPLOYMENT.md](LINUX_DEPLOYMENT.md).
+
 ---
 
 ## Sumário

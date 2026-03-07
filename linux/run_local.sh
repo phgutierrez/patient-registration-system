@@ -14,64 +14,24 @@ echo " INICIANDO - Modo LOCAL (Desktop)"
 echo "==============================================================================="
 echo ""
 echo "Configuracao:"
-echo "  - Servidor: Waitress (performance)"
+echo "  - Servidor: Gunicorn"
 echo "  - Acesso:   http://localhost:5000 (localhost apenas)"
 echo "  - Porta:    5000"
 echo "  - Debug:    OFF"
-echo "  - Auto-desligamento: ATIVADO"
+echo "  - Auto-desligamento: DESATIVADO"
 echo ""
 echo "==============================================================================="
 echo ""
 
 # ===================================================================
-# Verificacao 1: Banco de dados
-# ===================================================================
-echo "[VERIFICACAO] Procurando banco de dados..."
-
-if [ ! -f "instance/prontuario.db" ]; then
-    echo ""
-    echo "[ERRO] Banco de dados nao encontrado!"
-    echo "       Arquivo esperado: instance/prontuario.db"
-    echo ""
-    echo "Solucao:"
-    echo "  Execute primeiramente: bash linux/setup_linux.sh"
-    echo ""
-    exit 1
-fi
-
-echo "  [OK] Banco de dados encontrado"
-
-# ===================================================================
-# Verificacao 2: Arquivo de configuracao .env
+# Verificacao 1: Arquivo de configuracao .env
 # ===================================================================
 echo "[VERIFICACAO] Procurando arquivo .env..."
 
 if [ ! -f ".env" ]; then
-    echo "  [AVISO] Arquivo .env nao encontrado. Criando com configuracoes padrao..."
-    cat > .env << 'ENVEOF'
-# =================================================================
-# Patient Registration System - Configuracao do Ambiente
-# Gerado automaticamente pelo run_local.sh
-# =================================================================
-
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
-FLASK_ENV=production
-FLASK_DEBUG=0
-SERVER_HOST=127.0.0.1
-SERVER_PORT=5000
-DESKTOP_MODE=false
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
-GOOGLE_CALENDAR_TZ=America/Fortaleza
-CALENDAR_CACHE_TTL_SECONDS=60
-CALENDAR_CACHE_TTL_MINUTES=5
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
-GOOGLE_FORMS_TIMEOUT=10
-APPS_SCRIPT_SCHEDULER_URL=
-LIFECYCLE_TIMEOUT_SECONDS=30
-LIFECYCLE_HEARTBEAT_SECONDS=5
-ENVEOF
-    echo "  [OK] Arquivo .env criado com configuracoes padrao"
+    echo "[ERRO] Arquivo .env nao encontrado!"
+    echo "       Execute primeiro: bash linux/setup_linux.sh"
+    exit 1
 fi
 
 echo "  [OK] Arquivo .env encontrado"
@@ -113,11 +73,38 @@ echo "[CONFIGURACAO] Definindo variaveis de ambiente..."
 
 export SERVER_HOST=127.0.0.1
 export SERVER_PORT=5000
-export DESKTOP_MODE=true
+export DESKTOP_MODE=false
 export FLASK_ENV=production
 export FLASK_DEBUG=0
+export GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
+export GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
 
 echo "  [OK] Variaveis configuradas"
+echo ""
+
+# ===================================================================
+# Verificacao 3: Conectividade com banco configurado
+# ===================================================================
+echo "[VERIFICACAO] Testando conectividade com banco de dados..."
+
+if ! python3 - << 'PYEOF'
+from src.app import create_app
+from src.extensions import db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    db.session.execute(text('SELECT 1'))
+
+print('ok')
+PYEOF
+then
+    echo "[ERRO] Falha ao conectar no banco de dados configurado."
+    echo "       Verifique DATABASE_URL no .env e acesso ao PostgreSQL."
+    exit 1
+fi
+
+echo "  [OK] Banco de dados acessivel"
 echo ""
 
 # ===================================================================
@@ -144,9 +131,14 @@ echo "[NAVEGADOR] Abrindo http://localhost:$SERVER_PORT em 2 segundos..."
     || true) &
 
 # ===================================================================
-# Iniciar Servidor Waitress
+# Iniciar Servidor Gunicorn
 # ===================================================================
-waitress-serve --listen="$SERVER_HOST:$SERVER_PORT" wsgi:application
+gunicorn \
+    --bind "$SERVER_HOST:$SERVER_PORT" \
+    --workers "$GUNICORN_WORKERS" \
+    --timeout "$GUNICORN_TIMEOUT" \
+    --worker-tmp-dir /dev/shm \
+    wsgi:application
 
 # Se chegou aqui, servidor foi encerrado
 echo ""

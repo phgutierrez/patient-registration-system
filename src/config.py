@@ -21,7 +21,8 @@ class Config:
     INSTANCE_PATH.mkdir(exist_ok=True)
     
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = f'sqlite:///{INSTANCE_PATH}/prontuario.db'
+    _DEFAULT_SQLITE_URI = f'sqlite:///{INSTANCE_PATH}/prontuario.db'
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI') or _DEFAULT_SQLITE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Security

@@ -11,6 +11,19 @@ cd "$PROJECT_ROOT"
 
 set -e
 
+DEFAULT_SECRET_KEY="patient-reg-secret-key-2026-change-in-production"
+
+generate_secret_key() {
+    if command -v openssl > /dev/null 2>&1; then
+        openssl rand -hex 32
+    else
+        python3 - << 'PYEOF'
+import secrets
+print(secrets.token_hex(32))
+PYEOF
+    fi
+}
+
 echo ""
 echo "==============================================================================="
 echo " SETUP DO SISTEMA - Patient Registration System"
@@ -20,8 +33,8 @@ echo "Este script realizara tudo que eh necessario para rodar o sistema:"
 echo "  1. Verificar Python 3.9+"
 echo "  2. Criar ambiente virtual"
 echo "  3. Instalar dependencias"
-echo "  4. Criar banco de dados"
-echo "  5. Inserir dados iniciais"
+echo "  4. Validar pre-requisitos Linux (PostgreSQL/ODBC)"
+echo "  5. Aplicar migracoes + inserir dados iniciais"
 echo ""
 echo "==============================================================================="
 echo ""
@@ -92,18 +105,20 @@ fi
 # ===================================================================
 if [ ! -f ".env" ]; then
     echo "[PRE-SETUP] Criando arquivo .env com configuracoes padrao..."
+    GENERATED_SECRET_KEY="$(generate_secret_key)"
     cat > .env << 'ENVEOF'
 # =================================================================
 # Patient Registration System - Configuracao do Ambiente
 # Gerado automaticamente pelo setup_linux.sh
 # =================================================================
 
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
+SECRET_KEY=__GENERATED_SECRET_KEY__
 FLASK_ENV=production
 FLASK_DEBUG=0
 SERVER_HOST=127.0.0.1
 SERVER_PORT=5000
 DESKTOP_MODE=false
+DATABASE_URL=postgresql+psycopg2://postgres:troque-esta-senha@localhost:5432/patient_registration
 GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
 GOOGLE_CALENDAR_TZ=America/Fortaleza
 CALENDAR_CACHE_TTL_SECONDS=60
@@ -115,10 +130,44 @@ APPS_SCRIPT_SCHEDULER_URL=
 LIFECYCLE_TIMEOUT_SECONDS=30
 LIFECYCLE_HEARTBEAT_SECONDS=5
 ENVEOF
+    sed -i.bak "s|__GENERATED_SECRET_KEY__|${GENERATED_SECRET_KEY}|" .env && rm -f .env.bak
     echo "  [OK] Arquivo .env criado com sucesso"
 else
     echo "[PRE-SETUP] Arquivo .env ja existe (configuracoes preservadas)."
 fi
+echo ""
+
+# ===================================================================
+# PRE-SETUP: Validar configuracao obrigatoria para producao Linux
+# ===================================================================
+echo "[PRE-SETUP] Validando configuracoes obrigatorias do .env..."
+
+SECRET_KEY_VALUE="$(grep -E '^SECRET_KEY=' .env | tail -n 1 | cut -d '=' -f2-)"
+DATABASE_URL_VALUE="$(grep -E '^DATABASE_URL=' .env | tail -n 1 | cut -d '=' -f2-)"
+
+if [ -z "$SECRET_KEY_VALUE" ]; then
+    echo "[ERRO] SECRET_KEY nao definido no .env"
+    exit 1
+fi
+
+if [ "$SECRET_KEY_VALUE" = "$DEFAULT_SECRET_KEY" ]; then
+    echo "[ERRO] SECRET_KEY padrao detectado. Defina uma chave unica no .env antes de continuar."
+    exit 1
+fi
+
+if [ -z "$DATABASE_URL_VALUE" ]; then
+    echo "[ERRO] DATABASE_URL nao definido no .env"
+    echo "       Exemplo: postgresql+psycopg2://usuario:senha@host:5432/database"
+    exit 1
+fi
+
+if [[ "$DATABASE_URL_VALUE" != postgresql* ]]; then
+    echo "[ERRO] DATABASE_URL invalido para producao Linux. Use PostgreSQL."
+    echo "       Valor atual: $DATABASE_URL_VALUE"
+    exit 1
+fi
+
+echo "  [OK] .env validado para producao Linux"
 echo ""
 
 # ===================================================================
@@ -162,36 +211,49 @@ echo "  [OK] Dependencias instaladas com sucesso"
 echo ""
 
 # ===================================================================
-# PASSO 4: Criar Banco de Dados
+# PASSO 4: Validar pre-requisitos Linux (PostgreSQL/ODBC)
 # ===================================================================
-echo "[PASSO 4/5] Criando/Atualizando banco de dados..."
+echo "[PASSO 4/5] Validando pre-requisitos Linux..."
 
-python3 create_tables_direct.py || echo "  [AVISO] Erro ao criar tabelas (banco pode ja existir). Continuando..."
+if ! command -v psql > /dev/null 2>&1; then
+    echo "[ERRO] Comando 'psql' nao encontrado. Instale cliente PostgreSQL antes de continuar."
+    echo "  Ubuntu/Debian: sudo apt install postgresql-client"
+    echo "  RHEL/Fedora:   sudo dnf install postgresql"
+    exit 1
+fi
 
-echo "  [OK] Banco de dados criado/atualizado"
+if ! command -v odbcinst > /dev/null 2>&1; then
+    echo "[ERRO] Comando 'odbcinst' nao encontrado. pyodbc e obrigatorio neste ambiente."
+    echo "  Ubuntu/Debian: sudo apt install unixodbc unixodbc-dev"
+    echo "  RHEL/Fedora:   sudo dnf install unixODBC unixODBC-devel"
+    exit 1
+fi
+
+if ! python3 - << 'PYEOF'
+import pyodbc
+print(pyodbc.version)
+PYEOF
+then
+    echo "[ERRO] pyodbc nao esta funcional neste ambiente virtual."
+    echo "       Verifique unixODBC e drivers ODBC instalados no servidor."
+    exit 1
+fi
+
+echo "  [OK] Pre-requisitos PostgreSQL/ODBC verificados"
 echo ""
 
 # ===================================================================
-# PASSO 5: Inicializar Dados
+# PASSO 5: Aplicar migracoes + inicializar dados (idempotente)
 # ===================================================================
-echo "[PASSO 5/5] Inicializando dados do sistema..."
+echo "[PASSO 5/5] Aplicando migracoes e inicializando dados..."
 echo ""
+
+export FLASK_APP=src/app.py
+flask db upgrade
+
+echo "  [OK] Migracoes aplicadas com sucesso"
 
 python3 setup_init_data.py
-
-echo ""
-
-# ===================================================================
-# PASSO FINAL: Registrar estado das migracoes
-# ===================================================================
-echo "[FINAL] Registrando estado das migracoes..."
-
-if [ -d "migrations" ]; then
-    export FLASK_APP=src/app.py
-    flask db stamp head && \
-        echo "  [OK] Estado das migracoes registrado com sucesso" || \
-        echo "  [AVISO] Nao foi possivel registrar migracoes. O sistema deve funcionar normalmente."
-fi
 
 echo ""
 
@@ -204,7 +266,7 @@ echo "==========================================================================
 echo ""
 echo "Proximas acoes:"
 echo "  1. Execute  bash linux/run_local.sh    para modo local (localhost)"
-echo "  2. Ou execute  bash linux/run_network.sh   para modo rede (LAN)"
+echo "  2. Ou execute  bash linux/run_network.sh   para modo rede (Gunicorn)"
 echo ""
 echo "Acesso padrao:"
 echo "  - Local: http://localhost:5000"

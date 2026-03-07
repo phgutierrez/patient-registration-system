@@ -7,8 +7,9 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 ## 🚀 Comece aqui
 
 1. [QUICK_START.md](QUICK_START.md) — instalação e execução em poucos passos.
-2. [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) — implantação detalhada.
-3. [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md) — referência rápida de comandos.
+2. [Quick Start Linux TI (1 página)](QUICK_START.md#quick-start-linux-ti-1-página) — acesso direto para implantação Linux hospitalar.
+3. [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) — implantação detalhada.
+4. [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md) — referência rápida de comandos.
 
 ---
 
@@ -16,6 +17,8 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 ### Instalação e operação
 - [QUICK_START.md](QUICK_START.md)
+- [Quick Start Linux TI (1 página)](QUICK_START.md#quick-start-linux-ti-1-página)
+- [LINUX_DEPLOYMENT.md](LINUX_DEPLOYMENT.md)
 - [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)
 - [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md)
 

@@ -14,7 +14,7 @@ echo " INICIANDO - Modo REDE (LAN/Multi-usuario)"
 echo "==============================================================================="
 echo ""
 echo "Configuracao:"
-echo "  - Servidor: Waitress (performance)"
+echo "  - Servidor: Gunicorn (producao Linux)"
 echo "  - Acesso:   Rede LAN (0.0.0.0:5000)"
 echo "  - Porta:    5000"
 echo "  - Debug:    OFF"
@@ -24,57 +24,32 @@ echo "==========================================================================
 echo ""
 
 # ===================================================================
-# Verificacao 1: Banco de dados
-# ===================================================================
-echo "[VERIFICACAO] Procurando banco de dados..."
-
-if [ ! -f "instance/prontuario.db" ]; then
-    echo ""
-    echo "[ERRO] Banco de dados nao encontrado!"
-    echo "       Arquivo esperado: instance/prontuario.db"
-    echo ""
-    echo "Solucao:"
-    echo "  Execute primeiramente: bash linux/setup_linux.sh"
-    echo ""
-    exit 1
-fi
-
-echo "  [OK] Banco de dados encontrado"
-
-# ===================================================================
-# Verificacao 2: Arquivo de configuracao .env
+# Verificacao 1: Arquivo de configuracao .env
 # ===================================================================
 echo "[VERIFICACAO] Procurando arquivo .env..."
 
 if [ ! -f ".env" ]; then
-    echo "  [AVISO] Arquivo .env nao encontrado. Criando com configuracoes padrao..."
-    cat > .env << 'ENVEOF'
-# =================================================================
-# Patient Registration System - Configuracao do Ambiente
-# Gerado automaticamente pelo run_network.sh
-# =================================================================
-
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
-FLASK_ENV=production
-FLASK_DEBUG=0
-SERVER_HOST=0.0.0.0
-SERVER_PORT=5000
-DESKTOP_MODE=false
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
-GOOGLE_CALENDAR_TZ=America/Fortaleza
-CALENDAR_CACHE_TTL_SECONDS=60
-CALENDAR_CACHE_TTL_MINUTES=5
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
-GOOGLE_FORMS_TIMEOUT=10
-APPS_SCRIPT_SCHEDULER_URL=
-LIFECYCLE_TIMEOUT_SECONDS=30
-LIFECYCLE_HEARTBEAT_SECONDS=5
-ENVEOF
-    echo "  [OK] Arquivo .env criado com configuracoes padrao"
+    echo "[ERRO] Arquivo .env nao encontrado!"
+    echo "       Execute primeiro: bash linux/setup_linux.sh"
+    exit 1
 fi
 
 echo "  [OK] Arquivo .env encontrado"
+
+DEFAULT_SECRET_KEY="patient-reg-secret-key-2026-change-in-production"
+SECRET_KEY_VALUE="$(grep -E '^SECRET_KEY=' .env | tail -n 1 | cut -d '=' -f2-)"
+DATABASE_URL_VALUE="$(grep -E '^DATABASE_URL=' .env | tail -n 1 | cut -d '=' -f2-)"
+
+if [ -z "$SECRET_KEY_VALUE" ] || [ "$SECRET_KEY_VALUE" = "$DEFAULT_SECRET_KEY" ]; then
+    echo "[ERRO] SECRET_KEY invalido no .env. Defina uma chave unica antes de iniciar em rede."
+    exit 1
+fi
+
+if [ -z "$DATABASE_URL_VALUE" ] || [[ "$DATABASE_URL_VALUE" != postgresql* ]]; then
+    echo "[ERRO] DATABASE_URL invalido no .env. Em rede Linux use PostgreSQL."
+    echo "       Exemplo: DATABASE_URL=postgresql+psycopg2://usuario:senha@host:5432/database"
+    exit 1
+fi
 
 # ===================================================================
 # Verificacao 3: Ambiente virtual
@@ -116,8 +91,35 @@ export SERVER_PORT=5000
 export DESKTOP_MODE=false
 export FLASK_ENV=production
 export FLASK_DEBUG=0
+export GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}"
+export GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
 
 echo "  [OK] Variaveis configuradas"
+echo ""
+
+# ===================================================================
+# Verificacao 4: Conectividade com banco configurado
+# ===================================================================
+echo "[VERIFICACAO] Testando conectividade com banco de dados..."
+
+if ! python3 - << 'PYEOF'
+from src.app import create_app
+from src.extensions import db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    db.session.execute(text('SELECT 1'))
+
+print('ok')
+PYEOF
+then
+    echo "[ERRO] Falha ao conectar no banco de dados configurado."
+    echo "       Verifique DATABASE_URL no .env e acesso ao PostgreSQL."
+    exit 1
+fi
+
+echo "  [OK] Banco de dados acessivel"
 echo ""
 
 # ===================================================================
@@ -150,17 +152,14 @@ echo "==========================================================================
 echo ""
 
 # ===================================================================
-# Abrir Navegador Automaticamente
+# Iniciar Servidor Gunicorn
 # ===================================================================
-echo "[NAVEGADOR] Abrindo http://localhost:$SERVER_PORT em 2 segundos..."
-(sleep 2 && xdg-open "http://localhost:$SERVER_PORT" 2>/dev/null \
-    || open "http://localhost:$SERVER_PORT" 2>/dev/null \
-    || true) &
-
-# ===================================================================
-# Iniciar Servidor Waitress
-# ===================================================================
-waitress-serve --listen="$SERVER_HOST:$SERVER_PORT" wsgi:application
+gunicorn \
+    --bind "$SERVER_HOST:$SERVER_PORT" \
+    --workers "$GUNICORN_WORKERS" \
+    --timeout "$GUNICORN_TIMEOUT" \
+    --worker-tmp-dir /dev/shm \
+    wsgi:application
 
 # Se chegou aqui, servidor foi encerrado
 echo ""
