@@ -1,7 +1,6 @@
 """
 Mapeamento de campos do Google Forms
-Extraído da URL pública do formulário: 
-https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform
+Extraído do formulário público configurado para o fluxo hospitalar.
 
 MAPEAMENTO CORRETO (6 campos obrigatórios):
 1. Ortopedista           = entry.754547293      [dropdown obrigatório]
@@ -25,5 +24,4 @@ FORMS_MAPPING = {
 def get_forms_mapping():
     """Retorna o mapeamento correto de campos do Forms"""
     return FORMS_MAPPING.copy()
-
 

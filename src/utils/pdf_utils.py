@@ -79,6 +79,12 @@ def get_pdf_fields(pdf_path):
         return {}
 
 
+def _get_protected_output_dir():
+    output_dir = Path(current_app.config['PROTECTED_PDF_DIR'])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
 def preencher_formulario_internacao(patient, surgery_data):
     """
     Preenche o formulário de internação com os dados do paciente e da cirurgia
@@ -105,8 +111,7 @@ def preencher_formulario_internacao(patient, surgery_data):
             raise FileNotFoundError(error_msg)
 
         # Criar diretório para PDFs preenchidos se não existir
-        output_dir = base_dir / 'static' / 'preenchidos'
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = _get_protected_output_dir()
         logger.info(f"Diretório de saída: {output_dir}")
 
         # Nome do arquivo de saída - Incluindo ID da cirurgia
@@ -428,9 +433,7 @@ def preencher_formulario_internacao_direto(paciente, cirurgia, dados_medicos):
         # Caminhos dos arquivos
         template_path = os.path.join(
             current_app.root_path, 'static', 'Internacao.pdf')
-        output_dir = os.path.join(
-            current_app.root_path, 'static', 'preenchidos')
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = str(_get_protected_output_dir())
 
         # Nome do arquivo de saída
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -610,8 +613,7 @@ def preencher_requisicao_hemocomponente(patient, surgery_data):
             raise FileNotFoundError(error_msg)
 
         # Criar diretório para PDFs preenchidos se não existir
-        output_dir = base_dir / 'static' / 'preenchidos'
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir = _get_protected_output_dir()
         logger.info(f"Diretório de saída: {output_dir}")
 
         # Nome do arquivo de saída

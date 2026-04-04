@@ -12,6 +12,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     full_name = db.Column(db.String(100), nullable=False, server_default='')
     cns = db.Column(db.String(15), nullable=True, unique=True,
@@ -22,21 +23,33 @@ class User(UserMixin, db.Model):
     # Especialidade vinculada (ortopedia por padrão)
     specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True)
     specialty = db.relationship('Specialty', back_populates='users', foreign_keys=[specialty_id])
+    created_surgery_requests = db.relationship(
+        'SurgeryRequest',
+        back_populates='created_by_user',
+        foreign_keys='SurgeryRequest.created_by_user_id',
+        lazy=True,
+    )
 
-    def __init__(self, username, password, full_name, role='user', cns=None, crm=None, specialty_id=None):
+    def __init__(self, username, password, full_name, role='user', cns=None, crm=None,
+                 specialty_id=None, must_change_password=False):
         self.username = username
         self.set_password(password)
         self.full_name = full_name
-        self.role = role
+        self.role = (role or 'user').lower()
         self.cns = cns
         self.crm = crm
         self.specialty_id = specialty_id
+        self.must_change_password = must_change_password
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_admin(self):
+        return (self.role or '').lower() == 'admin'
 
     def __repr__(self):
         return f'<User {self.username}>'

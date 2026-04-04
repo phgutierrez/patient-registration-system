@@ -20,10 +20,9 @@ from .forms_mapping import get_forms_mapping
 import time
 
 
-# ISSUE 1 FIX: Default Google Forms configuration - works out of the box
 def get_forms_configuration() -> Tuple[str, str]:
     """
-    Get Google Forms configuration with fallback to defaults.
+    Resolve a configuração do Google Forms para submissão automatizada.
     
     Returns:
         Tuple[str, str]: (public_id, view_url)
@@ -31,7 +30,8 @@ def get_forms_configuration() -> Tuple[str, str]:
     This function implements the configuration precedence:
     1) If GOOGLE_FORMS_VIEWFORM_URL is in env: extract PUBLIC_ID from it
     2) Else if GOOGLE_FORMS_PUBLIC_ID is in env: build VIEWFORM URL from it  
-    3) Else: use DEFAULT constants (embedded in config.py)
+    3) Else: use DEFAULT constants from config.py quando o deploy optar por
+       um fallback embutido. Neste repositório, o padrão é vazio.
     """
     public_id = current_app.config.get('GOOGLE_FORMS_PUBLIC_ID')
     view_url = current_app.config.get('GOOGLE_FORMS_VIEWFORM_URL')
@@ -56,18 +56,17 @@ def get_forms_configuration() -> Tuple[str, str]:
         current_app.logger.info(f"Using Google Forms PUBLIC_ID from .env: {public_id}")
         return public_id, view_url
     
-    # Fall back to defaults (this should always work for production EXE)
+    # Fall back to defaults only when the deployment explicitly embeds them.
     default_public_id = current_app.config.get('DEFAULT_GOOGLE_FORMS_PUBLIC_ID')
     default_view_url = current_app.config.get('DEFAULT_GOOGLE_FORMS_VIEWFORM_URL')
     
     if default_public_id and default_view_url:
-        current_app.logger.warning(
-            "Using built-in Google Forms configuration (no .env override found). "
+        current_app.logger.info(
+            "Using embedded Google Forms configuration (no .env override found). "
             f"Form ID: {default_public_id[:8]}..."
         )
         return default_public_id, default_view_url
     
-    # This should never happen in production, but handle gracefully
     current_app.logger.error("No Google Forms configuration found (neither env vars nor defaults)")
     raise ValueError("Google Forms not configured and no defaults available")
 
@@ -84,7 +83,7 @@ def get_public_form_html(form_id: str, timeout: int = 10) -> str:
     NÃO o ID de edição (formato /d/<ID_EDICAO>/edit).
     
     Args:
-        form_id: ID do formulário (ex: 1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg)
+        form_id: ID do formulário (ex: SEU_ID_PUBLICO_DO_FORMS)
         timeout: Timeout em segundos
         
     Returns:

@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.app import create_app
 from src.extensions import db
+from src.runtime_security import ensure_security_schema
 
 
 class SchemaChecker:
@@ -98,6 +99,24 @@ class SchemaChecker:
                 missing_columns.append(column_name)
         
         return missing_columns
+
+    def check_security_columns(self):
+        required_columns = {
+            ('users', 'must_change_password'): 'flag para troca obrigatória de senha',
+            ('patient', 'specialty_id'): 'escopo da especialidade do paciente',
+            ('surgery_requests', 'created_by_user_id'): 'autor da solicitação',
+        }
+
+        self.log("Verificando colunas de segurança...", 'CHECK')
+        missing_columns = []
+        for (table_name, column_name), _description in required_columns.items():
+            exists = self.check_column_exists(table_name, column_name)
+            if exists:
+                self.log(f"  • {table_name}.{column_name}: OK", 'OK')
+            else:
+                self.log(f"  • {table_name}.{column_name}: FALTANDO", 'ERROR')
+                missing_columns.append(f'{table_name}.{column_name}')
+        return missing_columns
     
     def run_migration(self):
         """Executa alembic upgrade head."""
@@ -140,6 +159,7 @@ class SchemaChecker:
         
         # 1. Verificar colunas
         missing_columns = self.check_surgery_request_columns()
+        missing_columns.extend(self.check_security_columns())
         
         print()
         
@@ -157,6 +177,7 @@ class SchemaChecker:
         if auto_migrate:
             self.log("AUTO_MIGRATE=true detectado. Executando migração automática...", 'INFO')
             print()
+            ensure_security_schema(self.app)
             
             if self.run_migration():
                 print()
@@ -165,6 +186,7 @@ class SchemaChecker:
                 # Verificar novamente
                 print()
                 missing_columns_after = self.check_surgery_request_columns()
+                missing_columns_after.extend(self.check_security_columns())
                 if not missing_columns_after:
                     print()
                     self.log("✅ Todas as colunas estão presentes!", 'OK')

@@ -762,6 +762,7 @@
                         <span class="nav-text">Agenda Cirúrgica</span>
                     </a>
                 </li>
+                {% if current_user.is_admin %}
                 <li class="nav-item">
                     <a href="{{ url_for('auth.register_user') }}" class="nav-link">
                         <i class="fas fa-user-cog"></i>
@@ -774,6 +775,7 @@
                         <span class="nav-text">Configurações</span>
                     </a>
                 </li>
+                {% endif %}
                 {% else %}
                 <li class="nav-item">
                     <a href="{{ url_for('auth.select_user') }}" class="nav-link">
@@ -781,14 +783,6 @@
                         <span class="nav-text">Entrar</span>
                     </a>
                 </li>
-                {% if active_specialty %}
-                <li class="nav-item">
-                    <a href="{{ url_for('auth.register_user') }}" class="nav-link">
-                        <i class="fas fa-user-plus"></i>
-                        <span class="nav-text">Cadastrar Solicitante</span>
-                    </a>
-                </li>
-                {% endif %}
                 {% endif %}
             </ul>
         </nav>

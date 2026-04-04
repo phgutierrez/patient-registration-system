@@ -15,6 +15,7 @@ try:
     from src.models.user import User
     from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
     from src.services.default_seed_data import ORTOPEDIA_PROCEDURES
+    from src.runtime_security import bootstrap_admin_if_configured
     from sqlalchemy import inspect as sa_inspect
 except ImportError as e:
     print(f"   [ERRO] Falha ao importar modulos: {e}")
@@ -36,7 +37,7 @@ with app.app_context():
     print()
 
     now = datetime.utcnow()
-    calendar_id = os.getenv('GOOGLE_CALENDAR_ID', 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com').strip()
+    calendar_id = (os.getenv('GOOGLE_CALENDAR_ID') or '').strip()
     default_ortopedia_agenda_url = (
         os.getenv('ORTOPEDIA_AGENDA_URL')
         or os.getenv('GOOGLE_CALENDAR_ICS_URL')
@@ -67,11 +68,11 @@ with app.app_context():
         if not ortopedia_settings:
             db.session.add(SpecialtySettings(
                 specialty_id=ortopedia.id,
-                forms_url='https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform',
+                forms_url=(os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip(),
                 agenda_url=default_ortopedia_agenda_url,
                 created_at=now, updated_at=now,
             ))
-            print("       + SpecialtySettings: Ortopedia (forms_url e agenda_url pre-configurados)")
+            print("       + SpecialtySettings: Ortopedia (agenda/forms a partir do ambiente, quando configurados)")
         elif not (ortopedia_settings.agenda_url or '').strip() and default_ortopedia_agenda_url:
             ortopedia_settings.agenda_url = default_ortopedia_agenda_url
             ortopedia_settings.updated_at = now
@@ -116,24 +117,12 @@ with app.app_context():
     print("   - Verificando usuarios...")
     user_count = User.query.count()
     if user_count == 0:
-        spec_id = ortopedia.id if ortopedia else 1
-        for uname, fname in [
-            ('pedro',   'Pedro Freitas'),
-            ('andre',   'Andre Cristiano'),
-            ('brauner', 'Brauner Cavalcanti'),
-            ('savio',   'Savio Bruno'),
-            ('laecio',  'Laecio Damaceno'),
-        ]:
-            db.session.add(User(
-                username=uname, password='123456',
-                full_name=fname, specialty_id=spec_id, role='solicitante'
-            ))
-            print(f"       + {uname} ({fname})")
-        print("   [OK] Usuarios criados")
+        print("   [OK] Nenhum usuario padrao inseguro sera criado")
     else:
         print(f"   [OK] {user_count} usuario(s) ja existe(m)")
 
     db.session.commit()
+    bootstrap_admin_if_configured(app)
 
     print()
     print("   [OK] Dados inicializados com sucesso!")

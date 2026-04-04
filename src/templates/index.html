@@ -55,6 +55,7 @@
         </div>
 
         <!-- Card Cadastrar Usuário -->
+        {% if current_user.is_admin %}
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 border-0 shadow-sm hover-card clickable-card" data-href="{{ url_for('auth.register_user') }}">
                 <div class="card-body text-center p-4">
@@ -69,6 +70,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Informações Rápidas -->
@@ -142,10 +144,12 @@
                     e.preventDefault();
                     window.location.href = "{{ url_for('patients.list_patients') }}";
                     break;
+                {% if current_user.is_admin %}
                 case 'u':
                     e.preventDefault();
                     window.location.href = "{{ url_for('auth.register_user') }}";
                     break;
+                {% endif %}
             }
         }
     });

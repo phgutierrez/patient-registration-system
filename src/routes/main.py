@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, jsonify, request, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from src.services.specialty_service import (
     get_active_specialty_slug, set_active_specialty_slug, get_active_specialty,
 )
 from src.models.specialty import Specialty
+from src.extensions import limiter
+from src.runtime_security import require_admin
 import os
 import sys
 import threading
@@ -39,6 +41,9 @@ def select_specialty():
     sp = Specialty.query.filter_by(slug=slug, is_active=True).first()
     if not sp:
         flash('Especialidade inválida.', 'error')
+        return redirect(url_for('main.index'))
+    if not current_user.is_admin and current_user.specialty_id and current_user.specialty_id != sp.id:
+        flash('Você só pode acessar a especialidade vinculada ao seu usuário.', 'error')
         return redirect(url_for('main.index'))
     set_active_specialty_slug(slug)
     flash(f'Especialidade ativa: {sp.name}', 'success')
@@ -110,6 +115,7 @@ def shutdown():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @main.route('/agenda')
+@login_required
 def agenda():
     """Exibe a agenda cirúrgica a partir do Google Calendar (ICS)"""
     from src.services.calendar_service import CalendarService
@@ -336,18 +342,19 @@ def agenda():
     except Exception as e:
         logger.error(f"Erro ao exibir agenda: {e}", exc_info=True)
         return render_template('agenda.html', 
-                               error=f"Erro ao carregar agenda: {str(e)}",
-                               view='week',
-                               start_date=date.today().isoformat(),
-                               end_date=(date.today() + timedelta(days=7)).isoformat(),
-                               grouped_events={},
-                               sorted_dates=[],
-                               meta_source='error',
-                               total_events=0), 500
+                           error="Erro ao carregar agenda.",
+                           view='week',
+                           start_date=date.today().isoformat(),
+                           end_date=(date.today() + timedelta(days=7)).isoformat(),
+                           grouped_events={},
+                           sorted_dates=[],
+                           meta_source='error',
+                           total_events=0), 500
 
 
 @main.route('/agenda/cache/refresh', methods=['POST'])
 @login_required
+@require_admin
 def refresh_calendar_cache():
     """Force refresh of calendar cache"""
     from src.services.calendar_cache_service import get_calendar_cache_service
@@ -369,12 +376,13 @@ def refresh_calendar_cache():
         logger.exception("Error refreshing calendar cache")
         return jsonify({
             'ok': False,
-            'error': f'Failed to refresh calendar cache: {str(e)}'
+            'error': 'Failed to refresh calendar cache'
         }), 500
 
 
 @main.route('/agenda/cache/info', methods=['GET'])
 @login_required
+@require_admin
 def calendar_cache_info():
     """Get calendar cache information"""
     from src.services.calendar_cache_service import get_calendar_cache_service
@@ -405,11 +413,13 @@ def calendar_cache_info():
         logger.exception("Error getting calendar cache info")
         return jsonify({
             'ok': False,
-            'error': f'Failed to get calendar cache info: {str(e)}'
+            'error': 'Failed to get calendar cache info'
         }), 500
 
 
 @main.route('/agenda/events/status', methods=['POST'])
+@login_required
+@limiter.limit('30 per minute')
 def update_event_status():
     """Atualiza o status de um evento (Realizada/Suspensa)"""
     from src.extensions import db
@@ -482,4 +492,4 @@ def update_event_status():
     
     except Exception as e:
         logger.error(f"Erro ao atualizar status do evento: {e}", exc_info=True)
-        return jsonify({'ok': False, 'error': f'Erro ao atualizar status: {str(e)}'}), 500
+        return jsonify({'ok': False, 'error': 'Erro ao atualizar status do evento'}), 500

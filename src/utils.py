@@ -1,15 +1,17 @@
-# This file contains utility functions that can be used throughout the application.
+from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
+
 
 def hash_password(password: str) -> str:
-    """Hash a password for storing."""
-    import hashlib
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Mantido por compatibilidade; usa Werkzeug em vez de SHA-256 simples."""
+    return generate_password_hash(password)
+
 
 def verify_password(stored_password: str, provided_password: str) -> bool:
-    """Verify a stored password against one provided by user."""
-    return stored_password == hash_password(provided_password)
+    """Valida hashes gerados pelo Werkzeug."""
+    return check_password_hash(stored_password, provided_password)
 
-def generate_token(length: int = 16) -> str:
-    """Generate a random token for session management."""
-    import os
-    return os.urandom(length).hex()
+
+def generate_token(length: int = 32) -> str:
+    """Gera token criptograficamente seguro para fluxos temporários."""
+    return secrets.token_hex(length)

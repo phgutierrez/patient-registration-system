@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from src.models.user import User
 from src.models.patient import Patient
 from src.models.surgery_request import SurgeryRequest
 from src.models.specialty import Specialty
+from src.runtime_security import bootstrap_admin_if_configured
 
 def init_db():
     """Inicializar o banco de dados com todos os modelos atuais"""
@@ -49,7 +51,7 @@ def init_db():
         # Criar settings para cada especialidade
         try:
             from src.models.specialty import SpecialtySettings
-            forms_url_ortopedia = 'https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform'
+            forms_url_ortopedia = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
             for i, spec in enumerate(specialties):
                 setting = SpecialtySettings(
                     specialty_id=spec.id,
@@ -62,30 +64,8 @@ def init_db():
         except Exception as e:
             print(f"  [AVISO] Não foi possível criar specialty_settings: {e}")
         
-        # Criar usuários iniciais
-        print("Criando usuários iniciais...")
-        
-        users_data = [
-            {'username': 'pedro', 'full_name': 'Pedro Freitas', 'cns': None, 'crm': None},
-            {'username': 'andre', 'full_name': 'André Cristiano', 'cns': None, 'crm': None},
-            {'username': 'brauner', 'full_name': 'Brauner Cavalcanti', 'cns': None, 'crm': None},
-            {'username': 'savio', 'full_name': 'Sávio Bruno', 'cns': None, 'crm': None},
-            {'username': 'laecio', 'full_name': 'Laecio Damaceno', 'cns': None, 'crm': None},
-        ]
-        
-        for user_data in users_data:
-            user = User(
-                username=user_data['username'],
-                password='123456',  # Senha padrão
-                full_name=user_data['full_name'],
-                cns=user_data['cns'],
-                crm=user_data['crm'],
-                specialty_id=specialties[0].id,  # Ortopedia por padrão
-                role='solicitante'
-            )
-            db.session.add(user)
-        
         db.session.commit()
+        bootstrap_admin_if_configured(app)
         
         print("""
 ✅ Banco de dados inicializado com sucesso!
@@ -94,13 +74,9 @@ Especialidades criadas:
 - Ortopedia
 - Cirurgia Pediátrica
 
-Usuários criados:
-- Pedro Freitas
-- André Cristiano
-- Brauner Cavalcanti
-- Sávio Bruno
-- Laecio Damaceno
-Senha padrão: 123456
+Usuários iniciais:
+- Nenhum solicitante padrão é criado automaticamente
+- Defina ADMIN_BOOTSTRAP_USERNAME e ADMIN_BOOTSTRAP_PASSWORD para semear o primeiro admin
         """)
 
 if __name__ == "__main__":
