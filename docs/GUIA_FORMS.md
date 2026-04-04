@@ -60,7 +60,7 @@ field_names = [
 
 ```env
 # Obrigatório
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+GOOGLE_FORMS_EDIT_ID=SEU_ID_DE_EDICAO_DO_FORMS
 
 # Opcional
 GOOGLE_FORMS_TIMEOUT=10

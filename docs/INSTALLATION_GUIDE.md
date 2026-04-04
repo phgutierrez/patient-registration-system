@@ -75,9 +75,11 @@ O script fará automaticamente:
 - **Local**: http://localhost:5000
 - **Rede**: http://seu-servidor-ip:5000
 
-**Login padrão:**
-- Usuário: `pedro` (ou andre, brauner, savio, laecio)
-- Senha: `123456`
+**Acesso inicial recomendado:**
+- Copie `.env.example` para `.env` se necessário
+- Defina `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
+- Faça o primeiro login com o administrador bootstrap
+- O sistema exigirá troca de senha na primeira entrada
 
 ---
 
@@ -109,12 +111,12 @@ O script fará automaticamente:
 - **DNS**: Resolução de hostname para o servidor (opcional mas recomendado)
 
 ### 1.4 Pré-requisitos de Software
-**Python 3.9 ou posterior** (se usando método de instalação Python):
+**Python 3.10 ou posterior** (se usando método de instalação Python):
 ```powershell
 # Download de: https://www.python.org/downloads/
 # Ou verificar se instalado:
 python --version
-# Deve mostrar Python 3.9.x ou posterior
+# Deve mostrar Python 3.10.x ou posterior
 ```
 
 **Git** (opcional, para atualizações):
@@ -205,9 +207,9 @@ Se sua organização exigir instalações portáveis:
 
 ### 4.1 Criar Arquivo de Ambiente
 
-> **Nota:** O `setup_windows.bat` e o `run_local.bat` criam o `.env` automaticamente com valores padrão caso ele não exista. Não é necessário criar manualmente para uso básico.
+> **Nota:** Os scripts copiam `.env.example` para `.env` quando necessário. Depois disso, revise o arquivo e configure `ADMIN_BOOTSTRAP_*` antes do primeiro login.
 
-Se precisar personalizar (ex: outro Calendar ID, chave secreta própria):
+Se precisar personalizar (ex: bootstrap admin, calendário, chave secreta própria):
 ```powershell
 # Editar com notepad
 notepad .env
@@ -223,8 +225,9 @@ notepad .env
 
 **Configuração Básica:**
 ```properties
-# Segurança Flask (OBRIGATÓRIO - Gerar chave única)
-SECRET_KEY=chave-secreta-unica-hospital-mude-isso-2026
+# Segurança Flask
+# Pode ficar em branco no bootstrap local; em produção use valor forte e estável.
+SECRET_KEY=
 
 # Ambiente Flask
 FLASK_ENV=production
@@ -235,16 +238,22 @@ SERVER_HOST=0.0.0.0          # Ouvir em todas as interfaces
 SERVER_PORT=5000             # Porta padrão, mude se necessário
 DESKTOP_MODE=false           # Desabilitar auto-desligamento para LAN
 
+# Bootstrap do primeiro administrador
+ADMIN_BOOTSTRAP_USERNAME=admin.local
+ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
+ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
+ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
+
 # Banco de Dados (Opcional - usa localização SQLite padrão)
 # SQLALCHEMY_DATABASE_URI=sqlite:///instance/prontuario.db
 ```
 
-**Integração Google Calendar (OBRIGATÓRIO):**
+**Integração Google Calendar (OPCIONAL):**
 ```properties
 # Obter em Configurações do Google Calendar → Integrar Calendário
-GOOGLE_CALENDAR_ID=calendario-hospital@group.calendar.google.com
+GOOGLE_CALENDAR_ID=SEU_CALENDARIO@group.calendar.google.com
 GOOGLE_CALENDAR_TZ=America/Fortaleza                # Ou seu fuso horário
-GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/SEU_ID_CALENDARIO/public/basic.ics
+GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/SEU_CALENDARIO_ID/public/basic.ics
 
 # Configurações de cache (60 segundos = atualização a cada 1 minuto)
 CALENDAR_CACHE_TTL_SECONDS=60
@@ -253,7 +262,7 @@ CALENDAR_CACHE_TTL_SECONDS=60
 **Automação Google Forms (OPCIONAL):**
 ```properties
 # Para agendamento automático de cirurgias
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLSc...seu-id-publico-form
+GOOGLE_FORMS_PUBLIC_ID=SEU_ID_PUBLICO_DO_FORMULARIO
 GOOGLE_FORMS_VIEWFORM_URL=https://docs.google.com/forms/d/e/SEU_ID_PUBLICO/viewform
 GOOGLE_FORMS_TIMEOUT=10
 ```
@@ -480,9 +489,10 @@ remove-item instance\prontuario.db
 
 2. **Acesse o sistema:** http://localhost:5000 (ou http://seu-ip:5000)
 
-3. **Login com credenciais padrão:**
-   - Usuário: `pedro` (ou outro usuário disponível)
-   - Senha: `123456`
+3. **Login com o administrador bootstrap:**
+   - Usuário: valor configurado em `ADMIN_BOOTSTRAP_USERNAME`
+   - Senha: valor configurado em `ADMIN_BOOTSTRAP_PASSWORD`
+   - Na primeira entrada, a troca de senha será obrigatória
 
 4. **Navegue para:** Menu → Configurações → Especialidades
 
@@ -512,16 +522,16 @@ Para cada especialidade (ex: Ortopedia, Cirurgia Pediátrica):
 
 ```
 Especialidade: Ortopedia
-├─ URL Agenda: https://calendar.google.com/calendar/ical/hospital-ortopedia%40group.calendar.google.com/public/basic.ics
-└─ URL Formulário: https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform
+├─ URL Agenda: https://calendar.google.com/calendar/ical/SEU_CALENDARIO_ORTOPEDIA/public/basic.ics
+└─ URL Formulário: https://docs.google.com/forms/d/e/SEU_FORM_ORTOPEDIA/viewform
 ```
 
 #### Exemplo: Configurar Cirurgia Pediátrica
 
 ```
 Especialidade: Cirurgia Pediátrica
-├─ URL Agenda: https://calendar.google.com/calendar/ical/hospital-cipe%40group.calendar.google.com/public/basic.ics
-└─ URL Formulário: https://docs.google.com/forms/d/e/1FAIpQLTd.../viewform
+├─ URL Agenda: https://calendar.google.com/calendar/ical/SEU_CALENDARIO_CIPE/public/basic.ics
+└─ URL Formulário: https://docs.google.com/forms/d/e/SEU_FORM_CIPE/viewform
 ```
 
 #### Verificar Configuração
@@ -1146,8 +1156,9 @@ forfiles /p "\\NetworkShare\\PatientRegistrationBackups" /d -30 /c "cmd /c rmdir
 # Sistema de Registro de Pacientes - Template de Configuração Hospitalar
 # =================================================================
 
-# Segurança Flask (OBRIGATÓRIO - Gerar chave única para seu hospital)
-SECRET_KEY=chave-secreta-unica-hospital-mude-isso-2026-string-aleatoria-muito-longa
+# Segurança Flask
+# Pode ficar em branco no bootstrap local; em produção use valor forte e estável.
+SECRET_KEY=
 
 # Ambiente Flask
 FLASK_ENV=production
@@ -1162,8 +1173,8 @@ DESKTOP_MODE=false                     # false para LAN/multi-usuário, true par
 # SQLALCHEMY_DATABASE_URI=sqlite:///instance/prontuario.db
 # SQLALCHEMY_ENGINE_OPTIONS={"pool_timeout": 20, "pool_recycle": -1}
 
-# Integração Google Calendar (OBRIGATÓRIO)
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
+# Integração Google Calendar (OPCIONAL)
+GOOGLE_CALENDAR_ID=
 GOOGLE_CALENDAR_TZ=America/Fortaleza   # Ou America/Sao_Paulo, America/New_York, etc.
 GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/SEU_ID_CALENDARIO/public/basic.ics
 
@@ -1172,7 +1183,7 @@ CALENDAR_CACHE_TTL_SECONDS=60          # 60 = atualização a cada 1 minuto
 CALENDAR_CACHE_TTL_MINUTES=5           # Configuração legada (usar SECONDS ao invés)
 
 # Integração Google Forms (OPCIONAL - para agendamento automático)
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+GOOGLE_FORMS_PUBLIC_ID=
 GOOGLE_FORMS_VIEWFORM_URL=https://docs.google.com/forms/d/e/ID_PUBLICO/viewform
 GOOGLE_FORMS_TIMEOUT=10                # Timeout em segundos para envio do formulário
 
@@ -1309,7 +1320,7 @@ Para suporte técnico ou assistência na implantação:
 
 **Lista de Verificação de Implantação:**
 - [ ] Servidor atende requisitos de hardware
-- [ ] Python 3.9+ instalado e funcionando
+- [ ] Python 3.10+ instalado e funcionando
 - [ ] Banco de dados criado e acessível
 - [ ] Arquivo .env configurado com todas as variáveis obrigatórias
 - [ ] Regra do Windows Firewall criada e testada

@@ -78,7 +78,7 @@ Novo serviço para submissão ao Google Forms.
 Baixa o HTML público do Google Forms para extrair entry IDs.
 
 **Parâmetros:**
-- `form_id`: ID do formulário (ex: `1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw`)
+- `form_id`: ID do formulário (ex: `SEU_ID_PUBLICO_DO_FORMS`)
 - `timeout`: Timeout em segundos
 
 **Retorna:** HTML completo do formulário
@@ -222,7 +222,7 @@ python scripts/extract_forms_entries.py
 
 **Exemplo de saída:**
 ```
-📋 ID do Forms: 1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+📋 ID do Forms: SEU_ID_PUBLICO_DO_FORMS
 
 ⬇️  Baixando HTML do Google Forms...
 ✅ HTML baixado com sucesso (125,432 bytes)
@@ -259,7 +259,7 @@ opme_outro         | entry.567890.other_option_response | OPME - Outro (texto)
 **Novas:**
 ```env
 # Google Forms para agendamento
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
+GOOGLE_FORMS_EDIT_ID=SEU_ID_DE_EDICAO_DO_FORMS
 GOOGLE_FORMS_PUBLIC_ID=  # Opcional: /d/e/<PUBLIC_ID>/viewform
 GOOGLE_FORMS_TIMEOUT=10
 ```
@@ -279,7 +279,7 @@ APPS_SCRIPT_SCHEDULER_URL = os.getenv('APPS_SCRIPT_SCHEDULER_URL', None)
 **Depois:**
 ```python
 # Google Forms Configuration (para agendamento automático)
-GOOGLE_FORMS_EDIT_ID = os.getenv('GOOGLE_FORMS_EDIT_ID', '1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw')
+GOOGLE_FORMS_EDIT_ID = os.getenv('GOOGLE_FORMS_EDIT_ID', '')
 GOOGLE_FORMS_PUBLIC_ID = os.getenv('GOOGLE_FORMS_PUBLIC_ID', None)
 GOOGLE_FORMS_TIMEOUT = int(os.getenv('GOOGLE_FORMS_TIMEOUT', '10'))
 

@@ -47,31 +47,10 @@ echo "  [OK] Banco de dados encontrado"
 echo "[VERIFICACAO] Procurando arquivo .env..."
 
 if [ ! -f ".env" ]; then
-    echo "  [AVISO] Arquivo .env nao encontrado. Criando com configuracoes padrao..."
-    cat > .env << 'ENVEOF'
-# =================================================================
-# Patient Registration System - Configuracao do Ambiente
-# Gerado automaticamente pelo run_network.sh
-# =================================================================
-
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
-FLASK_ENV=production
-FLASK_DEBUG=0
-SERVER_HOST=0.0.0.0
-SERVER_PORT=5000
-DESKTOP_MODE=false
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
-GOOGLE_CALENDAR_TZ=America/Fortaleza
-CALENDAR_CACHE_TTL_SECONDS=60
-CALENDAR_CACHE_TTL_MINUTES=5
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
-GOOGLE_FORMS_TIMEOUT=10
-APPS_SCRIPT_SCHEDULER_URL=
-LIFECYCLE_TIMEOUT_SECONDS=30
-LIFECYCLE_HEARTBEAT_SECONDS=5
-ENVEOF
-    echo "  [OK] Arquivo .env criado com configuracoes padrao"
+    echo "  [AVISO] Arquivo .env nao encontrado. Copiando template canonico .env.example..."
+    cp .env.example .env
+    echo "  [OK] Arquivo .env criado a partir de .env.example"
+    echo "  [AVISO] Revise ADMIN_BOOTSTRAP_* e integracoes opcionais antes do primeiro acesso"
 fi
 
 echo "  [OK] Arquivo .env encontrado"
