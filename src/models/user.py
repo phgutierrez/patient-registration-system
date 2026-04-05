@@ -1,42 +1,21 @@
-# src/models/user.py
+from datetime import datetime
 
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-from src.extensions import db
+from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import Base
 
 
-class User(UserMixin, db.Model):
-    __tablename__ = 'users'  # Explicitly set table name
+class User(Base):
+    __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='user')
-
-    full_name = db.Column(db.String(100), nullable=False, server_default='')
-    cns = db.Column(db.String(15), nullable=True, unique=True,
-                    info={'unique_constraint_name': 'uq_user_cns'})
-    crm = db.Column(db.String(20), nullable=True, unique=True,
-                    info={'unique_constraint_name': 'uq_user_crm'})
-
-    # Especialidade vinculada (ortopedia por padrão)
-    specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True)
-    specialty = db.relationship('Specialty', back_populates='users', foreign_keys=[specialty_id])
-
-    def __init__(self, username, password, full_name, role='user', cns=None, crm=None, specialty_id=None):
-        self.username = username
-        self.set_password(password)
-        self.full_name = full_name
-        self.role = role
-        self.cns = cns
-        self.crm = crm
-        self.specialty_id = specialty_id
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def __repr__(self):
-        return f'<User {self.username}>'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default='enfermeiro')
+    full_name: Mapped[str] = mapped_column(String(120))
+    cns: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    crm: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    specialty_id: Mapped[int | None] = mapped_column(ForeignKey('specialties.id'), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

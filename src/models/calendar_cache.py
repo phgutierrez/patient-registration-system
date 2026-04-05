@@ -1,25 +1,20 @@
-# src/models/calendar_cache.py
-
 from datetime import datetime
-from src.extensions import db
+
+from sqlalchemy import DateTime, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import Base
 
 
-class CalendarCache(db.Model):
-    """Cache de eventos do Google Calendar (ICS)"""
+class CalendarCache(Base):
     __tablename__ = 'calendar_cache'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    calendar_id = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    fetched_at = db.Column(db.DateTime, nullable=True)
-    events_json = db.Column(db.Text, nullable=True)  # JSON serializado da lista de eventos
-    error_message = db.Column(db.Text, nullable=True)  # Mensagem de erro se falhar
-    
-    # Conditional GET support
-    etag = db.Column(db.String(255), nullable=True)  # ETag from Google response
-    last_modified = db.Column(db.String(255), nullable=True)  # Last-Modified from Google response
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __repr__(self):
-        return f'<CalendarCache {self.calendar_id}>'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    calendar_id: Mapped[str] = mapped_column(String(255), unique=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    events_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    etag: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_modified: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

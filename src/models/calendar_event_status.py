@@ -1,29 +1,18 @@
-# src/models/calendar_event_status.py
+from datetime import date, datetime
 
-from datetime import datetime
-from src.extensions import db
+from sqlalchemy import Date, DateTime, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.models.base import Base
 
 
-class CalendarEventStatus(db.Model):
-    """Modelo para persistir status de eventos da agenda (Realizada/Suspensa)"""
+class CalendarEventStatus(Base):
     __tablename__ = 'calendar_event_status'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    event_uid = db.Column(db.String(500), unique=True, nullable=False, index=True)
-    event_date = db.Column(db.Date, nullable=True, index=True)
-    status = db.Column(db.String(20), nullable=False)  # REALIZADA ou SUSPENSA
-    suspension_reason = db.Column(db.Text, nullable=True)  # Motivo de suspensão (obrigatório se status=SUSPENSA)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<CalendarEventStatus uid={self.event_uid[:20]}... status={self.status}>'
-    
-    @property
-    def status_display(self):
-        """Retorna o status em formato legível"""
-        if self.status == "REALIZADA":
-            return "realizada"
-        elif self.status == "SUSPENSA":
-            return "suspensa"
-        return None
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_uid: Mapped[str] = mapped_column(String(500), unique=True, index=True)
+    event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20))
+    suspension_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
