@@ -103,17 +103,12 @@ def get_sus_code_for_procedure(descricao: str, specialty=None) -> str:
 def get_specialty_users(specialty=None) -> List:
     """
     Retorna lista de usuários vinculados à especialidade.
-    Se não houver usuários na especialidade, retorna todos (fallback seguro).
     """
     from src.models.user import User
     sp = specialty or get_active_specialty()
     if sp is None:
-        return User.query.all()
-    users = User.query.filter_by(specialty_id=sp.id).all()
-    if not users:
-        # fallback: retorna todos para não quebrar o fluxo
-        users = User.query.all()
-    return users
+        return []
+    return User.query.filter_by(specialty_id=sp.id).all()
 
 
 def get_user_choices(specialty=None) -> List[Tuple[str, str]]:

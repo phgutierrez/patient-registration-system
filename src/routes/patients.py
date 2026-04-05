@@ -1,11 +1,16 @@
 from datetime import datetime, date
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
-from flask_login import login_required
+from flask_login import login_required, current_user
 from src.models.patient import Patient
-from src.extensions import db
+from src.extensions import db, limiter
 from src.forms.patient_form import PatientForm
+from src.runtime_security import ensure_patient_access, scoped_patients_query
+from src.services.specialty_service import get_active_specialty
 from sqlalchemy.exc import SQLAlchemyError
-import pyodbc
+try:
+    import pyodbc
+except ImportError:
+    pyodbc = None
 import time
 import logging
 from pathlib import Path
@@ -40,6 +45,7 @@ def new_patient():
         endereco = request.form.get('endereco')
 
         # Criar novo paciente
+        active_specialty = get_active_specialty()
         patient = Patient(
             nome=nome,
             prontuario=request.form.get('prontuario'),
@@ -51,7 +57,8 @@ def new_patient():
             cidade=request.form.get('cidade'),
             contato=request.form.get('contato'),
             diagnostico=request.form.get('diagnostico'),
-            cid=request.form.get('cid')
+            cid=request.form.get('cid'),
+            specialty_id=current_user.specialty_id or (active_specialty.id if active_specialty else None)
         )
         
         try:
@@ -59,9 +66,9 @@ def new_patient():
             db.session.commit()
             flash('Paciente cadastrado com sucesso!', 'success')
             return redirect(url_for('patients.view_patient', id=patient.id))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f'Erro ao cadastrar paciente: {str(e)}', 'danger')
+            flash('Erro ao cadastrar paciente.', 'danger')
             return render_template('patient/new.html')
     
     return render_template('patient/new.html')
@@ -70,7 +77,7 @@ def new_patient():
 @patients.route('/patients')
 @login_required
 def list_patients():
-    patients = Patient.query.all()
+    patients = scoped_patients_query(Patient.query).order_by(Patient.created_at.desc()).all()
     return render_template('patient/list.html', patients=patients)
 
 
@@ -78,6 +85,9 @@ def list_patients():
 @login_required
 def view_patient(id):
     patient = Patient.query.get_or_404(id)
+    access_error = ensure_patient_access(patient)
+    if access_error:
+        return access_error
     return render_template('patient/view.html', patient=patient)
 
 
@@ -85,6 +95,9 @@ def view_patient(id):
 @login_required
 def edit_patient(id):
     patient = Patient.query.get_or_404(id)
+    access_error = ensure_patient_access(patient)
+    if access_error:
+        return access_error
     form = PatientForm(obj=patient)
     
     if request.method == 'POST' and form.validate_on_submit():
@@ -106,9 +119,9 @@ def edit_patient(id):
             flash('Paciente atualizado com sucesso!', 'success')
             return redirect(url_for('patients.view_patient', id=patient.id))
             
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f'Erro ao atualizar paciente: {str(e)}', 'danger')
+            flash('Erro ao atualizar paciente.', 'danger')
 
     return render_template('patient/edit.html', patient=patient, form=form)
 
@@ -116,6 +129,7 @@ def edit_patient(id):
 # ISSUE 2: Optimized patient lookup by prontuário with performance monitoring
 @patients.route('/api/search-patient-prontuario', methods=['GET'])
 @login_required
+@limiter.limit('20 per minute')
 def search_patient_by_prontuario():
     """
     Fast patient lookup by prontuário for LAN deployment.
@@ -130,7 +144,7 @@ def search_patient_by_prontuario():
         start_time = time.time()
         
         # Optimized query: use indexed column, load only required fields
-        patient = Patient.query.filter_by(prontuario=prontuario).first()
+        patient = scoped_patients_query(Patient.query).filter_by(prontuario=prontuario).first()
         
         query_duration = (time.time() - start_time) * 1000  # Convert to milliseconds
         logger.debug(f"Patient prontuário lookup took {query_duration:.2f}ms")
@@ -176,8 +190,12 @@ def search_patient_by_prontuario():
 
 @patients.route('/api/search-patient-accdb', methods=['GET'])
 @login_required
+@limiter.limit('10 per minute')
 def search_patient_accdb():
     """Busca dados do paciente no banco Access"""
+    if pyodbc is None:
+        return jsonify({"error": "Integração com banco Access indisponível neste ambiente"}), 503
+
     prontuario = request.args.get('prontuario', '')
     if prontuario is None:
         return jsonify({"error": "Prontuário não fornecido"}), 400
@@ -233,6 +251,8 @@ def search_patient_accdb():
 
 # Nova rota para verificar a existência do paciente via API
 @patients.route('/api/check-patient', methods=['GET'])
+@login_required
+@limiter.limit('20 per minute')
 def check_patient_exists():
     patient_name = request.args.get('name')
     if not patient_name:
@@ -243,7 +263,7 @@ def check_patient_exists():
         start_time = time.time()
         
         # Realiza a busca case-insensitive e ignorando espaços extras
-        existing_patient = Patient.query.filter(db.func.lower(
+        existing_patient = scoped_patients_query(Patient.query).filter(db.func.lower(
             Patient.nome) == db.func.lower(patient_name.strip())).first()
             
         query_duration = (time.time() - start_time) * 1000
@@ -265,6 +285,9 @@ def check_patient_exists():
 def delete_patient(id):
     """Rota para excluir um paciente."""
     patient = Patient.query.get_or_404(id)
+    access_error = ensure_patient_access(patient)
+    if access_error:
+        return access_error
     try:
         # Aqui você pode adicionar lógica para verificar permissões
         # ou para lidar com entidades relacionadas (ex: cirurgias) antes de excluir.

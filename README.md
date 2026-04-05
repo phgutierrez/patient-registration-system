@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1.3-black?logo=flask&logoColor=white)
 ![Waitress](https://img.shields.io/badge/Server-Waitress-green?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -19,6 +19,8 @@ Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias orto
 > 📚 **Documentação Completa**: [Índice de Documentação](docs/INDEX.md) com busca por tópico
 >
 > ⚡ **Novo ao projeto?** Veja o [QUICK_START.md](docs/QUICK_START.md) para instalação em 3 passos!
+>
+> 🔐 **Segurança**: veja o pacote em [docs/security/README.md](docs/security/README.md)
 
 ---
 
@@ -104,7 +106,7 @@ src/
 │   ├── forms_service.py         # Submissão Forms
 │   └── forms_mapping.py         # Mapeamento de campos
 ├── templates/         # Templates HTML Jinja2
-└── static/           # CSS, JavaScript, PDFs gerados
+└── static/           # CSS, JavaScript e ativos públicos
 ```
 ---
 
@@ -125,7 +127,7 @@ src/
 - ✅ **Agendamento Automatizado via Google Forms**
   - Visualização antes da submissão
   - Integração direta com Forms
-  - Fluxo Apps Script → Google Calendar
+  - Fluxo Google Forms → automação externa do calendário
   - Evento criado automaticamente no Google Calendar
   - Proteção contra duplicatas
 
@@ -140,7 +142,7 @@ src/
 ### Gerenciamento de Usuários
 - ✅ Cadastro de médicos/solicitantes
 - ✅ Campos CNS e CRM
-- ✅ Sistema de autenticação simples
+- ✅ Autenticação com senha, troca obrigatória na primeira entrada e escopo por especialidade
 
 ### Recursos de Produção
 - ✅ **Servidor WSGI Waitress** (pronto para produção Windows)
@@ -177,9 +179,11 @@ run_network.bat
 ```
 
 ### 📋 Configuração da Primeira Execução
-1. Sistema cria 5 usuários padrão: `pedro`, `andre`, `brauner`, `savio`, `laecio`
-2. Selecione um usuário para começar
-3. Use a navegação do dashboard:
+1. Copie `.env.example` para `.env` se necessário
+2. Configure `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
+3. Inicie o sistema e entre com o administrador bootstrap
+4. No primeiro login, defina uma nova senha
+5. Use a navegação do dashboard:
    - **Alt+N** - Novo registro de paciente
    - **Alt+L** - Lista de pacientes
    - **Alt+U** - Gerenciamento de usuários
@@ -203,7 +207,7 @@ run_network.bat
 
 ### Opção 2: Instalação Python
 
-> Requisito de versão: Python **3.9+**
+> Requisito de versão: Python **3.10+**
 
 ```bash
 # 1. Clone o repositório
@@ -284,45 +288,48 @@ netsh advfirewall firewall add rule name="Patient Registration System" dir=in ac
 Crie arquivo `.env` a partir do `.env.example` e configure:
 
 ```bash
-# Configuração Flask
-SECRET_KEY=sua-chave-secreta-aqui
+# Segurança / sessão
+SECRET_KEY=
 FLASK_ENV=production
 FLASK_DEBUG=0
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_SAMESITE=Lax
+SESSION_IDLE_TIMEOUT_MINUTES=30
 
 # Configuração do Servidor
 SERVER_HOST=0.0.0.0        # 127.0.0.1 para local, 0.0.0.0 para LAN
 SERVER_PORT=5000
 DESKTOP_MODE=false         # true para auto-desligamento, false para LAN
 
-# Integração Google Calendar (Obrigatório)
-GOOGLE_CALENDAR_ID=seu-calendario-id@group.calendar.google.com
-GOOGLE_CALENDAR_TZ=America/Fortaleza
-GOOGLE_CALENDAR_ICS_URL=https://calendar.google.com/calendar/ical/SEU_CALENDARIO.ics
-CALENDAR_CACHE_TTL_SECONDS=60
+# Bootstrap do primeiro administrador
+ADMIN_BOOTSTRAP_USERNAME=admin.local
+ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
+ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
+ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
 
-# Integração Google Forms (Opcional - Pré-configurado)
-# Por padrão, o sistema usa o formulário hospitalar integrado
-# Sobrescreva apenas se usar formulário personalizado
-GOOGLE_FORMS_PUBLIC_ID=seu-id-publico-do-formulario
-GOOGLE_FORMS_VIEWFORM_URL=https://docs.google.com/forms/d/e/SEU_ID/viewform
+# Integrações opcionais
+GOOGLE_CALENDAR_ID=
+GOOGLE_CALENDAR_ICS_URL=
+GOOGLE_FORMS_PUBLIC_ID=
+GOOGLE_FORMS_VIEWFORM_URL=
 GOOGLE_FORMS_TIMEOUT=10
 
-# Banco de Dados (Opcional, padrão: instance/prontuario.db)
-# SQLALCHEMY_DATABASE_URI=sqlite:///instance/prontuario.db
-
-# Gerenciamento de Ciclo de Vida (Modo Desktop)
-LIFECYCLE_TIMEOUT_SECONDS=30
-LIFECYCLE_HEARTBEAT_SECONDS=5
+# Hardening HTTP
+SECURITY_HEADERS_ENABLED=true
+SECURITY_CSP_REPORT_ONLY=true
+SECURITY_HSTS_ENABLED=false
 ```
 
 ### Opções de Configuração Principais
 
 | Variável | Descrição | Padrão | Obrigatório |
 |----------|-----------|--------|-------------|
-| `SECRET_KEY` | Chave de criptografia de sessão Flask | dev-key-123 | Sim |
+| `SECRET_KEY` | Chave de criptografia de sessão Flask | gerada em runtime se vazia | Recomendado |
 | `SERVER_HOST` | Endereço de binding (127.0.0.1=local, 0.0.0.0=LAN) | 127.0.0.1 | Não |
 | `DESKTOP_MODE` | Habilitar auto-desligamento ao fechar navegador | false | Não |
-| `GOOGLE_CALENDAR_ID` | ID do Google Calendar para feed ICS | - | Sim |
+| `ADMIN_BOOTSTRAP_USERNAME` | Usuário do primeiro admin | - | Sim na primeira subida sem admins |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Senha inicial forte do primeiro admin | - | Sim na primeira subida sem admins |
+| `GOOGLE_CALENDAR_ID` | ID opcional do Google Calendar usado para derivar URL ICS padrão | - | Opcional |
 | `CALENDAR_CACHE_TTL_SECONDS` | Intervalo de atualização do calendário | 60 | Não |
 | `GOOGLE_FORMS_PUBLIC_ID` | ID público do formulário para agendamento | - | Opcional |
 

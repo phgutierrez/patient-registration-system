@@ -4,6 +4,7 @@ Servidor de produção usando Waitress
 from waitress import serve
 import os
 import logging
+import secrets
 import signal
 import sys
 import webbrowser
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Variável global para controlar o servidor
 server_running = True
 
-DEFAULT_CALENDAR_ID = 's4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com'
+DEFAULT_CALENDAR_ID = ''
 DEFAULT_CALENDAR_TZ = 'America/Fortaleza'
 
 
@@ -40,22 +41,30 @@ def ensure_env_file(base_dir: str):
     if os.path.exists(env_path):
         return
 
-    calendar_id = os.getenv('GOOGLE_CALENDAR_ID', DEFAULT_CALENDAR_ID)
+    calendar_id = (os.getenv('GOOGLE_CALENDAR_ID') or DEFAULT_CALENDAR_ID).strip()
     calendar_tz = os.getenv('GOOGLE_CALENDAR_TZ', DEFAULT_CALENDAR_TZ)
     ortopedia_agenda_url = (
         os.getenv('ORTOPEDIA_AGENDA_URL')
         or os.getenv('GOOGLE_CALENDAR_ICS_URL')
         or build_default_ortopedia_agenda_url(calendar_id)
     )
+    forms_edit_id = (os.getenv('GOOGLE_FORMS_EDIT_ID') or '').strip()
+    forms_public_id = (os.getenv('GOOGLE_FORMS_PUBLIC_ID') or '').strip()
+    forms_viewform_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
+
+    generated_secret = secrets.token_hex(32)
 
     content = f"""# =================================================================
 # Patient Registration System - Configuracao do Ambiente
 # Gerado automaticamente pelo executavel
 # =================================================================
 
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
+SECRET_KEY={generated_secret}
 FLASK_ENV=production
 FLASK_DEBUG=0
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_SAMESITE=Lax
+SESSION_IDLE_TIMEOUT_MINUTES=30
 SERVER_HOST=127.0.0.1
 SERVER_PORT=5000
 DESKTOP_MODE=true
@@ -65,12 +74,23 @@ GOOGLE_CALENDAR_ICS_URL={ortopedia_agenda_url}
 ORTOPEDIA_AGENDA_URL={ortopedia_agenda_url}
 CALENDAR_CACHE_TTL_SECONDS=60
 CALENDAR_CACHE_TTL_MINUTES=5
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
+GOOGLE_FORMS_EDIT_ID={forms_edit_id}
+GOOGLE_FORMS_PUBLIC_ID={forms_public_id}
+GOOGLE_FORMS_VIEWFORM_URL={forms_viewform_url}
 GOOGLE_FORMS_TIMEOUT=10
-APPS_SCRIPT_SCHEDULER_URL=
+SECURITY_HEADERS_ENABLED=true
+SECURITY_CSP_REPORT_ONLY=true
+SECURITY_CSP_REPORT_URI=
+SECURITY_HSTS_ENABLED=false
+SECURITY_HSTS_MAX_AGE_SECONDS=31536000
+SECURITY_HSTS_INCLUDE_SUBDOMAINS=true
+SECURITY_HSTS_PRELOAD=false
 LIFECYCLE_TIMEOUT_SECONDS=30
 LIFECYCLE_HEARTBEAT_SECONDS=5
+ADMIN_BOOTSTRAP_USERNAME=
+ADMIN_BOOTSTRAP_PASSWORD=
+ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
+ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
 """
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(content)
@@ -110,6 +130,7 @@ def create_initial_data(app):
         from src.models.user import User
         from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
         from src.services.default_seed_data import ORTOPEDIA_PROCEDURES
+        from src.runtime_security import bootstrap_admin_if_configured
 
         # Especialidades padrão
         ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
@@ -130,7 +151,7 @@ def create_initial_data(app):
             or os.getenv('GOOGLE_CALENDAR_ICS_URL')
             or build_default_ortopedia_agenda_url(os.getenv('GOOGLE_CALENDAR_ID', DEFAULT_CALENDAR_ID))
         )
-        ortopedia_forms_url = 'https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform'
+        ortopedia_forms_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
 
         ortopedia_settings = SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first()
         if not ortopedia_settings:
@@ -168,37 +189,12 @@ def create_initial_data(app):
 
         # Verificar se já existem usuários
         user_count = User.query.count()
-        
+
         if user_count == 0:
-            logger.info('Criando usuários iniciais...')
-            
-            users_data = [
-                {'username': 'pedro', 'full_name': 'Pedro Freitas', 'cns': None, 'crm': None},
-                {'username': 'andre', 'full_name': 'André Cristiano', 'cns': None, 'crm': None},
-                {'username': 'brauner', 'full_name': 'Brauner Cavalcanti', 'cns': None, 'crm': None},
-                {'username': 'savio', 'full_name': 'Sávio Bruno', 'cns': None, 'crm': None},
-                {'username': 'laecio', 'full_name': 'Laecio Damaceno', 'cns': None, 'crm': None},
-            ]
-            
-            for user_data in users_data:
-                user = User(
-                    username=user_data['username'],
-                    password='123456',  # Senha padrão
-                    full_name=user_data['full_name'],
-                    cns=user_data['cns'],
-                    crm=user_data['crm'],
-                    role='solicitante',
-                    specialty_id=ortopedia.id,
-                )
-                db.session.add(user)
-                logger.info(f'  [OK] Usuário criado: {user_data["full_name"]}')
-            
+            logger.info('Nenhum usuário padrão inseguro será criado automaticamente.')
             db.session.commit()
-            logger.info('=' * 60)
-            logger.info('[OK] Dados iniciais criados com sucesso')
-            logger.info('   Usuários: Pedro, André, Brauner, Sávio, Laecio')
-            logger.info('   Senha padrão: 123456')
-            logger.info('=' * 60)
+            bootstrap_admin_if_configured(app)
+            logger.info('Configure ADMIN_BOOTSTRAP_USERNAME e ADMIN_BOOTSTRAP_PASSWORD para semear o primeiro administrador.')
         else:
             # Backfill para instalações antigas: garantir vínculo com especialidade
             usuarios_sem_especialidade = User.query.filter(User.specialty_id.is_(None)).all()

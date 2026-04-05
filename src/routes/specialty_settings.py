@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from src.extensions import db
 from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
+from src.runtime_security import require_admin
 
 specialty_settings_bp = Blueprint('specialty_settings', __name__, url_prefix='/configuracoes')
 
@@ -12,6 +13,7 @@ specialty_settings_bp = Blueprint('specialty_settings', __name__, url_prefix='/c
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/', methods=['GET'])
 @login_required
+@require_admin
 def index():
     specialties = Specialty.query.order_by(Specialty.id).all()
     return render_template('specialty_settings/index.html', specialties=specialties)
@@ -22,6 +24,7 @@ def index():
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/especialidade/<int:specialty_id>/settings', methods=['POST'])
 @login_required
+@require_admin
 def save_settings(specialty_id):
     specialty = Specialty.query.get_or_404(specialty_id)
     settings = specialty.settings
@@ -47,6 +50,7 @@ def save_settings(specialty_id):
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/especialidade/<int:specialty_id>/procedimentos/add', methods=['POST'])
 @login_required
+@require_admin
 def add_procedure(specialty_id):
     specialty = Specialty.query.get_or_404(specialty_id)
     descricao = request.form.get('descricao', '').strip()
@@ -86,6 +90,7 @@ def add_procedure(specialty_id):
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/procedimentos/<int:proc_id>/edit', methods=['POST'])
 @login_required
+@require_admin
 def edit_procedure(proc_id):
     proc = SpecialtyProcedure.query.get_or_404(proc_id)
     proc.descricao = request.form.get('descricao', proc.descricao).strip()
@@ -107,6 +112,7 @@ def edit_procedure(proc_id):
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/procedimentos/<int:proc_id>/toggle', methods=['POST'])
 @login_required
+@require_admin
 def toggle_procedure(proc_id):
     proc = SpecialtyProcedure.query.get_or_404(proc_id)
     proc.is_active = not proc.is_active
@@ -126,6 +132,7 @@ def toggle_procedure(proc_id):
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/procedimentos/<int:proc_id>/delete', methods=['POST'])
 @login_required
+@require_admin
 def delete_procedure(proc_id):
     proc = SpecialtyProcedure.query.get_or_404(proc_id)
     specialty_id = proc.specialty_id

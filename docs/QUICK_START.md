@@ -48,12 +48,12 @@ run_network.bat
 - Todos na rede conseguem acessar
 - Continua rodando em background até você parar
 
-## Credenciais Padrão
+## Acesso Inicial
 
-**Usuário**: `pedro` (ou `andre`, `brauner`, `savio`, `laecio`)
-**Senha**: `123456`
-
-(Todos os usuários no setup inicial usam a mesma senha)
+1. Abra o arquivo `.env`
+2. Preencha `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
+3. Inicie o sistema e faça login com esse usuário
+4. O sistema pedirá troca de senha no primeiro acesso
 
 ## Problemas Comuns
 
@@ -64,7 +64,7 @@ verify_setup.bat
 Ver [TROUBLESHOOTING_ESPECIALIDADES.md](./TROUBLESHOOTING_ESPECIALIDADES.md)
 
 ### ❌ "Python não encontrado"
-Instalar Python 3.9+:
+Instalar Python 3.10+:
 - Windows: `winget install python`
 - Ou baixar de: https://www.python.org/downloads/
 
@@ -80,7 +80,7 @@ REM Ver qual processo, depois fechar no Task Manager
 #### Opção 2: Usar porta diferente
 Editar arquivo `.env` e adicionar:
 ```
-FLASK_PORT=5001
+SERVER_PORT=5001
 ```
 
 ### ❌ "Procedimentos/Código SUS não aparecem"
@@ -108,17 +108,19 @@ Ver: [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md) - Seção 5.6 (agenda por 
 | `verify_setup.bat` | Verificar se setup funcionou |
 | `.env` | Configurações (criar manualmente, ver exemplo baixo) |
 
-## Template .env
+## Template `.env`
 
-Se não existir arquivo `.env`, criar com:
+Use `.env.example` como base. Exemplo mínimo:
 
 ```
 FLASK_ENV=production
 FLASK_DEBUG=0
-SECRET_KEY=sua-chave-secreta-mudar-isso-aqui-1234567890
+SECRET_KEY=
 SERVER_HOST=127.0.0.1
 SERVER_PORT=5000
 DESKTOP_MODE=true
+ADMIN_BOOTSTRAP_USERNAME=admin.local
+ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
 ```
 
 ## Arquitetura Rápida
@@ -130,7 +132,7 @@ Flask Web App (5000)
     ↓
 SQLite Database (instance/prontuario.db)
     ↓
-Google Calendar API (se configurado)
+Google Calendar / feed ICS (se configurado)
 ```
 
 ## Diagrama de Especialidades

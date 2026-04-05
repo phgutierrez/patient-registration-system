@@ -47,7 +47,7 @@ Edite o arquivo `.env` na raiz do projeto e adicione:
 APPS_SCRIPT_SCHEDULER_URL=https://script.google.com/macros/s/AKfycby.../exec
 
 # ID do Google Calendar (já configurado anteriormente)
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
+GOOGLE_CALENDAR_ID=seu-calendario@group.calendar.google.com
 
 # Timezone (já configurado)
 GOOGLE_CALENDAR_TZ=America/Fortaleza
@@ -123,7 +123,7 @@ with app.app_context():
    curl -X POST "https://script.google.com/macros/s/AKfycby.../exec" \
      -H "Content-Type: application/json" \
      -d '{
-       "calendarId": "s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com",
+       "calendarId": "seu-calendario@group.calendar.google.com",
        "title": "Teste - Cirurgia de Escoliose",
        "date": "2026-03-15",
        "description": "Teste de agendamento automático",
@@ -191,7 +191,7 @@ pytest tests/test_calendar_scheduler.py -v
 
 ```json
 {
-  "calendarId": "s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com",
+  "calendarId": "seu-calendario@group.calendar.google.com",
   "title": "Correção Cirúrgica de Escoliose",
   "date": "2026-03-15",
   "description": "📋 DADOS DO PACIENTE\nNome: João Silva\n...",

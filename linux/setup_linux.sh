@@ -17,7 +17,7 @@ echo " SETUP DO SISTEMA - Patient Registration System"
 echo "==============================================================================="
 echo ""
 echo "Este script realizara tudo que eh necessario para rodar o sistema:"
-echo "  1. Verificar Python 3.9+"
+echo "  1. Verificar Python 3.10+"
 echo "  2. Criar ambiente virtual"
 echo "  3. Instalar dependencias"
 echo "  4. Criar banco de dados"
@@ -41,9 +41,9 @@ echo "  [OK] Arquivo requirements.txt encontrado."
 echo ""
 
 # ===================================================================
-# VERIFICACAO CRITICA - Python 3.9+
+# VERIFICACAO CRITICA - Python 3.10+
 # ===================================================================
-echo "[VERIFICACAO] Verificando Python 3.9+..."
+echo "[VERIFICACAO] Verificando Python 3.10+..."
 echo ""
 
 if ! command -v python3 &> /dev/null; then
@@ -63,12 +63,12 @@ MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
 
 echo "  Python encontrado: $PYTHON_VERSION"
 
-if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 9 ]; then
-    echo "  [OK] Python $MAJOR.$MINOR atende aos requisitos (3.9+ necessario)"
+if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 10 ]; then
+    echo "  [OK] Python $MAJOR.$MINOR atende aos requisitos (3.10+ necessario)"
 else
     echo ""
     echo "[ERRO] Python $MAJOR.$MINOR eh uma versao incompativel!"
-    echo "       Este sistema requer Python 3.9 ou posterior."
+    echo "       Este sistema requer Python 3.10 ou posterior."
     echo ""
     echo "Solucoes:"
     echo "  Ubuntu/Debian:  sudo apt install python3.11 python3.11-venv"
@@ -91,31 +91,10 @@ fi
 # PRE-SETUP: Criar .env se nao existir
 # ===================================================================
 if [ ! -f ".env" ]; then
-    echo "[PRE-SETUP] Criando arquivo .env com configuracoes padrao..."
-    cat > .env << 'ENVEOF'
-# =================================================================
-# Patient Registration System - Configuracao do Ambiente
-# Gerado automaticamente pelo setup_linux.sh
-# =================================================================
-
-SECRET_KEY=patient-reg-secret-key-2026-change-in-production
-FLASK_ENV=production
-FLASK_DEBUG=0
-SERVER_HOST=127.0.0.1
-SERVER_PORT=5000
-DESKTOP_MODE=false
-GOOGLE_CALENDAR_ID=s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com
-GOOGLE_CALENDAR_TZ=America/Fortaleza
-CALENDAR_CACHE_TTL_SECONDS=60
-CALENDAR_CACHE_TTL_MINUTES=5
-GOOGLE_FORMS_EDIT_ID=1krid3-WpncOkRtw0oBh_2oNgdiqr5KKE6ECyxl9t_aw
-GOOGLE_FORMS_PUBLIC_ID=1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg
-GOOGLE_FORMS_TIMEOUT=10
-APPS_SCRIPT_SCHEDULER_URL=
-LIFECYCLE_TIMEOUT_SECONDS=30
-LIFECYCLE_HEARTBEAT_SECONDS=5
-ENVEOF
+    echo "[PRE-SETUP] Copiando .env.example para .env..."
+    cp .env.example .env
     echo "  [OK] Arquivo .env criado com sucesso"
+    echo "  [AVISO] Preencha ADMIN_BOOTSTRAP_USERNAME e ADMIN_BOOTSTRAP_PASSWORD antes do primeiro login"
 else
     echo "[PRE-SETUP] Arquivo .env ja existe (configuracoes preservadas)."
 fi
@@ -210,9 +189,10 @@ echo "Acesso padrao:"
 echo "  - Local: http://localhost:5000"
 echo "  - Rede:  http://seu-ip-do-servidor:5000"
 echo ""
-echo "Credenciais padrao:"
-echo "  - Usuario: pedro (ou outros usuarios criados)"
-echo "  - Senha: 123456"
+echo "Bootstrap inicial recomendado:"
+echo "  - Edite .env e configure ADMIN_BOOTSTRAP_USERNAME"
+echo "  - Defina ADMIN_BOOTSTRAP_PASSWORD com uma senha forte"
+echo "  - No primeiro login, o sistema exigira troca de senha"
 echo ""
 echo "Para mais informacoes, ver: docs/INSTALLATION_GUIDE.md"
 echo ""

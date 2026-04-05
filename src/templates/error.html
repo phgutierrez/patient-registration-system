@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title or 'Erro' }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 760px; margin: 4rem auto;">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-5 text-center">
+            <h1 class="h3 mb-3">{{ title or 'Erro' }}</h1>
+            <p class="text-muted mb-4">{{ message or 'Ocorreu um problema ao processar sua solicitação.' }}</p>
+            <a href="{{ url_for('auth.select_user') }}" class="btn btn-primary">
+                Voltar ao início
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -17,9 +17,11 @@ class Patient(db.Model):
     contato = db.Column(db.String(20), nullable=False)
     diagnostico = db.Column(db.Text, nullable=False)
     cid = db.Column(db.String(4), nullable=False)
+    specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    specialty = db.relationship('Specialty', foreign_keys=[specialty_id])
 
     # Adiciona o relacionamento reverso com cascade
     surgery_requests = db.relationship(

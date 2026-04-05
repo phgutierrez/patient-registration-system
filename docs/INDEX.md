@@ -9,6 +9,7 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 1. [QUICK_START.md](QUICK_START.md) — instalação e execução em poucos passos.
 2. [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) — implantação detalhada.
 3. [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md) — referência rápida de comandos.
+4. [security/README.md](security/README.md) — checklist e guias de segurança.
 
 ---
 
@@ -18,6 +19,11 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 - [QUICK_START.md](QUICK_START.md)
 - [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)
 - [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md)
+
+### Segurança
+- [security/README.md](security/README.md)
+- [security/implementation-checklist.md](security/implementation-checklist.md)
+- [security/admin-bootstrap-guide.md](security/admin-bootstrap-guide.md)
 
 ### Troubleshooting
 - [TROUBLESHOOTING_ESPECIALIDADES.md](TROUBLESHOOTING_ESPECIALIDADES.md)

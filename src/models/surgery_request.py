@@ -42,6 +42,8 @@ class SurgeryRequest(db.Model):
     # Especialidade da solicitação
     specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), nullable=True)
     specialty = db.relationship('Specialty', back_populates='surgery_requests', foreign_keys=[specialty_id])
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    created_by_user = db.relationship('User', back_populates='created_surgery_requests', foreign_keys=[created_by_user_id])
 
     # Metadados
     status = db.Column(db.String(20), default='Pendente')

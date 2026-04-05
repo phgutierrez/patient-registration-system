@@ -23,7 +23,7 @@ class CalendarService:
         Inicializa o serviço de calendário.
         
         Args:
-            calendar_id: ID do calendário Google (ex: s4obpr7j3q70p7b4q5o8vsla9k@group.calendar.google.com)
+            calendar_id: ID do calendário Google (ex: seu-calendario@group.calendar.google.com)
             timezone_str: Timezone IANA (padrão: America/Fortaleza)
             ics_url: URL ICS customizada (se não fornecida, será construída)
             request_timeout: Timeout em segundos para requisições HTTP

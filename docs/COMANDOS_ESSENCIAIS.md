@@ -17,9 +17,10 @@ cd C:\caminho\patient-registration-system
 .\verify_setup.bat
 ```
 
-Credenciais padrão criadas no setup:
-- Usuários: `pedro`, `andre`, `brauner`, `savio`, `laecio`
-- Senha: `123456`
+Acesso inicial:
+- Configure `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD` no `.env`
+- Faça o primeiro login com o administrador bootstrap
+- O sistema exigirá troca de senha na primeira entrada
 
 ---
 
@@ -124,4 +125,3 @@ python update_db.py
 ---
 
 Última atualização: março/2026 (v2.6)
-
