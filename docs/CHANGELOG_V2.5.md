@@ -168,9 +168,6 @@ Esperado:
 run_local.bat
 
 # 2. Na página inicial:
-# - Escolher "Cirurgia Pediatrica"
-# - Clicar em Agenda
-# 3. Na página inicial:
 # - Escolher "Ortopedia"
 # - Clicar em Agenda
 ```

@@ -9,6 +9,7 @@ setup(
         'flask',
         'flask-sqlalchemy',
         'flask-login',
-        'python-dotenv',
+        'python-dotenv>=1.2.2,<2',
+        'PyMuPDF==1.28.0',
     ],
 )

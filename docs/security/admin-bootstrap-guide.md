@@ -1,14 +1,14 @@
 # Guia Curto de Bootstrap Admin
 
-Este guia cobre a criação segura do primeiro administrador via variáveis `ADMIN_BOOTSTRAP_*`.
+O primeiro administrador pode ser criado pelo assistente disponível somente em `localhost` quando o banco não possui usuários. Este guia cobre a alternativa automatizada via variáveis `ADMIN_BOOTSTRAP_*`.
 O objetivo é permitir a primeira entrada sem recriar o problema de credenciais padrão previsíveis.
 
 ## Variáveis disponíveis
 
 | Variável | Obrigatória? | Uso |
 |---|---|---|
-| `ADMIN_BOOTSTRAP_USERNAME` | Sim, na primeira subida sem admins | Login do primeiro administrador |
-| `ADMIN_BOOTSTRAP_PASSWORD` | Sim, na primeira subida sem admins | Senha inicial forte do primeiro administrador |
+| `ADMIN_BOOTSTRAP_USERNAME` | Opcional | Login do primeiro administrador automatizado |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Opcional | PIN de exatamente 6 dígitos do primeiro administrador automatizado |
 | `ADMIN_BOOTSTRAP_FULL_NAME` | Opcional | Nome completo exibido na interface |
 | `ADMIN_BOOTSTRAP_SPECIALTY` | Opcional | Especialidade vinculada ao admin bootstrap; padrão `ortopedia` |
 
@@ -26,7 +26,7 @@ O objetivo é permitir a primeira entrada sem recriar o problema de credenciais 
 
 ```properties
 ADMIN_BOOTSTRAP_USERNAME=admin.local
-ADMIN_BOOTSTRAP_PASSWORD=use-uma-senha-forte-e-unica
+ADMIN_BOOTSTRAP_PASSWORD=123456
 ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
 ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
 ```

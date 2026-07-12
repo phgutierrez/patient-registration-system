@@ -20,6 +20,20 @@ from .forms_mapping import get_forms_mapping
 import time
 
 
+ORTHOPEDIST_CHOICES = [
+    "Dr. Laecio Damaceno", "Dr. Sávio Bruno", "Dr. Pedro Henrique",
+    "Dr. Brauner Cavalcanti", "Dr. André Cristiano", "Dr. Bruno Montenegro",
+    "Dr. Eduardo Lyra", "Dr. Jocemir", "Dr. Luiz Portela",
+    "Dr. Francisco Neto", "Dr. Bartolomeu",
+]
+
+OPME_FORM_CHOICES = [
+    "Ilizarov Adulto", "Ilizarov Infantil", "Caixa 3,5mm", "Caixa 4,5mm",
+    "Placa angulada", "Fios de Kirschner", "Parafuso Canulado", "Âncora",
+    "Placa em 8", "Artrodese Coluna", "Não se aplica",
+]
+
+
 def get_forms_configuration() -> Tuple[str, str]:
     """
     Resolve a configuração do Google Forms para submissão automatizada.
@@ -303,19 +317,7 @@ def find_matching_orthopedist(user_full_name: str) -> str:
     
     # Lista de ortopedistas possíveis no dropdown do Forms
     # Esta lista deve ser atualizada conforme os ortopedistas cadastrados no Forms
-    possible_orthopedists = [
-        "Dr. Laecio Damaceno",
-        "Dr. Sávio Bruno",
-        "Dr. Pedro Henrique",
-        "Dr. Brauner Cavalcanti",
-        "Dr. André Cristiano",
-        "Dr. Bruno Montenegro",
-        "Dr. Eduardo Lyra",
-        "Dr. Jocemir",
-        "Dr. Luiz Portela",
-        "Dr. Francisco Neto",
-        "Dr. Bartolomeu",
-    ]
+    possible_orthopedists = ORTHOPEDIST_CHOICES
     
     # Normalizar nome do usuário
     user_name_normalized = user_full_name.strip().lower()
@@ -409,19 +411,7 @@ def find_matching_opme(opme_text: str) -> Tuple[List[str], str]:
             "Não se aplica" → (["Não se aplica"], "")
     """
     # Opções disponíveis (DEVE coincidir com OPME_CHOICES em surgery_form.py)
-    possible_opme_options = [
-        "Ilizarov Adulto",
-        "Ilizarov Infantil",
-        "Caixa 3,5mm",
-        "Caixa 4,5mm",
-        "Placa angulada",
-        "Fios de Kirschner",
-        "Parafuso Canulado",
-        "Âncora",
-        "Placa em 8",
-        "Artrodese Coluna",
-        "Não se aplica",
-    ]
+    possible_opme_options = OPME_FORM_CHOICES
     
     # Casos vazios
     if not opme_text or opme_text.strip() == "":
@@ -678,6 +668,54 @@ def build_forms_payload(surgery_request, patient) -> Dict[str, any]:
     
     current_app.logger.info(f"Payload construído: procedimento={procedure_title}, data={date_str}")
     
+    return payload
+
+
+def validate_schedule_payload(data: dict, defaults: dict) -> dict:
+    """Validate editable scheduling data without exposing Google entry identifiers."""
+    if not isinstance(data, dict):
+        raise ValueError("Dados do agendamento inválidos.")
+
+    def required_text(key: str, label: str, limit: int) -> str:
+        value = str(data.get(key, defaults.get(key, ""))).strip()
+        if not value:
+            raise ValueError(f"{label} é obrigatório.")
+        if len(value) > limit:
+            raise ValueError(f"{label} excede o limite de {limit} caracteres.")
+        return value
+
+    payload = dict(defaults)
+    payload["procedure_title"] = required_text("procedure_title", "Procedimento", 300)
+    payload["orthopedist"] = required_text("orthopedist", "Ortopedista", 120)
+    if payload["orthopedist"] not in ORTHOPEDIST_CHOICES:
+        raise ValueError("Selecione um ortopedista cadastrado no Google Forms.")
+    payload["full_description"] = required_text("full_description", "Descrição", 5000)
+
+    date_value = required_text("date", "Data", 10)
+    try:
+        datetime.strptime(date_value, "%Y-%m-%d")
+    except ValueError as exc:
+        raise ValueError("Data inválida. Use o formato AAAA-MM-DD.") from exc
+    payload["date"] = date_value
+
+    needs_icu = str(data.get("needs_icu", defaults.get("needs_icu", "Não"))).strip().title()
+    if needs_icu not in ("Sim", "Não"):
+        raise ValueError("Necessidade de UTI deve ser Sim ou Não.")
+    payload["needs_icu"] = needs_icu
+
+    selected = data.get("opme", defaults.get("opme", []))
+    if not isinstance(selected, list):
+        raise ValueError("A seleção de OPME é inválida.")
+    selected = list(dict.fromkeys(str(item).strip() for item in selected if str(item).strip()))
+    invalid = [item for item in selected if item not in OPME_FORM_CHOICES]
+    if invalid:
+        raise ValueError("Uma ou mais opções de OPME são inválidas.")
+    if "Não se aplica" in selected and len(selected) > 1:
+        raise ValueError("'Não se aplica' não pode ser combinado com outra OPME.")
+    payload["opme"] = selected
+    payload["opme_other"] = str(data.get("opme_other", defaults.get("opme_other", ""))).strip()
+    if len(payload["opme_other"]) > 300:
+        raise ValueError("OPME complementar excede o limite de 300 caracteres.")
     return payload
 
 

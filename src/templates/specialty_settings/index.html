@@ -125,9 +125,44 @@
                        placeholder="https://docs.google.com/forms/...">
               </div>
             </div>
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="fas fa-database me-2 text-info"></i>Banco Access de Pacientes</h5>
+            <p class="text-muted small">Consulta somente leitura ao cadastro do CPAM. O sistema nunca altera o arquivo Access.</p>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" name="access_enabled"
+                     id="access-enabled-{{ esp.id }}" {{ 'checked' if not esp.settings or esp.settings.access_enabled }}>
+              <label class="form-check-label fw-semibold" for="access-enabled-{{ esp.id }}">Ativar busca no Access</label>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">IP ou nome do servidor</label>
+                <input type="text" name="access_host" class="form-control" required maxlength="255"
+                       value="{{ esp.settings.access_host if esp.settings and esp.settings.access_host else '192.168.1.252' }}"
+                       placeholder="192.168.1.252">
+              </div>
+              <div class="col-md-5">
+                <label class="form-label fw-semibold">Compartilhamento e subpastas</label>
+                <input type="text" name="access_share_path" class="form-control" required maxlength="500"
+                       value="{{ esp.settings.access_share_path if esp.settings and esp.settings.access_share_path else 'naqh\\AMBULATORIO_SERV' }}"
+                       placeholder="naqh\AMBULATORIO_SERV">
+                <div class="form-text">Não inclua o IP nem o nome do arquivo.</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Nome do arquivo</label>
+                <input type="text" name="access_filename" class="form-control" required maxlength="255"
+                       value="{{ esp.settings.access_filename if esp.settings and esp.settings.access_filename else 'AMBULATORIO_SERV.accdb' }}"
+                       placeholder="arquivo.accdb">
+              </div>
+            </div>
+            <div id="access-test-result-{{ esp.id }}" class="mt-3" aria-live="polite"></div>
             <div class="mt-3">
               <button type="submit" class="btn btn-primary btn-sm">
-                <i class="fas fa-save me-1"></i>Salvar Links
+                <i class="fas fa-save me-1"></i>Salvar configurações
+              </button>
+              <button type="button" class="btn btn-outline-info btn-sm test-access-btn"
+                      data-url="{{ url_for('specialty_settings.test_access_connection', specialty_id=esp.id) }}"
+                      data-result="access-test-result-{{ esp.id }}">
+                <i class="fas fa-plug me-1"></i>Testar conexão
               </button>
             </div>
           </form>
@@ -278,4 +313,40 @@
   </div>{# /accordion #}
 
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.test-access-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+      const form = button.closest('form');
+      const result = document.getElementById(button.dataset.result);
+      const original = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Testando...';
+      result.innerHTML = '';
+      try {
+        const response = await fetch(button.dataset.url, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+          credentials: 'same-origin'
+        });
+        const data = await response.json();
+        const type = response.ok && data.ok ? 'success' : 'danger';
+        const timing = data.query_time_ms !== undefined ? ` (${data.query_time_ms} ms)` : '';
+        result.innerHTML = `<div class="alert alert-${type} py-2 mb-0"><strong>${escapeAccessText(data.message || 'Falha ao testar.')}</strong>${timing}<br><small>${escapeAccessText(data.hint || '')}</small></div>`;
+      } catch (error) {
+        result.innerHTML = '<div class="alert alert-danger py-2 mb-0">Não foi possível comunicar com o servidor da aplicação.</div>';
+      } finally {
+        button.disabled = false;
+        button.innerHTML = original;
+      }
+    });
+  });
+});
+function escapeAccessText(value) {
+  const node = document.createElement('span');
+  node.textContent = String(value ?? '');
+  return node.innerHTML;
+}
+</script>
 {% endblock %}

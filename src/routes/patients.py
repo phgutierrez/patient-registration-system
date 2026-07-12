@@ -7,10 +7,7 @@ from src.forms.patient_form import PatientForm
 from src.runtime_security import ensure_patient_access, scoped_patients_query
 from src.services.specialty_service import get_active_specialty
 from sqlalchemy.exc import SQLAlchemyError
-try:
-    import pyodbc
-except ImportError:
-    pyodbc = None
+from sqlalchemy import or_
 import time
 import logging
 from pathlib import Path
@@ -77,8 +74,23 @@ def new_patient():
 @patients.route('/patients')
 @login_required
 def list_patients():
-    patients = scoped_patients_query(Patient.query).order_by(Patient.created_at.desc()).all()
-    return render_template('patient/list.html', patients=patients)
+    search = request.args.get('q', '').strip()[:100]
+    page = request.args.get('page', 1, type=int)
+    page = max(page or 1, 1)
+    query = scoped_patients_query(Patient.query)
+    if search:
+        term = f'%{search}%'
+        query = query.filter(or_(
+            Patient.nome.ilike(term), Patient.prontuario.ilike(term),
+            Patient.cns.ilike(term), Patient.cidade.ilike(term),
+        ))
+    pagination = query.order_by(Patient.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    return render_template(
+        'patient/list.html', patients=pagination.items,
+        pagination=pagination, search=search,
+    )
 
 
 @patients.route('/patient/<int:id>')
@@ -192,61 +204,37 @@ def search_patient_by_prontuario():
 @login_required
 @limiter.limit('10 per minute')
 def search_patient_accdb():
-    """Busca dados do paciente no banco Access"""
-    if pyodbc is None:
-        return jsonify({"error": "Integração com banco Access indisponível neste ambiente"}), 503
+    """Busca somente leitura no Access configurado para Ortopedia."""
+    from src.models.specialty import Specialty
+    from src.services.access_patient_service import AccessConfig, AccessLookupError, access_patient_service
 
-    prontuario = request.args.get('prontuario', '')
-    if prontuario is None:
-        return jsonify({"error": "Prontuário não fornecido"}), 400
-
-    prontuario = str(prontuario).strip()
-    if prontuario == '':
-        return jsonify({"error": "Prontuário não fornecido"}), 400
-    
+    prontuario = str(request.args.get('prontuario', '') or '').strip()
+    if not prontuario:
+        return jsonify({'ok': False, 'found': False, 'code': 'INVALID_PRONTUARIO', 'message': 'Informe o número do prontuário.', 'hint': 'Digite o prontuário antes de buscar.', 'data': None}), 400
+    specialty = Specialty.query.filter_by(slug='ortopedia', is_active=True).first()
+    settings = specialty.settings if specialty else None
+    config = AccessConfig(
+        host=(settings.access_host if settings else '192.168.1.252'),
+        share_path=(settings.access_share_path if settings else r'naqh\AMBULATORIO_SERV'),
+        filename=(settings.access_filename if settings else 'AMBULATORIO_SERV.accdb'),
+        enabled=(settings.access_enabled if settings else True),
+    )
     try:
-        # Caminho do arquivo Access (rede)
-        db_path = r"\\192.168.1.252\naqh\AMBULATORIO_SERV\AMBULATORIO_SERV.accdb"
-        
-        if not Path(db_path).exists():
-            current_app.logger.error(f"Banco Access não encontrado em: {db_path}")
-            return jsonify({"error": "Banco de dados não encontrado"}), 404
-        
-        # String de conexão para Access
-        conn_str = f'Driver={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={db_path};'
-        
-        try:
-            conn = pyodbc.connect(conn_str)
-            cursor = conn.cursor()
-
-            # Buscar dados na tabela cadastro_de_pacientes
-            cursor.execute('SELECT * FROM cadastro_de_pacientes WHERE prontuario = ?', prontuario)
-            row = cursor.fetchone()
-
-            if not row:
-                cursor.close()
-                conn.close()
-                # Retornar 404 quando não encontrado (cliente pode interpretar como not found)
-                return jsonify({"found": False, "message": "Prontuário não encontrado"}), 404
-
-            # Obter nomes das colunas
-            columns = [description[0] for description in cursor.description]
-
-            # Converter para dicionário
-            patient_data = dict(zip(columns, row))
-
-            cursor.close()
-            conn.close()
-
-            return jsonify({"found": True, "data": patient_data}), 200
-
-        except pyodbc.Error as e:
-            current_app.logger.exception("Erro ao conectar ao banco Access")
-            return jsonify({"error": "Erro ao conectar ao banco Access"}), 502
-
-    except Exception as e:
-        current_app.logger.exception("Erro inesperado ao buscar dados do Access")
-        return jsonify({"error": "Erro ao buscar dados"}), 500
+        result = access_patient_service.search(config, prontuario)
+        if not result['found']:
+            return jsonify({
+                'ok': True, 'found': False, 'code': 'PATIENT_NOT_FOUND',
+                'message': 'Prontuário não localizado no banco do CPAM.',
+                'hint': 'Confira o número informado ou preencha o cadastro manualmente.',
+                **result,
+            }), 404
+        return jsonify({'ok': True, 'code': 'PATIENT_FOUND', 'message': 'Paciente encontrado.', 'hint': '', **result}), 200
+    except ValueError as exc:
+        current_app.logger.error('Configuração Access inválida: %s', exc)
+        return jsonify({'ok': False, 'found': False, 'code': 'ACCESS_CONFIG_INVALID', 'message': 'A configuração do banco Access é inválida.', 'hint': 'Solicite ao administrador que revise as Configurações.', 'data': None}), 503
+    except AccessLookupError as exc:
+        current_app.logger.warning('Falha Access %s', exc.code)
+        return jsonify(exc.payload()), exc.status
 
 
 # Nova rota para verificar a existência do paciente via API

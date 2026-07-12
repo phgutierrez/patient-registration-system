@@ -23,9 +23,7 @@ Se ver algo como:
 ```
 === ESPECIALIDADES ===
   - Ortopedia (1) [ATIVADA]
-  - Cirurgia Pediatrica (2) [ATIVADA]
-
-Total: 2 especialidade(s)
+Total: 1 especialidade(s)
 ```
 
 ✅ **Tudo OK!**
@@ -50,10 +48,10 @@ run_network.bat
 
 ## Acesso Inicial
 
-1. Abra o arquivo `.env`
-2. Preencha `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
-3. Inicie o sistema e faça login com esse usuário
-4. O sistema pedirá troca de senha no primeiro acesso
+1. Inicie com `run_local.bat` no computador servidor
+2. Se não houver usuários, o assistente solicitará o primeiro administrador
+3. Escolha uma senha com pelo menos 12 caracteres
+4. Para automação sem interface, use opcionalmente `ADMIN_BOOTSTRAP_*` no `.env`
 
 ## Problemas Comuns
 
@@ -120,7 +118,7 @@ SERVER_HOST=127.0.0.1
 SERVER_PORT=5000
 DESKTOP_MODE=true
 ADMIN_BOOTSTRAP_USERNAME=admin.local
-ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
+ADMIN_BOOTSTRAP_PASSWORD=123456
 ```
 
 ## Arquitetura Rápida

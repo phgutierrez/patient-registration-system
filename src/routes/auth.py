@@ -1,14 +1,16 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy import text
 
 from src.extensions import db, limiter
-from src.forms.user_forms import PasswordChangeForm
+from src.forms.user_forms import FirstAdminForm, PasswordChangeForm
 from src.models.specialty import Specialty
 from src.models.user import User
 from src.runtime_security import (
     require_admin,
     generate_temporary_password,
     slugify_username,
+    request_is_loopback,
 )
 
 auth = Blueprint('auth', __name__)
@@ -16,9 +18,9 @@ auth = Blueprint('auth', __name__)
 
 def _get_selected_specialty():
     slug = session.get('specialty_slug')
-    if not slug:
+    if slug != 'ortopedia':
         return None
-    return Specialty.query.filter_by(slug=slug, is_active=True).first()
+    return Specialty.query.filter_by(slug='ortopedia', is_active=True).first()
 
 
 def _get_specialty_users(specialty):
@@ -60,10 +62,17 @@ def select_user():
     specialty = _get_selected_specialty()
     if not specialty:
         session.pop('pending_user_id', None)
-        specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.name).all()
+        specialties = Specialty.query.filter_by(slug='ortopedia', is_active=True).all()
         return render_template('select_user.html', step='specialty', specialties=specialties)
 
     users = _get_specialty_users(specialty)
+    if User.query.count() == 0:
+        if request_is_loopback():
+            return redirect(url_for('auth.first_admin'))
+        return render_template(
+            'select_user.html', step='user', users=[], specialty=specialty,
+            no_users=True, first_admin_remote_blocked=True,
+        )
     pending_user = None
     pending_user_id = session.get('pending_user_id')
     if pending_user_id:
@@ -123,11 +132,66 @@ def select_user():
     )
 
 
+@auth.route('/primeiro-acesso', methods=['GET', 'POST'])
+@limiter.limit('5 per minute', methods=['POST'])
+def first_admin():
+    """Assistente único e local para destravar uma instalação vazia."""
+    if User.query.count() != 0:
+        flash('O primeiro acesso já foi concluído.', 'info')
+        return redirect(url_for('auth.select_user'))
+    if not request_is_loopback():
+        return render_template(
+            'error.html', title='Configuração local necessária',
+            message='Crie o primeiro administrador acessando o sistema no próprio servidor.'
+        ), 403
+
+    specialty = Specialty.query.filter_by(slug='ortopedia', is_active=True).first()
+    if specialty is None:
+        flash('A especialidade Ortopedia ainda não foi inicializada. Execute setup_windows.bat.', 'error')
+        return redirect(url_for('auth.select_user'))
+
+    form = FirstAdminForm()
+    if form.validate_on_submit():
+        try:
+            # SQLite: serializa tentativas concorrentes antes da contagem definitiva.
+            db.session.rollback()
+            db.session.execute(text('BEGIN IMMEDIATE'))
+            if User.query.count() != 0:
+                db.session.rollback()
+                flash('Outro administrador concluiu o primeiro acesso.', 'warning')
+                return redirect(url_for('auth.select_user'))
+            username = form.username.data.strip().lower()
+            if User.query.filter_by(username=username).first():
+                flash('Esse nome de usuário já está em uso.', 'error')
+            else:
+                user = User(
+                    username=username,
+                    password=form.password.data,
+                    full_name=form.full_name.data.strip(),
+                    role='admin',
+                    specialty_id=specialty.id,
+                    must_change_password=False,
+                )
+                db.session.add(user)
+                db.session.commit()
+                session.clear()
+                session['specialty_slug'] = 'ortopedia'
+                session.permanent = True
+                login_user(user, remember=False, fresh=True)
+                flash('Administrador criado com sucesso.', 'success')
+                return redirect(url_for('main.index'))
+        except Exception:
+            db.session.rollback()
+            flash('Não foi possível criar o administrador. Tente novamente.', 'error')
+
+    return render_template('auth/first_admin.html', form=form)
+
+
 @auth.route('/set-specialty', methods=['POST'])
 def set_specialty_pre_login():
     """Grava especialidade na sessão antes do login e redireciona para seleção de solicitante."""
     slug = request.form.get('specialty_slug', '').strip()
-    sp = Specialty.query.filter_by(slug=slug, is_active=True).first()
+    sp = Specialty.query.filter_by(slug='ortopedia', is_active=True).first() if slug == 'ortopedia' else None
     if not sp:
         flash('Especialidade inválida.', 'error')
         return redirect(url_for('auth.select_user'))
@@ -182,7 +246,7 @@ def register_user():
             flash('Informe um nome completo válido para criar o solicitante.', 'error')
         else:
             try:
-                temporary_password = generate_temporary_password(12)
+                temporary_password = generate_temporary_password()
                 user = User(
                     username=username,
                     password=temporary_password,
@@ -233,7 +297,7 @@ def register_user():
         if not user:
             flash('Usuário não encontrado.', 'error')
         else:
-            new_password = generate_temporary_password(12)
+            new_password = generate_temporary_password()
             user.set_password(new_password)
             user.must_change_password = True
             db.session.commit()
@@ -265,5 +329,5 @@ def register_user():
         return redirect(url_for('auth.register_user'))
 
     users = User.query.order_by(User.role.desc(), User.full_name.asc()).all()
-    specialties = Specialty.query.filter_by(is_active=True).order_by(Specialty.id).all()
+    specialties = Specialty.query.filter_by(slug='ortopedia', is_active=True).all()
     return render_template('user_registration.html', users=users, specialties=specialties)

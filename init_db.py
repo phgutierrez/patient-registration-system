@@ -33,7 +33,6 @@ def init_db():
         now = datetime.utcnow()
         specialties_data = [
             {'slug': 'ortopedia', 'name': 'Ortopedia'},
-            {'slug': 'cirurgia_pediatrica', 'name': 'Cirurgia Pediátrica'},
         ]
         specialties = []
         for spec_data in specialties_data:
@@ -52,10 +51,10 @@ def init_db():
         try:
             from src.models.specialty import SpecialtySettings
             forms_url_ortopedia = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
-            for i, spec in enumerate(specialties):
+            for spec in specialties:
                 setting = SpecialtySettings(
                     specialty_id=spec.id,
-                    forms_url=forms_url_ortopedia if i == 0 else '',
+                    forms_url=forms_url_ortopedia,
                     agenda_url='',
                     created_at=now,
                     updated_at=now,
@@ -72,7 +71,6 @@ def init_db():
 
 Especialidades criadas:
 - Ortopedia
-- Cirurgia Pediátrica
 
 Usuários iniciais:
 - Nenhum solicitante padrão é criado automaticamente

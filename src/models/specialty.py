@@ -10,8 +10,8 @@ class Specialty(db.Model):
     __tablename__ = 'specialties'
 
     id = db.Column(db.Integer, primary_key=True)
-    slug = db.Column(db.String(50), unique=True, nullable=False)      # ortopedia, cirurgia_pediatrica
-    name = db.Column(db.String(100), nullable=False)                   # "Ortopedia", "Cirurgia Pediátrica"
+    slug = db.Column(db.String(50), unique=True, nullable=False)      # ortopedia
+    name = db.Column(db.String(100), nullable=False)                  # "Ortopedia"
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -33,6 +33,10 @@ class SpecialtySettings(db.Model):
     specialty_id = db.Column(db.Integer, db.ForeignKey('specialties.id'), unique=True, nullable=False)
     agenda_url = db.Column(db.Text, nullable=True)
     forms_url = db.Column(db.Text, nullable=True)
+    access_host = db.Column(db.String(255), nullable=False, default='192.168.1.252', server_default='192.168.1.252')
+    access_share_path = db.Column(db.String(500), nullable=False, default=r'naqh\AMBULATORIO_SERV', server_default=r'naqh\AMBULATORIO_SERV')
+    access_filename = db.Column(db.String(255), nullable=False, default='AMBULATORIO_SERV.accdb', server_default='AMBULATORIO_SERV.accdb')
+    access_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -77,9 +77,8 @@ O script fará automaticamente:
 
 **Acesso inicial recomendado:**
 - Copie `.env.example` para `.env` se necessário
-- Defina `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
-- Faça o primeiro login com o administrador bootstrap
-- O sistema exigirá troca de senha na primeira entrada
+- Abra `http://localhost:5000` no servidor e crie o primeiro administrador pelo assistente local
+- Para instalações automatizadas, defina opcionalmente `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
 
 ---
 
@@ -240,7 +239,7 @@ DESKTOP_MODE=false           # Desabilitar auto-desligamento para LAN
 
 # Bootstrap do primeiro administrador
 ADMIN_BOOTSTRAP_USERNAME=admin.local
-ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
+ADMIN_BOOTSTRAP_PASSWORD=123456
 ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
 ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
 
@@ -496,9 +495,9 @@ remove-item instance\prontuario.db
 
 4. **Navegue para:** Menu → Configurações → Especialidades
 
-#### Passo 2: Para CADA Especialidade, Configure a Agenda
+#### Passo 2: Configure a Agenda de Ortopedia
 
-Para cada especialidade (ex: Ortopedia, Cirurgia Pediátrica):
+Para a especialidade Ortopedia:
 
 1. **Clique em "Editar"** na especialidade desejada
 
@@ -524,14 +523,6 @@ Para cada especialidade (ex: Ortopedia, Cirurgia Pediátrica):
 Especialidade: Ortopedia
 ├─ URL Agenda: https://calendar.google.com/calendar/ical/SEU_CALENDARIO_ORTOPEDIA/public/basic.ics
 └─ URL Formulário: https://docs.google.com/forms/d/e/SEU_FORM_ORTOPEDIA/viewform
-```
-
-#### Exemplo: Configurar Cirurgia Pediátrica
-
-```
-Especialidade: Cirurgia Pediátrica
-├─ URL Agenda: https://calendar.google.com/calendar/ical/SEU_CALENDARIO_CIPE/public/basic.ics
-└─ URL Formulário: https://docs.google.com/forms/d/e/SEU_FORM_CIPE/viewform
 ```
 
 #### Verificar Configuração
@@ -960,7 +951,6 @@ with app.app_context():
         
         specs = [
             Specialty(slug='ortopedia', name='Ortopedia', is_active=True),
-            Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediátrica', is_active=True),
         ]
         for spec in specs:
             db.session.add(spec)

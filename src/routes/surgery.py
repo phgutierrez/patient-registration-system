@@ -168,7 +168,24 @@ def _send_authorized_pdf(surgery_request, filename, download_name, *, as_attachm
         flash('O arquivo PDF não foi encontrado.', 'danger')
         return redirect(url_for('patients.view_patient', id=surgery_request.patient_id))
 
-    return send_file(pdf_path, as_attachment=as_attachment, download_name=download_name)
+    response = send_file(
+        pdf_path,
+        mimetype='application/pdf',
+        as_attachment=as_attachment,
+        download_name=download_name,
+        conditional=False,
+        max_age=0,
+    )
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Content-Length'] = str(pdf_path.stat().st_size)
+    if not as_attachment:
+        # This response is embedded only by the authenticated same-origin
+        # confirmation page. All HTML pages keep the global DENY policy.
+        frame_policy = "frame-ancestors 'self'; object-src 'self'"
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Content-Security-Policy'] = frame_policy
+        response.headers['Content-Security-Policy-Report-Only'] = frame_policy
+    return response
 
 
 @surgery.route('/patient/<int:patient_id>/surgery/request', methods=['GET', 'POST'])
@@ -218,15 +235,11 @@ def request_surgery(patient_id):
                 # Gerar PDF de requisição de hemocomponente se sangue for reservado
                 pdf_hemocomponente = None
                 if surgery_request.reserva_sangue:
-                    try:
-                        pdf_hemocomponente = preencher_requisicao_hemocomponente(
-                            patient, surgery_request)
-                        if pdf_hemocomponente:
-                            hemo_filename = os.path.basename(pdf_hemocomponente)
-                            surgery_request.pdf_hemocomponente = hemo_filename
-                    except Exception as e:
-                        print(f"Aviso: Erro ao gerar PDF de hemocomponente: {str(e)}")
-                        # Não falha a solicitação se o PDF de hemocomponente falhar
+                    pdf_hemocomponente = preencher_requisicao_hemocomponente(
+                        patient, surgery_request)
+                    if pdf_hemocomponente:
+                        hemo_filename = os.path.basename(pdf_hemocomponente)
+                        surgery_request.pdf_hemocomponente = hemo_filename
 
                 if pdf_path:
                     pdf_filename = os.path.basename(pdf_path)
@@ -306,19 +319,16 @@ def edit_surgery_request(surgery_id):
 
             # Regenerar PDF de hemocomponente, quando aplicável
             if surgery_request.reserva_sangue:
-                try:
-                    pdf_hemocomponente = preencher_requisicao_hemocomponente(patient, surgery_request)
-                    surgery_request.pdf_hemocomponente = (
-                        os.path.basename(pdf_hemocomponente) if pdf_hemocomponente else None
-                    )
-                    if (
-                        old_hemo_filename
-                        and surgery_request.pdf_hemocomponente
-                        and old_hemo_filename != surgery_request.pdf_hemocomponente
-                    ):
-                        _safe_remove_generated_file(old_hemo_filename)
-                except Exception as e:
-                    logger.warning(f"Erro ao regenerar PDF de hemocomponente na edição: {e}")
+                pdf_hemocomponente = preencher_requisicao_hemocomponente(patient, surgery_request)
+                surgery_request.pdf_hemocomponente = (
+                    os.path.basename(pdf_hemocomponente) if pdf_hemocomponente else None
+                )
+                if (
+                    old_hemo_filename
+                    and surgery_request.pdf_hemocomponente
+                    and old_hemo_filename != surgery_request.pdf_hemocomponente
+                ):
+                    _safe_remove_generated_file(old_hemo_filename)
             else:
                 surgery_request.pdf_hemocomponente = None
                 _safe_remove_generated_file(old_hemo_filename)
@@ -508,7 +518,9 @@ def schedule_preview(id):
     Retorna JSON com preview do agendamento antes de confirmar.
     Agora usa submissão ao Google Forms ao invés de Web App.
     """
-    from src.services.forms_service import build_forms_payload
+    from src.services.forms_service import (
+        build_forms_payload, OPME_FORM_CHOICES, ORTHOPEDIST_CHOICES,
+    )
     
     try:
         # Buscar solicitação e paciente
@@ -528,12 +540,20 @@ def schedule_preview(id):
             # Formatar preview para exibição
             preview = {
                 'title': payload['procedure_title'],
+                'procedure_title': payload['procedure_title'],
+                'date': payload['date'],
                 'date_display': payload['date'],
                 'orthopedist': payload['orthopedist'],
+                'needs_icu': payload['needs_icu'],
                 'needs_icu_display': payload['needs_icu'],
+                'opme': payload['opme'],
+                'opme_other': payload.get('opme_other', ''),
                 'opme_display': ', '.join(payload['opme']) if payload['opme'] else 'Não',
+                'full_description': payload['full_description'],
                 'description': payload['full_description'],
-                'all_day': True
+                'all_day': True,
+                'opme_choices': OPME_FORM_CHOICES,
+                'orthopedist_choices': ORTHOPEDIST_CHOICES,
             }
             
             return jsonify({
@@ -567,7 +587,10 @@ def schedule_confirm(id):
     Confirma e envia agendamento submetendo resposta ao Google Forms.
     O Apps Script da planilha (onFormSubmit) criará o evento no calendário.
     """
-    from src.services.forms_service import build_forms_payload, submit_form, get_forms_configuration
+    from src.services.forms_service import (
+        build_forms_payload, submit_form, get_forms_configuration,
+        validate_schedule_payload,
+    )
     
     try:
         # Buscar solicitação e paciente
@@ -601,7 +624,8 @@ def schedule_confirm(id):
         
         # Montar payload
         try:
-            payload = build_forms_payload(surgery_request, patient)
+            defaults = build_forms_payload(surgery_request, patient)
+            payload = validate_schedule_payload(request.get_json(silent=True) or {}, defaults)
         except ValueError as e:
             return jsonify({
                 'ok': False,

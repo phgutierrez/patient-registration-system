@@ -48,7 +48,7 @@ with app.app_context():
     print("   - Verificando especialidades...")
     spec_count = Specialty.query.count()
     if spec_count == 0:
-        for slug, name in [('ortopedia', 'Ortopedia'), ('cirurgia_pediatrica', 'Cirurgia Pediatrica')]:
+        for slug, name in [('ortopedia', 'Ortopedia')]:
             db.session.add(Specialty(slug=slug, name=name, is_active=True, created_at=now, updated_at=now))
             print(f"       + {name}")
         db.session.flush()
@@ -61,7 +61,6 @@ with app.app_context():
     # ── Configuracoes de especialidade ────────────────────────────────────
     print("   - Verificando configuracoes de especialidades...")
     ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
-    cirurgia  = Specialty.query.filter_by(slug='cirurgia_pediatrica').first()
 
     if ortopedia:
         ortopedia_settings = SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first()
@@ -77,15 +76,6 @@ with app.app_context():
             ortopedia_settings.agenda_url = default_ortopedia_agenda_url
             ortopedia_settings.updated_at = now
             print("       + SpecialtySettings: Ortopedia agenda_url atualizado para valor padrão")
-
-    if cirurgia and not SpecialtySettings.query.filter_by(specialty_id=cirurgia.id).first():
-        db.session.add(SpecialtySettings(
-            specialty_id=cirurgia.id,
-            forms_url='',
-            agenda_url='',
-            created_at=now, updated_at=now,
-        ))
-        print("       + SpecialtySettings: Cirurgia Pediatrica")
 
     db.session.flush()
     print("   [OK] Configuracoes verificadas")

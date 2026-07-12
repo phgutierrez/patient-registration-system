@@ -9,7 +9,6 @@ bp = Blueprint('lifecycle', __name__)
 
 
 @bp.route('/lifecycle/heartbeat', methods=['POST'])
-@login_required
 def heartbeat():
     data = request.get_json() or {}
     session = data.get('session')
@@ -21,7 +20,6 @@ def heartbeat():
 
 
 @bp.route('/lifecycle/shutdown', methods=['POST'])
-@login_required
 def shutdown():
     # Aceitar tanto JSON quanto FormData (para sendBeacon)
     if request.content_type and 'application/json' in request.content_type:

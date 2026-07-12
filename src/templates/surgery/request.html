@@ -372,6 +372,17 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
+                <div id="modeloFeedback"></div>
+                <div class="card bg-light border-0 mb-3">
+                    <div class="card-body py-3">
+                        <label for="nomeModelo" class="form-label fw-semibold">Nome do modelo clínico</label>
+                        <div class="input-group">
+                            <input type="text" id="nomeModelo" class="form-control" maxlength="80" placeholder="Ex.: Osteossíntese de tornozelo">
+                            <button type="button" class="btn btn-warning" id="btnSalvarModelo"><i class="fas fa-save me-1"></i><span>Salvar novo</span></button>
+                        </div>
+                        <div class="form-text">O modelo não inclui paciente, data, hora, assistente ou outros dados de agendamento.</div>
+                    </div>
+                </div>
                 <div class="mb-3">
                     <input type="text" id="buscaModelos" class="form-control" placeholder="Buscar modelo por nome ou procedimento...">
                 </div>
@@ -794,5 +805,130 @@
         carregarModelos(); // Recarregar lista
         alert(`Modelo "${nomeModelo}" deletado com sucesso!`);
     }
+</script>
+<script>
+/* Gerenciador v2: modelos clínicos versionados e compatíveis com registros legados. */
+(() => {
+    const CLINICAL_FIELDS = [
+        'sinais_sintomas', 'condicoes_justificativa', 'resultados_diagnosticos',
+        'procedimento_solicitado', 'codigo_procedimento', 'tipo_cirurgia',
+        'internar_antes', 'aparelhos_especiais', 'reserva_sangue', 'quantidade_sangue',
+        'raio_x', 'reserva_uti', 'duracao_prevista', 'evolucao_internacao',
+        'prescricao_internacao', 'exames_preop', 'opme_items', 'opme_outro'
+    ];
+    let editingModeloId = null;
+
+    const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const feedback = (message, type='success') => {
+        const target = document.getElementById('modeloFeedback');
+        if (target) target.innerHTML = `<div class="alert alert-${type} py-2">${safeText(message)}</div>`;
+    };
+
+    window.loadModelos = function() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(getModelosStorageKey()) || '[]');
+            return Array.isArray(parsed) ? parsed.map(m => ({...m, version: 2, dados: pickClinical(m.dados || {})})) : [];
+        } catch (error) {
+            console.warn('Modelos locais inválidos:', error);
+            return [];
+        }
+    };
+
+    function pickClinical(source) {
+        const result = {};
+        CLINICAL_FIELDS.forEach(name => {
+            if (Object.prototype.hasOwnProperty.call(source, name)) result[name] = source[name];
+        });
+        if (!Array.isArray(result.opme_items) && source.opme) {
+            const known = [...document.querySelectorAll('[name="opme_items"]')].map(el => el.value);
+            const tokens = String(source.opme).split(',').map(v => v.trim()).filter(Boolean);
+            result.opme_items = tokens.filter(v => known.includes(v));
+            if (!result.opme_outro) result.opme_outro = tokens.filter(v => !known.includes(v) && !v.toLowerCase().startsWith('outro:')).join(', ');
+        }
+        return result;
+    }
+
+    window.coletarDadosFormulario = function() {
+        const formData = new FormData(document.querySelector('.needs-validation'));
+        const result = {};
+        CLINICAL_FIELDS.forEach(name => {
+            if (name === 'opme_items') result[name] = formData.getAll(name);
+            else if (['internar_antes','reserva_sangue','raio_x','reserva_uti'].includes(name)) result[name] = formData.has(name);
+            else result[name] = formData.get(name) || '';
+        });
+        return result;
+    };
+
+    window.salvarComoModelo = function() {
+        editingModeloId = null;
+        const name = document.getElementById('nomeModelo');
+        if (name) name.value = '';
+        abrirModelos();
+        setTimeout(() => name?.focus(), 250);
+    };
+
+    function persistModelo() {
+        const input = document.getElementById('nomeModelo');
+        const nome = (input?.value || '').trim();
+        if (!nome) return feedback('Informe um nome para o modelo.', 'warning');
+        const modelos = loadModelos();
+        const duplicate = modelos.find(m => m.nome.toLowerCase() === nome.toLowerCase() && String(m.id) !== String(editingModeloId));
+        if (duplicate) return feedback('Já existe um modelo com esse nome.', 'warning');
+        const now = new Date().toISOString();
+        if (editingModeloId) {
+            const index = modelos.findIndex(m => String(m.id) === String(editingModeloId));
+            if (index < 0) return feedback('Modelo não encontrado.', 'danger');
+            modelos[index] = {...modelos[index], nome, dados: coletarDadosFormulario(), atualizadoEm: now, version: 2};
+            feedback(`Modelo "${nome}" atualizado.`);
+        } else {
+            modelos.push({id: generateModeloId(), nome, dados: coletarDadosFormulario(), dataCriacao: now, atualizadoEm: now, usosCount: 0, version: 2});
+            feedback(`Modelo "${nome}" salvo.`);
+        }
+        editingModeloId = null; input.value = ''; document.querySelector('#btnSalvarModelo span').textContent = 'Salvar novo'; saveModelos(modelos); carregarModelos(document.getElementById('buscaModelos')?.value.toLowerCase() || '');
+    }
+
+    window.carregarModelos = function(termoBusca='') {
+        const target = document.getElementById('modelosList'); if (!target) return;
+        const term = String(termoBusca).trim().toLowerCase();
+        const modelos = loadModelos().filter(m => !term || m.nome.toLowerCase().includes(term) || String(m.dados.procedimento_solicitado || '').toLowerCase().includes(term)).sort((a,b) => new Date(b.atualizadoEm || b.dataCriacao || 0) - new Date(a.atualizadoEm || a.dataCriacao || 0));
+        document.getElementById('botaoExpandir').style.display = 'none';
+        if (!modelos.length) { target.innerHTML = '<div class="text-center text-muted py-3">Nenhum modelo encontrado.</div>'; return; }
+        target.innerHTML = `<div class="list-group">${modelos.map(m => `<div class="list-group-item"><div class="d-flex flex-wrap justify-content-between gap-2"><div><h6 class="mb-1">${safeText(m.nome)}</h6><div class="small text-muted">${safeText(m.dados.procedimento_solicitado || 'Procedimento não informado')} · ${m.usosCount || 0} uso(s)</div></div><div class="btn-group btn-group-sm"><button type="button" class="btn btn-primary" data-model-load="${safeText(m.id)}">Aplicar</button><button type="button" class="btn btn-outline-secondary" data-model-edit="${safeText(m.id)}">Atualizar</button><button type="button" class="btn btn-outline-danger" data-model-delete="${safeText(m.id)}" aria-label="Excluir"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`;
+        target.querySelectorAll('[data-model-load]').forEach(b => b.onclick=()=>carregarModelo(b.dataset.modelLoad));
+        target.querySelectorAll('[data-model-edit]').forEach(b => b.onclick=()=>editarModelo(b.dataset.modelEdit));
+        target.querySelectorAll('[data-model-delete]').forEach(b => b.onclick=()=>deletarModelo(b.dataset.modelDelete));
+    };
+
+    function setField(name, value) {
+        const fields = [...document.querySelectorAll(`[name="${name}"]`)]; if (!fields.length) return;
+        if (name === 'opme_items') fields.forEach(el => el.checked = Array.isArray(value) && value.includes(el.value));
+        else if (fields[0].type === 'radio') fields.forEach(el => el.checked = el.value === value);
+        else if (fields[0].type === 'checkbox') fields[0].checked = Boolean(value);
+        else fields[0].value = value ?? '';
+    }
+
+    window.carregarModelo = function(id) {
+        const modelos = loadModelos(), index = modelos.findIndex(m => String(m.id) === String(id));
+        if (index < 0) return feedback('Modelo não encontrado.', 'danger');
+        Object.entries(modelos[index].dados).forEach(([name,value]) => setField(name,value));
+        modelos[index].usosCount = (modelos[index].usosCount || 0) + 1; modelos[index].ultimoUso = new Date().toISOString(); saveModelos(modelos);
+        ['reserva_sangue','procedimento_solicitado'].forEach(name => document.querySelector(`[name="${name}"]`)?.dispatchEvent(new Event('change',{bubbles:true})));
+        modelosModalInstance?.hide(); window.scrollTo({top:0,behavior:'smooth'});
+    };
+
+    window.editarModelo = function(id) {
+        const modelo = loadModelos().find(m => String(m.id) === String(id)); if (!modelo) return;
+        editingModeloId = modelo.id; document.getElementById('nomeModelo').value = modelo.nome; feedback('Ajuste o formulário ao fundo e clique em Atualizar modelo.', 'info');
+        document.querySelector('#btnSalvarModelo span').textContent = 'Atualizar modelo';
+    };
+
+    window.deletarModelo = function(id) {
+        const modelos = loadModelos(), modelo = modelos.find(m => String(m.id) === String(id)); if (!modelo) return;
+        if (!confirm(`Excluir o modelo "${modelo.nome}"?`)) return;
+        saveModelos(modelos.filter(m => String(m.id) !== String(id))); carregarModelos(document.getElementById('buscaModelos')?.value.toLowerCase() || ''); feedback('Modelo excluído.');
+    };
+
+    document.addEventListener('DOMContentLoaded',()=>document.getElementById('btnSalvarModelo')?.addEventListener('click',persistModelo));
+})();
 </script>
 {% endblock %}

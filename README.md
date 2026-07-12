@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Pronto%20para%20Produção-success)
 
-Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias ortopédicas pediátricas com interface moderna, geração automática de PDFs e integração com Google Calendar.
+Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias ortopédicas com interface moderna, geração automática de PDFs e integração com Google Calendar.
 
 [📥 Instalação](#-instalação) • [🌐 Configuração de Rede](#-implantação-em-rede-lan) • [📖 Documentação](docs/INDEX.md) • [🔧 Configuração](#-configuração)
 
@@ -26,13 +26,13 @@ Sistema abrangente de gerenciamento de pacientes e agendamento de cirurgias orto
 
 ## 📋 Sobre
 
-Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ortopédicos pediátricos e solicitações de cirurgia. Fornece uma solução completa para registro de pacientes, agendamento de cirurgias, integração de calendário e geração de documentos - projetado para ambientes hospitalares Windows.
+Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ortopédicos e solicitações de cirurgia. Fornece uma solução completa para registro de pacientes, agendamento de cirurgias, integração de calendário e geração de documentos - projetado para ambientes hospitalares Windows.
 
 ### ✨ Características Principais
 
 - 🏥 **Fluxo Hospitalar** - Gerenciamento completo de registro de pacientes e solicitações de cirurgia
 - 📅 **Integração Google Calendar** - Sincronização em tempo real com atualização de 60 segundos
-- 📄 **Geração Automática de PDFs** - Documentos de solicitação de cirurgia (ReportLab)
+- 📄 **Geração Automática de PDFs** - Documentos finalizados no backend com PyMuPDF
 - 🌐 **Pronto para LAN** - Pronto para produção com servidor WSGI Waitress
 - ⚡ **Cache Rápido** - Cache de calendário TTL de 60 segundos com GET condicional
 - 🎯 **Agendamento Inteligente** - Integração Google Forms para eventos de calendário automatizados
@@ -57,7 +57,7 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - **Frontend**: Templates Jinja2, Bootstrap 5, CSS/JS modernos
 - **Servidor**: Servidor WSGI Waitress (pronto para produção)
 - **Integrações**: Google Calendar (ICS), Google Forms, parsing iCalendar
-- **PDF**: ReportLab para geração de documentos
+- **PDF**: PyMuPDF para preenchimento e incorporação permanente de formulários
 - **Cache**: Thread-safe em memória + persistência em banco de dados
 
 ### Modelos de Dados
@@ -180,9 +180,9 @@ run_network.bat
 
 ### 📋 Configuração da Primeira Execução
 1. Copie `.env.example` para `.env` se necessário
-2. Configure `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
-3. Inicie o sistema e entre com o administrador bootstrap
-4. No primeiro login, defina uma nova senha
+2. Inicie o sistema com `run_local.bat`
+3. Se não houver usuários, crie o primeiro administrador pelo assistente aberto em `localhost`
+4. Como alternativa automatizada, configure `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD`
 5. Use a navegação do dashboard:
    - **Alt+N** - Novo registro de paciente
    - **Alt+L** - Lista de pacientes
@@ -303,7 +303,7 @@ DESKTOP_MODE=false         # true para auto-desligamento, false para LAN
 
 # Bootstrap do primeiro administrador
 ADMIN_BOOTSTRAP_USERNAME=admin.local
-ADMIN_BOOTSTRAP_PASSWORD=defina-uma-senha-forte-aqui
+ADMIN_BOOTSTRAP_PASSWORD=123456
 ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
 ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
 
@@ -327,8 +327,8 @@ SECURITY_HSTS_ENABLED=false
 | `SECRET_KEY` | Chave de criptografia de sessão Flask | gerada em runtime se vazia | Recomendado |
 | `SERVER_HOST` | Endereço de binding (127.0.0.1=local, 0.0.0.0=LAN) | 127.0.0.1 | Não |
 | `DESKTOP_MODE` | Habilitar auto-desligamento ao fechar navegador | false | Não |
-| `ADMIN_BOOTSTRAP_USERNAME` | Usuário do primeiro admin | - | Sim na primeira subida sem admins |
-| `ADMIN_BOOTSTRAP_PASSWORD` | Senha inicial forte do primeiro admin | - | Sim na primeira subida sem admins |
+| `ADMIN_BOOTSTRAP_USERNAME` | Usuário opcional para bootstrap automatizado | - | Não |
+| `ADMIN_BOOTSTRAP_PASSWORD` | PIN opcional de exatamente 6 dígitos para bootstrap automatizado | - | Não |
 | `GOOGLE_CALENDAR_ID` | ID opcional do Google Calendar usado para derivar URL ICS padrão | - | Opcional |
 | `CALENDAR_CACHE_TTL_SECONDS` | Intervalo de atualização do calendário | 60 | Não |
 | `GOOGLE_FORMS_PUBLIC_ID` | ID público do formulário para agendamento | - | Opcional |
@@ -390,8 +390,8 @@ waitress-serve --listen=0.0.0.0:5000 wsgi:application
 **2. Erros de banco "No such column"**
 ```bash
 # Problema: Esquema do banco de dados desatualizado
-# Solução: Recriar banco de dados
-python create_tables_direct.py
+# Solução segura: executar o setup idempotente, que cria backup antes de atualizar
+setup_windows.bat
 ```
 
 **3. Datas do calendário com diferença de um dia**
@@ -494,6 +494,7 @@ taskkill /PID <process_id> /F
 - **[TROUBLESHOOTING_ESPECIALIDADES.md](docs/TROUBLESHOOTING_ESPECIALIDADES.md)** - Diagnóstico e soluções
 - **[.env.example](.env.example)** - Modelo de configuração com todas as variáveis
 - **[Requirements](requirements.txt)** - Dependências Python com versões
+- **[Geração de PDFs](docs/PDF_GENERATION.md)** - Inventário, mapeamentos, validação e testes PyMuPDF
 
 ---
 
@@ -506,7 +507,7 @@ Licença MIT - Veja [LICENSE](LICENSE) para detalhes.
 ## 👨‍⚕️ Autor
 
 **Dr. Pedro Henrique Freitas**
-- Sistema desenvolvido para otimização do fluxo de trabalho em Ortopedia Pediátrica
+- Sistema desenvolvido para otimização do fluxo de trabalho em Ortopedia
 - © 2026 - Todos os direitos reservados
 
 ---
@@ -519,7 +520,7 @@ Para relatar bugs ou solicitar recursos, abra uma [Issue](../../issues).
 
 <div align="center">
 
-**Desenvolvido com ❤️ para Ortopedia Pediátrica**
+**Desenvolvido com ❤️ para Ortopedia**
 
 [⬆ Voltar ao topo](#-sistema-de-registro-de-pacientes--gerenciamento-de-cirurgias)
 

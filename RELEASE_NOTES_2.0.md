@@ -9,7 +9,7 @@
 ## 🎯 Visão Geral
 
 **Release 2.0 é uma consolidação major com foco em:**
-- ✨ Suporte multi-especialidades (Ortopedia + Cirurgia Pediátrica)
+- ✨ Configurações de especialidade para Ortopedia
 - 📚 Documentação reorganizada e completa
 - 🔧 Correções críticas de agendamento
 - 🏗️ Limpeza e otimização do projeto
@@ -20,7 +20,7 @@
 
 ### 1. **Multi-Especialidades** ⭐
 - Cada especialidade tem sua própria agenda Google Calendar
-- Suporte para múltiplas especialidades (Ortopedia, Cirurgia Pediátrica, etc)
+- Configurações específicas para Ortopedia
 - Seleção de especialidade no início da sessão
 - Agendas não compartilham cache (cada uma independente)
 
@@ -118,7 +118,7 @@ Depois (v2.0):
 
 ### Dependências
 - Removido `pytest==7.4.3` (testes não mantidos)
-- Mantido: Flask, SQLAlchemy, Waitress, ReportLab, etc
+- Mantido: Flask, SQLAlchemy, Waitress e demais dependências principais
 - Total: 22 pacotes
 
 ---
@@ -166,7 +166,6 @@ deactivate
 | Bug | Solução | Commit |
 |-----|---------|--------|
 | Especialidades não aparecem após setup | Reordenar migrations antes da criação de dados | `3cad067` |
-| Agenda Pediátrica mostrava Ortopedia | Remover cache compartilhado, usar por especialidade | `c46a89f` |
 | Build 64bits confuso | Deletar e focar em 32bits only | `2c86e03` |
 | Documentação espalhada | Centralizar em docs/ com índice | `2c86e03` |
 

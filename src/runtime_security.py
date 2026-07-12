@@ -111,6 +111,12 @@ def ensure_security_schema(app) -> None:
             )
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_surgery_requests_created_by_user_id ON surgery_requests(created_by_user_id)')
 
+        if 'specialty_settings' in tables:
+            add_column_if_missing('specialty_settings', 'access_host', "VARCHAR(255) NOT NULL DEFAULT '192.168.1.252'")
+            add_column_if_missing('specialty_settings', 'access_share_path', "VARCHAR(500) NOT NULL DEFAULT 'naqh\\AMBULATORIO_SERV'")
+            add_column_if_missing('specialty_settings', 'access_filename', "VARCHAR(255) NOT NULL DEFAULT 'AMBULATORIO_SERV.accdb'")
+            add_column_if_missing('specialty_settings', 'access_enabled', 'BOOLEAN NOT NULL DEFAULT 1')
+
         conn.commit()
     finally:
         conn.close()
@@ -143,12 +149,20 @@ def bootstrap_admin_if_configured(app) -> None:
     password = app.config.get('ADMIN_BOOTSTRAP_PASSWORD')
     if not username or not password:
         return
+    from src.password_policy import is_valid_pin
+    if not is_valid_pin(password):
+        logger.error('ADMIN_BOOTSTRAP_PASSWORD deve conter exatamente 6 dígitos; bootstrap ignorado.')
+        return
 
+    from sqlalchemy import inspect
     from src.extensions import db
     from src.models.specialty import Specialty
     from src.models.user import User
 
     with app.app_context():
+        if 'users' not in inspect(db.engine).get_table_names():
+            logger.info('Bootstrap de administrador adiado: tabela users ainda não existe.')
+            return
         existing_admin = User.query.filter_by(role='admin').first()
         if existing_admin:
             return
@@ -170,6 +184,11 @@ def bootstrap_admin_if_configured(app) -> None:
         db.session.add(user)
         db.session.commit()
         logger.warning("Usuário admin bootstrap criado: %s", username)
+
+
+def request_is_loopback() -> bool:
+    """Confia somente no socket remoto, nunca em cabeçalhos de proxy."""
+    return (request.remote_addr or '').split('%', 1)[0] in {'127.0.0.1', '::1'}
 
 
 def user_is_admin(user=None) -> bool:
@@ -223,8 +242,10 @@ def get_protected_pdf_path(filename: str) -> Path:
     return Path(current_app.config['PROTECTED_PDF_DIR']) / Path(filename).name
 
 
-def generate_temporary_password(length: int = 20) -> str:
-    return secrets.token_urlsafe(length)[:length]
+def generate_temporary_password(length: int = 6) -> str:
+    """Generate a six-digit PIN. ``length`` remains for API compatibility."""
+    from src.password_policy import generate_pin
+    return generate_pin()
 
 
 def slugify_username(full_name: str) -> str:

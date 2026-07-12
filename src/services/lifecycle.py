@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 # Global lifecycle state
 state = {
     'sessions': {},  # session_id -> last_heartbeat (datetime)
+    'had_sessions': False,
+    'empty_since': None,
 }
+_monitor_started = False
 
 
 def generate_session_id() -> str:
@@ -20,12 +23,16 @@ def generate_session_id() -> str:
 def touch_session(session_id: str):
     """Registra/atualiza o heartbeat da sessão"""
     state['sessions'][session_id] = datetime.utcnow()
+    state['had_sessions'] = True
+    state['empty_since'] = None
     logger.debug(f"Heartbeat registered for session {session_id}")
 
 
 def remove_session(session_id: str):
     if session_id in state['sessions']:
         del state['sessions'][session_id]
+    if state['had_sessions'] and not state['sessions']:
+        state['empty_since'] = datetime.utcnow()
 
 
 def start_monitor(app):
@@ -37,13 +44,10 @@ def start_monitor(app):
     - Usa LIFECYCLE_TIMEOUT_SECONDS para decidir timeout
     - Desabilitado automaticamente no modo network (0.0.0.0)
     """
-    import os
-    
-    # Prevenir double-start devido ao debug reloader
-    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        werkzeug_main = os.environ.get("WERKZEUG_RUN_MAIN", "not set")
-        logger.debug(f"Lifecycle monitor skipped (WERKZEUG_RUN_MAIN={werkzeug_main})")
+    global _monitor_started
+    if _monitor_started:
         return
+    _monitor_started = True
 
     def monitor():
         # Check initial config to determine if monitor should run
@@ -82,20 +86,22 @@ def start_monitor(app):
                         if (now - last).total_seconds() > timeout_seconds:
                             stale_sessions.append(sess)
 
-                    if stale_sessions:
+                    closed_cleanly = (
+                        state['had_sessions']
+                        and not state['sessions']
+                        and state['empty_since'] is not None
+                        and (now - state['empty_since']).total_seconds() > min(timeout_seconds, 5)
+                    )
+
+                    if stale_sessions or closed_cleanly:
                         logger.info(f"Sessões sem heartbeat: {stale_sessions}. Iniciando shutdown gracioso...")
                         # Tentar shutdown gracioso via endpoint main.shutdown (se disponível)
                         try:
                             # Preferir encerrar pela própria aplicação
                             def do_shutdown():
-                                import sys
                                 logger.info("Executando shutdown gracioso do processo")
-                                try:
-                                    sys.exit(0)
-                                except SystemExit:
-                                    # fallback
-                                    import os
-                                    os._exit(0)
+                                import os
+                                os._exit(0)
 
                             threading.Thread(target=do_shutdown, daemon=True).start()
                         except Exception as e:

@@ -85,7 +85,6 @@ def upgrade():
     now = datetime.utcnow()
     op.bulk_insert(specialties_t, [
         {'id': 1, 'slug': 'ortopedia', 'name': 'Ortopedia', 'is_active': True, 'created_at': now, 'updated_at': now},
-        {'id': 2, 'slug': 'cirurgia_pediatrica', 'name': 'Cirurgia Pediátrica', 'is_active': True, 'created_at': now, 'updated_at': now},
     ])
 
     # ── 7. Seed: configurações Ortopedia (links hardcoded extraídos do código) ──
@@ -102,13 +101,6 @@ def upgrade():
             # Link base do Google Forms de agendamento cirúrgico (Ortopedia)
             'forms_url': 'https://docs.google.com/forms/d/e/1FAIpQLScWpY4kN_mCgK66SWxfAmw6ltQiSZaIjRlLP0NGV7Rsu9DYIg/viewform',
             'agenda_url': '',  # Configurar via painel de settings
-            'created_at': now,
-            'updated_at': now,
-        },
-        {
-            'specialty_id': 2,
-            'forms_url': '',   # Preencher via painel de settings
-            'agenda_url': '',
             'created_at': now,
             'updated_at': now,
         },

@@ -38,7 +38,7 @@ def index():
 def select_specialty():
     """Grava a especialidade escolhida na sessão e redireciona para a home."""
     slug = request.form.get('specialty_slug', '').strip()
-    sp = Specialty.query.filter_by(slug=slug, is_active=True).first()
+    sp = Specialty.query.filter_by(slug='ortopedia', is_active=True).first() if slug == 'ortopedia' else None
     if not sp:
         flash('Especialidade inválida.', 'error')
         return redirect(url_for('main.index'))
@@ -72,27 +72,19 @@ def heartbeat():
 @main.route('/api/browser-closing', methods=['POST'])
 @login_required
 def browser_closing():
-    """Rota notificada quando o navegador está sendo fechado"""
-    logger.info('Navegador/aba sendo fechado. Encerrando aplicação...')
-    
-    def shutdown_server():
-        """Função para encerrar o servidor"""
-        import time
-        time.sleep(1)
-        try:
-            sys.exit(0)
-        except:
-            os._exit(0)
-    
-    # Iniciar thread de shutdown
-    threading.Thread(target=shutdown_server, daemon=True).start()
-    
+    """Compatibilidade: o encerramento real é controlado pelo lifecycle local."""
+    from flask import current_app
+    if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
+        return jsonify({'success': False, 'error': 'Operação indisponível no modo rede.'}), 403
     return jsonify({'success': True}), 200
 
 @main.route('/shutdown', methods=['POST'])
 @login_required
 def shutdown():
     """Rota para desligar o servidor"""
+    from flask import current_app
+    if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
+        return jsonify({'success': False, 'error': 'Desligamento disponível somente no modo local.'}), 403
     try:
         def shutdown_server():
             """Função para encerrar o servidor após responder à requisição"""

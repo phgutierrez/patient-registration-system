@@ -97,6 +97,10 @@ def create_app(config_class=Config):
             return {'error': message}, 400
         return render_template('error.html', title='Requisição inválida', message=message), 400
 
+    @app.get('/health')
+    def health():
+        return {'status': 'ok'}, 200
+
     @app.after_request
     def apply_security_headers(response):
         if not app.config.get('SECURITY_HEADERS_ENABLED', True):
@@ -177,9 +181,11 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_specialty():
         try:
-            return specialty_context()
+            context = specialty_context()
+            context['desktop_mode'] = bool(app.config.get('DESKTOP_MODE', False))
+            return context
         except Exception:
-            return {'active_specialty': 'ortopedia', 'active_specialty_name': 'Ortopedia', 'active_specialty_obj': None}
+            return {'active_specialty': 'ortopedia', 'active_specialty_name': 'Ortopedia', 'active_specialty_obj': None, 'desktop_mode': False}
 
     # Inicializar monitor de lifecycle (se o módulo estiver disponível)
     try:

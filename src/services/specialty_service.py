@@ -18,13 +18,13 @@ DEFAULT_SPECIALTY_SLUG = 'ortopedia'
 # ── Sessão ───────────────────────────────────────────────────────────────────
 
 def get_active_specialty_slug() -> str:
-    """Retorna o slug da especialidade ativa na sessão (fallback: ortopedia)."""
-    return session.get('specialty_slug', DEFAULT_SPECIALTY_SLUG)
+    """Retorna a única especialidade habilitada pelo sistema."""
+    return DEFAULT_SPECIALTY_SLUG
 
 
 def set_active_specialty_slug(slug: str) -> None:
-    """Grava o slug da especialidade ativa na sessão."""
-    session['specialty_slug'] = slug
+    """Mantém a sessão fixada em Ortopedia."""
+    session['specialty_slug'] = DEFAULT_SPECIALTY_SLUG
     session.modified = True
 
 
@@ -32,15 +32,10 @@ def set_active_specialty_slug(slug: str) -> None:
 
 def get_specialty(slug: Optional[str] = None):
     """
-    Retorna o objeto Specialty para o slug indicado (ou o ativo na sessão).
-    Se não encontrar, retorna o de ortopedia como fallback.
+    Retorna Ortopedia, independentemente de valores antigos de sessão.
     """
     from src.models.specialty import Specialty
-    target = slug or get_active_specialty_slug()
-    sp = Specialty.query.filter_by(slug=target, is_active=True).first()
-    if sp is None:
-        sp = Specialty.query.filter_by(slug=DEFAULT_SPECIALTY_SLUG).first()
-    return sp
+    return Specialty.query.filter_by(slug=DEFAULT_SPECIALTY_SLUG, is_active=True).first()
 
 
 def get_active_specialty():

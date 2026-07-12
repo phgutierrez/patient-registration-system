@@ -2,14 +2,19 @@
 Servidor de produção usando Waitress
 """
 from waitress import serve
+import argparse
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import secrets
 import signal
 import sys
 import webbrowser
 import threading
 import time
+import socket
+import urllib.request
+import uuid
 
 # Configurar logging com mais detalhes
 logging.basicConfig(
@@ -26,6 +31,18 @@ server_running = True
 
 DEFAULT_CALENDAR_ID = ''
 DEFAULT_CALENDAR_TZ = 'America/Fortaleza'
+
+
+def configure_file_logging(base_dir: str) -> str:
+    log_dir = os.path.join(base_dir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'patient-registration.log')
+    root_logger = logging.getLogger()
+    if not any(isinstance(handler, RotatingFileHandler) for handler in root_logger.handlers):
+        handler = RotatingFileHandler(log_path, maxBytes=2_000_000, backupCount=3, encoding='utf-8')
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root_logger.addHandler(handler)
+    return log_path
 
 
 def build_default_ortopedia_agenda_url(calendar_id: str) -> str:
@@ -113,10 +130,23 @@ def signal_handler(signum, frame):
     server_running = False
     sys.exit(0)
 
-def open_browser(host, port, delay=2):
-    """Abre o navegador após o servidor iniciar"""
-    time.sleep(delay)
-    url = f'http://{host}:{port}'
+def open_browser(host, port, session_id=None, timeout=30):
+    """Espera a aplicação responder antes de abrir o navegador."""
+    health_url = f'http://127.0.0.1:{port}/health'
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(health_url, timeout=1) as response:
+                if response.status == 200:
+                    break
+        except Exception:
+            time.sleep(0.4)
+    else:
+        logger.error('Servidor não respondeu em %s segundos; navegador não será aberto.', timeout)
+        return
+    url = f'http://127.0.0.1:{port}/'
+    if session_id:
+        url += f'?session={session_id}'
     logger.info(f'Abrindo navegador em {url}')
     try:
         webbrowser.open(url)
@@ -134,15 +164,10 @@ def create_initial_data(app):
 
         # Especialidades padrão
         ortopedia = Specialty.query.filter_by(slug='ortopedia').first()
-        cirurgia = Specialty.query.filter_by(slug='cirurgia_pediatrica').first()
         if not ortopedia:
             ortopedia = Specialty(slug='ortopedia', name='Ortopedia', is_active=True)
             db.session.add(ortopedia)
             logger.info('  [OK] Especialidade criada: Ortopedia')
-        if not cirurgia:
-            cirurgia = Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediatrica', is_active=True)
-            db.session.add(cirurgia)
-            logger.info('  [OK] Especialidade criada: Cirurgia Pediatrica')
         db.session.flush()
 
         # Configuração inicial da agenda de Ortopedia
@@ -164,15 +189,6 @@ def create_initial_data(app):
         elif not (ortopedia_settings.agenda_url or '').strip() and ortopedia_agenda_url:
             ortopedia_settings.agenda_url = ortopedia_agenda_url
             logger.info('  [OK] Configuração atualizada: agenda padrão da Ortopedia')
-
-        cirurgia_settings = SpecialtySettings.query.filter_by(specialty_id=cirurgia.id).first()
-        if not cirurgia_settings:
-            db.session.add(SpecialtySettings(
-                specialty_id=cirurgia.id,
-                agenda_url='',
-                forms_url='',
-            ))
-            logger.info('  [OK] Configuração criada: Cirurgia Pediatrica')
 
         # Procedimentos padrão de Ortopedia
         ortopedia_proc_count = SpecialtyProcedure.query.filter_by(specialty_id=ortopedia.id).count()
@@ -206,20 +222,20 @@ def create_initial_data(app):
             db.session.commit()
             logger.info(f'Banco já possui {user_count} usuário(s) cadastrado(s)')
 
-def initialize_app():
+def initialize_app(base_dir=None):
     """Inicializa a aplicação Flask com tratamento de erros"""
     try:
         # Definir o diretório base antes de importar app
-        base_dir = get_base_dir()
+        base_dir = base_dir or get_base_dir()
+        os.environ['APP_DATA_DIR'] = base_dir
         ensure_env_file(base_dir)
+        log_path = configure_file_logging(base_dir)
         
         # Configurar caminhos para instance e PDFs
         instance_path = os.path.join(base_dir, 'instance')
-        pdf_dir = os.path.join(base_dir, 'src', 'static', 'pdfs', 'gerados')
         
         # Criar diretórios se não existirem
         os.makedirs(instance_path, exist_ok=True)
-        os.makedirs(pdf_dir, exist_ok=True)
         
         # Configurar variável de ambiente para o Flask encontrar o instance folder
         os.environ['INSTANCE_PATH'] = instance_path
@@ -228,7 +244,7 @@ def initialize_app():
         
         logger.info(f'Diretório base: {base_dir}')
         logger.info(f'Diretório de instance: {instance_path}')
-        logger.info(f'Diretório de PDFs: {pdf_dir}')
+        logger.info(f'Arquivo de log: {log_path}')
         
         # Inicializar banco de dados se necessário
         with app.app_context():
@@ -245,34 +261,72 @@ def initialize_app():
                 logger.info('Banco de dados inicializado')
             except Exception as e:
                 logger.error(f'Erro ao inicializar banco de dados: {e}')
-                logger.warning('Continuando sem banco de dados...')
+                raise
         
         # Criar dados iniciais se necessário
         try:
             create_initial_data(app)
         except Exception as e:
             logger.error(f'Erro ao criar dados iniciais: {e}')
-            logger.warning('Continuando sem dados iniciais...')
+            raise
         
         return app
     except Exception as e:
         logger.error(f'Erro ao inicializar aplicação: {e}', exc_info=True)
         raise
 
+def _port_is_available(host: str, port: int) -> bool:
+    probe_host = '0.0.0.0' if host == '0.0.0.0' else host
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((probe_host, port))
+        return True
+    except OSError:
+        return False
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(description='Inicializador do Patient Registration System')
+    parser.add_argument('--mode', choices=('local', 'network'), default='local')
+    parser.add_argument('--check', action='store_true', help='Valida e inicializa sem abrir o servidor')
+    parser.add_argument('--self-check', action='store_true', help='Smoke test usado pelo executável')
+    parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--data-dir', help='Diretório de dados alternativo para testes')
+    return parser.parse_args()
+
+
+def _apply_mode(mode: str) -> tuple[str, int]:
+    if mode == 'network':
+        os.environ['SERVER_HOST'] = '0.0.0.0'
+        os.environ['DESKTOP_MODE'] = 'false'
+    else:
+        os.environ['SERVER_HOST'] = '127.0.0.1'
+        os.environ['DESKTOP_MODE'] = 'true'
+    os.environ.setdefault('SERVER_PORT', '5000')
+    os.environ['FLASK_ENV'] = 'production'
+    os.environ['FLASK_DEBUG'] = '0'
+    return os.environ['SERVER_HOST'], int(os.environ['SERVER_PORT'])
+
+
 def main():
     """Inicia o servidor com Waitress"""
     try:
+        args = _parse_args()
+        host, port = _apply_mode(args.mode)
+        base_dir = os.path.abspath(args.data_dir) if args.data_dir else get_base_dir()
+        os.makedirs(base_dir, exist_ok=True)
+        write_probe = os.path.join(base_dir, '.write-test.tmp')
+        try:
+            with open(write_probe, 'w', encoding='utf-8') as probe:
+                probe.write('ok')
+            os.unlink(write_probe)
+        except OSError as exc:
+            raise RuntimeError(f'A pasta do programa não permite escrita: {base_dir} ({exc})') from exc
+
         # Registrar handlers de sinal
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
-        
-        # Compatível com run_local.bat (.env usa SERVER_HOST/SERVER_PORT)
-        host = os.getenv('SERVER_HOST') or os.getenv('HOST', '127.0.0.1')
-        port = int(os.getenv('SERVER_PORT') or os.getenv('PORT', 5000))
-
-        # Em executável desktop, manter comportamento local por padrão
-        if getattr(sys, 'frozen', False) and 'DESKTOP_MODE' not in os.environ:
-            os.environ['DESKTOP_MODE'] = 'true'
         
         logger.info('=' * 60)
         logger.info('Patient Registration System')
@@ -284,11 +338,28 @@ def main():
         logger.info('=' * 60)
         
         # Inicializar aplicação
-        app = initialize_app()
+        app = initialize_app(base_dir)
+
+        if args.check or args.self_check:
+            with app.test_client() as client:
+                response = client.get('/health')
+                if response.status_code != 200:
+                    raise RuntimeError(f'Autoverificação HTTP falhou: {response.status_code}')
+            logger.info('Autoverificação concluída com sucesso.')
+            if args.self_check and getattr(sys, 'frozen', False):
+                logging.shutdown()
+                os._exit(0)
+            return 0
+
+        if not _port_is_available(host, port):
+            raise RuntimeError(f'A porta {port} já está em uso. Encerre a outra instância ou processo.')
         
         # Abrir navegador em thread separada
-        browser_thread = threading.Thread(target=open_browser, args=(host, port), daemon=True)
-        browser_thread.start()
+        if not args.no_browser:
+            session_id = str(uuid.uuid4()) if args.mode == 'local' else None
+            threading.Thread(
+                target=open_browser, args=(host, port, session_id), daemon=True
+            ).start()
         
         # Servir a aplicação com Waitress
         serve(
@@ -304,9 +375,16 @@ def main():
         logger.info('\nServidor interrompido pelo usuário')
     except Exception as e:
         logger.error(f'Erro no servidor: {e}', exc_info=True)
-        input('\nPressione ENTER para sair...')
+        if getattr(sys, 'frozen', False) and os.getenv('PATIENT_REGISTRATION_NO_DIALOG') != '1':
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(None, str(e), 'Patient Registration - Erro', 0x10)
+            except Exception:
+                pass
+        return 1
     finally:
         logger.info('Servidor encerrado')
+    return 0
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

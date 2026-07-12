@@ -841,7 +841,15 @@
         searchResult.innerHTML = '';
         
         fetch(`/patients/api/search-patient-accdb?prontuario=${encodeURIComponent(prontuario)}`)
-            .then(response => response.json())
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok && data.code !== 'PATIENT_NOT_FOUND') {
+                    const error = new Error(data.message || `Falha na busca (HTTP ${response.status})`);
+                    error.details = data;
+                    throw error;
+                }
+                return data;
+            })
             .then(data => {
                 btnBusca.disabled = false;
                 btnBusca.innerHTML = '<i class="fas fa-search"></i> Buscar';
@@ -849,9 +857,6 @@
                 if (data.found) {
                     // Paciente encontrado - preencher campos
                     const patientData = data.data;
-                    
-                    console.log('Dados recebidos do Access:', patientData);
-                    console.log('Chaves disponíveis:', Object.keys(patientData));
                     
                     // Função auxiliar para buscar campo case-insensitive
                     function getFieldValue(obj, fieldNames) {
@@ -881,7 +886,6 @@
                         const nomeInput = document.getElementById('nome');
                         nomeInput.value = nomeValue;
                         nomeInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        console.log('Nome preenchido:', nomeValue);
                     }
                     
                     // Preencher campo Data de Nascimento
@@ -896,7 +900,6 @@
                             dataNascimentoInput.value = `${day}/${month}/${year}`;
                             // Disparar evento input para recalcular idade
                             dataNascimentoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            console.log('Data preenchida:', dataNascimentoInput.value);
                         }
                     }
                     
@@ -904,35 +907,30 @@
                     const nomeMAEValue = getFieldValue(patientData, ['nome da mae', 'nomemae', 'mae', 'nome mae']);
                     if (nomeMAEValue) {
                         document.getElementById('nome_mae').value = nomeMAEValue;
-                        console.log('Nome da mãe preenchido:', nomeMAEValue);
                     }
                     
                     // Preencher campo CNS (NºCartSUS)
                     const cnsValue = getFieldValue(patientData, ['NºCartSUS', 'ncartsus', 'cns', 'nº cart sus']);
                     if (cnsValue) {
                         document.getElementById('cns').value = cnsValue;
-                        console.log('CNS preenchido:', cnsValue);
                     }
                     
                     // Preencher campo Endereço
                     const enderecoValue = getFieldValue(patientData, ['endereco', 'endereço', 'endereo']);
                     if (enderecoValue) {
                         document.getElementById('endereco').value = enderecoValue;
-                        console.log('Endereço preenchido:', enderecoValue);
                     }
                     
                     // Preencher campo Cidade (Municip)
                     const cidadeValue = getFieldValue(patientData, ['Municip', 'municip', 'cidade', 'municipio']);
                     if (cidadeValue) {
                         document.getElementById('cidade').value = cidadeValue;
-                        console.log('Cidade preenchida:', cidadeValue);
                     }
                     
                     // Preencher campo Telefone (Contato)
                     const telefoneValue = getFieldValue(patientData, ['Telefone', 'telefone', 'contato', 'fone']);
                     if (telefoneValue) {
                         document.getElementById('contato').value = telefoneValue;
-                        console.log('Telefone preenchido:', telefoneValue);
                     }
                     
                     // Selecionar radio button de sexo (MAS = M, FEM = F)
@@ -951,22 +949,29 @@
                             const sexoRadio = document.getElementById(`sexo_${sexoCode.toLowerCase()}`);
                             if (sexoRadio) {
                                 sexoRadio.checked = true;
-                                console.log('Sexo selecionado:', sexoCode);
                             }
                         }
                     }
                     
                     searchResult.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Paciente encontrado! Campos preenchidos automaticamente.</div>';
                 } else {
-                    searchResult.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Prontuário não encontrado no banco de dados do CPAM.</div>';
+                    const sourceLabel = data.source === 'memory_cache' ? ' (resultado em cache)' : '';
+                    searchResult.innerHTML = `<div class="alert alert-info"><i class="fas fa-info-circle"></i><div><strong>${escapeAccessMessage(data.message || 'Prontuário não encontrado.')}${sourceLabel}</strong><br><small>${escapeAccessMessage(data.hint || '')}</small></div></div>`;
                 }
             })
             .catch(error => {
                 btnBusca.disabled = false;
                 btnBusca.innerHTML = '<i class="fas fa-search"></i> Buscar';
                 console.error('Erro:', error);
-                searchResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Erro ao buscar dados: ' + error.message + '</div>';
+                const details = error.details || {};
+                searchResult.innerHTML = `<div class="alert alert-danger align-items-start"><i class="fas fa-exclamation-triangle"></i><div><strong>${escapeAccessMessage(details.message || error.message)}</strong><br><small>${escapeAccessMessage(details.hint || 'Tente novamente em alguns instantes.')}</small><div class="mt-2"><button type="button" class="btn btn-sm btn-outline-danger" onclick="buscarPacienteAccess()"><i class="fas fa-redo me-1"></i>Tentar novamente</button></div></div></div>`;
             });
+    }
+
+    function escapeAccessMessage(value) {
+        const element = document.createElement('span');
+        element.textContent = String(value || '');
+        return element.innerHTML;
     }
 </script>
 {% endblock %}

@@ -1,151 +1,161 @@
-"""
-Build 32-bit do executavel Windows (perfil desktop/local).
+"""Build portátil Windows 32-bit, onedir e com pós-validação obrigatória."""
+from __future__ import annotations
 
-Objetivo:
-- refletir o fluxo de setup_windows.bat + run_local.bat
-- empacotar somente o necessario do sistema atual
-- manter onedir para inicializacao previsivel
-"""
+import shutil
 import os
 import struct
+import subprocess
 import sys
+import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import PyInstaller.__main__
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-ENTRYPOINT = PROJECT_ROOT / "server.py"
-DIST_DIR = PROJECT_ROOT / "dist" / "Sistema32bits"
-APP_NAME = "PatientRegistration"
+ROOT = Path(__file__).resolve().parent
+ENTRYPOINT = ROOT / 'server.py'
+BUILD_ROOT = ROOT / 'build' / 'pyinstaller32'
+DIST_ROOT = ROOT / 'dist' / 'Sistema32bits'
+APP_NAME = 'PatientRegistration'
+BASELINE_FILES = 920
+BASELINE_BYTES = 81_126_589
+
+DATA_FILES = (
+    (ROOT / 'src' / 'templates', 'src/templates'),
+    (ROOT / 'src' / 'static' / 'css', 'src/static/css'),
+    (ROOT / 'src' / 'static' / 'js', 'src/static/js'),
+    (ROOT / 'src' / 'static' / 'vendor', 'src/static/vendor'),
+    (ROOT / 'src' / 'static' / 'icon.ico', 'src/static'),
+    (ROOT / 'src' / 'static' / 'logo ortoped.png', 'src/static'),
+    (ROOT / 'src' / 'static' / 'Internacao.pdf', 'src/static'),
+    (ROOT / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf', 'src/static'),
+)
+
+HIDDEN_IMPORTS = (
+    'sqlalchemy.sql.default_comparator',
+    'pymupdf',
+    'pyodbc',
+)
+
+EXCLUDES = (
+    'matplotlib', 'numpy', 'pandas', 'pytest', 'IPython', 'jupyter',
+    'notebook', 'sphinx', 'tkinter', 'sqlalchemy.testing', 'mypy',
+    'test', 'doctest', 'pydoc', 'lib2to3',
+)
 
 
-EXCLUDES = [
-    "matplotlib",
-    "numpy",
-    "numpy.distutils",
-    "pandas",
-    "setuptools.tests",
-    "pytest",
-    "ipython",
-    "jupyter",
-    "notebook",
-    "sphinx",
-    "tkinter",
-    "test",
-    "unittest",
-    "doctest",
-    "pydoc",
-    "lib2to3",
-    "pdb",
-    "dbm",
-    "curses",
-    "turtle",
-]
+def assert_within_project(path: Path) -> Path:
+    resolved = path.resolve()
+    root = ROOT.resolve()
+    if resolved == root or root not in resolved.parents:
+        raise RuntimeError(f'Caminho de build fora do projeto: {resolved}')
+    return resolved
 
 
-HIDDEN_IMPORTS = [
-    "sqlalchemy.sql.default_comparator",
-    "waitress",
-    "flask",
-    "flask_sqlalchemy",
-    "flask_login",
-    "flask_wtf",
-    "flask_migrate",
-    "sqlalchemy",
-    "alembic",
-    "PyPDF2",
-    "fillpdf",
-    "pyodbc",
-    "requests",
-    "icalendar",
-    "dateutil",
-    "pytz",
-    "werkzeug",
-    "wtforms",
-]
-
-
-def assert_prereqs() -> None:
-    if not ENTRYPOINT.exists():
-        raise FileNotFoundError(f"Entrypoint nao encontrado: {ENTRYPOINT}")
-
-    if struct.calcsize("P") * 8 != 32:
-        raise RuntimeError(
-            "Build 32-bit requer Python 32-bit ativo. "
-            "Ative a .venv32 antes de executar este script."
-        )
-
-    required_paths = [
-        PROJECT_ROOT / "src",
-        PROJECT_ROOT / "migrations",
-        PROJECT_ROOT / "alembic.ini",
-        PROJECT_ROOT / ".env.example",
-    ]
-    missing = [str(p) for p in required_paths if not p.exists()]
+def assert_prerequisites() -> None:
+    if struct.calcsize('P') * 8 != 32:
+        raise RuntimeError('Ative um Python 32-bit antes de executar este build.')
+    required = [ENTRYPOINT, ROOT / 'requirements.txt', *(source for source, _ in DATA_FILES)]
+    missing = [str(path) for path in required if not path.exists()]
     if missing:
-        raise FileNotFoundError("Arquivos/pastas obrigatorios ausentes:\n- " + "\n- ".join(missing))
+        raise FileNotFoundError('Arquivos obrigatórios ausentes:\n- ' + '\n- '.join(missing))
+    import pymupdf
+    if not hasattr(pymupdf.Document, 'bake'):
+        raise RuntimeError('A versão instalada do PyMuPDF não oferece Document.bake().')
 
 
-def build_args() -> list[str]:
+def build_arguments(dist_root: Path, run_root: Path) -> list[str]:
     args = [
-        str(ENTRYPOINT),
-        f"--name={APP_NAME}",
-        "--onedir",
-        "--noconsole",
-        "--clean",
-        "--noconfirm",
-        f"--distpath={DIST_DIR}",
-        "--add-data=src;src",
-        "--add-data=migrations;migrations",
-        "--add-data=alembic.ini;.",
-        "--add-data=.env.example;.",
-        "--collect-submodules=flask",
-        "--collect-submodules=sqlalchemy",
-        "--collect-submodules=wtforms",
-        "--copy-metadata=flask",
-        "--copy-metadata=flask-sqlalchemy",
-        "--copy-metadata=flask-login",
-        "--copy-metadata=flask-wtf",
-        "--copy-metadata=waitress",
+        str(ENTRYPOINT), '--onedir', '--noconsole', '--clean', '--noconfirm', '--noupx',
+        '--python-option=O', f'--name={APP_NAME}', f'--distpath={dist_root}',
+        f'--workpath={run_root / "work"}', f'--specpath={run_root / "spec"}',
+        f'--icon={ROOT / "src" / "static" / "icon.ico"}',
+        '--copy-metadata=flask', '--copy-metadata=flask-sqlalchemy',
+        '--copy-metadata=flask-login', '--copy-metadata=flask-wtf',
+        '--copy-metadata=waitress',
     ]
-
-    for mod in HIDDEN_IMPORTS:
-        args.append(f"--hidden-import={mod}")
-    for mod in EXCLUDES:
-        args.append(f"--exclude-module={mod}")
+    for source, destination in DATA_FILES:
+        args.append(f'--add-data={source};{destination}')
+    for module in HIDDEN_IMPORTS:
+        args.append(f'--hidden-import={module}')
+    for module in EXCLUDES:
+        args.append(f'--exclude-module={module}')
     return args
 
 
-def main() -> None:
-    assert_prereqs()
+def validate_distribution(app_dir: Path) -> tuple[int, int]:
+    executable = app_dir / f'{APP_NAME}.exe'
+    required = (
+        executable,
+        app_dir / '_internal' / 'src' / 'templates',
+        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.min.css',
+        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.bundle.min.js',
+        app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
+        app_dir / '_internal' / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
+    )
+    missing = [str(path) for path in required if not path.exists()]
+    if missing:
+        raise RuntimeError('Distribuição incompleta:\n- ' + '\n- '.join(missing))
 
-    print("=" * 72)
-    print("Build 32-bit do executavel (perfil desktop/local)")
-    print("=" * 72)
-    print(f"Python: {sys.version.split()[0]} ({struct.calcsize('P') * 8}-bit)")
-    print(f"Entrypoint: {ENTRYPOINT.name}")
-    print(f"Saida: {DIST_DIR / APP_NAME}")
-    print("Servidor: Waitress (localhost, desktop mode por padrao no executavel)")
-    print("=" * 72)
+    forbidden = ('pandas', 'numpy', 'sqlalchemy/testing', 'static/pdfs/gerados')
+    normalized_paths = [str(path.relative_to(app_dir)).replace('\\', '/').lower()
+                        for path in app_dir.rglob('*')]
+    found = [name for name in forbidden if any(name in path for path in normalized_paths)]
+    if found:
+        raise RuntimeError('Módulos/dados proibidos no build: ' + ', '.join(found))
 
-    PyInstaller.__main__.run(build_args())
+    with tempfile.TemporaryDirectory(prefix='patient-registration-self-check-') as data_dir:
+        environment = os.environ.copy()
+        environment['PATIENT_REGISTRATION_NO_DIALOG'] = '1'
+        try:
+            completed = subprocess.run(
+                [str(executable), '--self-check', '--no-browser', '--data-dir', data_dir],
+                timeout=90, check=False, env=environment,
+            )
+        except subprocess.TimeoutExpired as exc:
+            log_path = Path(data_dir) / 'logs' / 'patient-registration.log'
+            detail = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else 'sem log'
+            raise RuntimeError(f'Autoverificação excedeu o tempo limite:\n{detail[-4000:]}') from exc
+        if completed.returncode != 0:
+            log_path = Path(data_dir) / 'logs' / 'patient-registration.log'
+            detail = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else 'sem log'
+            raise RuntimeError(f'Autoverificação do executável falhou ({completed.returncode}):\n{detail[-4000:]}')
 
-    print("\n" + "=" * 72)
-    print("[OK] Build concluido")
-    print("=" * 72)
-    print(f"Executavel: {DIST_DIR / APP_NAME / (APP_NAME + '.exe')}")
-    print("Teste recomendado:")
-    print(f"  .\\dist\\Sistema32bits\\{APP_NAME}\\{APP_NAME}.exe")
-    print("Distribuicao:")
-    print(f"  Compactar a pasta dist\\Sistema32bits\\{APP_NAME}")
-    print("=" * 72)
+    files = [path for path in app_dir.rglob('*') if path.is_file()]
+    return len(files), sum(path.stat().st_size for path in files)
 
 
-if __name__ == "__main__":
+def main() -> int:
+    assert_prerequisites()
+    run_stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    run_root = assert_within_project(BUILD_ROOT / 'runs' / run_stamp)
+    run_root.mkdir(parents=True, exist_ok=True)
+    dist_root = assert_within_project(DIST_ROOT)
+    output = assert_within_project(dist_root / APP_NAME)
+    if output.exists():
+        try:
+            shutil.rmtree(output)
+        except OSError as exc:
+            suffix = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dist_root = assert_within_project(ROOT / 'dist' / f'Sistema32bits_novo_{suffix}')
+            output = assert_within_project(dist_root / APP_NAME)
+            print(f'[AVISO] Distribuição anterior está em uso ({exc}).')
+            print(f'[AVISO] O novo build será criado em: {dist_root}')
+
+    print(f'Build {APP_NAME}: Python {sys.version.split()[0]} ({struct.calcsize("P") * 8}-bit)')
+    PyInstaller.__main__.run(build_arguments(dist_root, run_root))
+    files, size = validate_distribution(output)
+    print(f'[OK] Build validado: {files} arquivos, {size / 1024 / 1024:.2f} MiB')
+    print(f'Baseline: {BASELINE_FILES} arquivos, {BASELINE_BYTES / 1024 / 1024:.2f} MiB')
+    print(f'Redução: {BASELINE_FILES - files} arquivos, {(BASELINE_BYTES - size) / 1024 / 1024:.2f} MiB')
+    print(f'Executável: {output / (APP_NAME + ".exe")}')
+    return 0
+
+
+if __name__ == '__main__':
     try:
-        main()
+        raise SystemExit(main())
     except Exception as exc:
-        print("\n[ERRO] Falha no build:")
-        print(f"  {exc}")
-        sys.exit(1)
+        print(f'[ERRO] Build não concluído: {exc}')
+        raise SystemExit(1)

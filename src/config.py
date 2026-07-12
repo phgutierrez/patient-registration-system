@@ -22,7 +22,10 @@ def _build_google_calendar_ics_url(calendar_id: str) -> str:
 
 class Config:
     # Detectar se está rodando como executável PyInstaller
-    if getattr(sys, 'frozen', False):
+    _configured_data_dir = (os.getenv('APP_DATA_DIR') or '').strip()
+    if _configured_data_dir:
+        BASE_DIR = Path(_configured_data_dir).resolve()
+    elif getattr(sys, 'frozen', False):
         # Se executado como executável, usar o diretório do .exe
         BASE_DIR = Path(sys.executable).parent
     else:
@@ -35,7 +38,7 @@ class Config:
     load_dotenv(override=False)
     
     INSTANCE_PATH = BASE_DIR / 'instance'
-    INSTANCE_PATH.mkdir(exist_ok=True)
+    INSTANCE_PATH.mkdir(parents=True, exist_ok=True)
     
     # Database configuration
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{INSTANCE_PATH}/prontuario.db'

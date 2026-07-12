@@ -18,9 +18,8 @@ cd C:\caminho\patient-registration-system
 ```
 
 Acesso inicial:
-- Configure `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD` no `.env`
-- Faça o primeiro login com o administrador bootstrap
-- O sistema exigirá troca de senha na primeira entrada
+- Sem usuários, abra `http://localhost:5000` no servidor e use o assistente local
+- `ADMIN_BOOTSTRAP_USERNAME` e `ADMIN_BOOTSTRAP_PASSWORD` são uma alternativa opcional
 
 ---
 
@@ -69,7 +68,12 @@ alembic revision -m "descricao_da_migracao"
 
 ```powershell
 # Com ambiente ativo e dependências instaladas
-python .\build_exe_32bits.py
+build_exe_32bits.bat
+
+O batch cria ou reutiliza `.venv32`, exige Python 3.10+ de 32 bits, instala as
+dependências e executa a validação pós-build. Se o Python 32 bits estiver em
+um local não detectado pelo launcher, defina `PYTHON32_EXE` com o caminho do
+`python.exe` antes de executar.
 ```
 
 Saída esperada:

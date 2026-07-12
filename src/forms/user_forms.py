@@ -2,6 +2,8 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField
 from wtforms.validators import DataRequired, Optional, Length, Regexp, EqualTo
 
+PIN_VALIDATOR = Regexp(r'^\d{6}$', message='A senha deve conter exatamente 6 dígitos.')
+
 
 class UserRegistrationForm(FlaskForm):
     """Formulário para cadastro/atualização de dados do usuário."""
@@ -37,7 +39,7 @@ class PasswordChangeForm(FlaskForm):
     )
     new_password = PasswordField(
         'Nova Senha',
-        validators=[DataRequired("Informe a nova senha."), Length(min=8, message="A nova senha deve ter ao menos 8 caracteres.")]
+        validators=[DataRequired("Informe a nova senha."), PIN_VALIDATOR]
     )
     confirm_password = PasswordField(
         'Confirmar Nova Senha',
@@ -47,3 +49,27 @@ class PasswordChangeForm(FlaskForm):
         ]
     )
     submit = SubmitField('Alterar Senha')
+
+
+class FirstAdminForm(FlaskForm):
+    full_name = StringField(
+        'Nome completo',
+        validators=[DataRequired('Informe o nome completo.'), Length(min=3, max=100)],
+    )
+    username = StringField(
+        'Usuário',
+        validators=[
+            DataRequired('Informe o usuário.'),
+            Length(min=3, max=80),
+            Regexp(r'^[a-zA-Z0-9._-]+$', message='Use apenas letras, números, ponto, hífen ou sublinhado.'),
+        ],
+    )
+    password = PasswordField(
+        'Senha',
+        validators=[DataRequired('Informe uma senha.'), PIN_VALIDATOR],
+    )
+    confirm_password = PasswordField(
+        'Confirmar senha',
+        validators=[DataRequired('Confirme a senha.'), EqualTo('password', message='As senhas não coincidem.')],
+    )
+    submit = SubmitField('Criar administrador')

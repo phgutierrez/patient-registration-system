@@ -99,7 +99,6 @@ with app.app_context():
     if count == 0:
         specs = [
             Specialty(slug='ortopedia', name='Ortopedia', is_active=True),
-            Specialty(slug='cirurgia_pediatrica', name='Cirurgia Pediatrica', is_active=True),
         ]
         for spec in specs:
             db.session.add(spec)

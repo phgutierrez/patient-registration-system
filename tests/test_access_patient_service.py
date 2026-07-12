@@ -1,0 +1,135 @@
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from src.services.access_patient_service import (
+    ACCESS_DRIVER, AccessConfig, AccessLookupError, AccessPatientService,
+    validate_access_config,
+)
+
+
+class FakeCursor:
+    def __init__(self, rows=None, result=None):
+        self.rows = rows or []
+        self.result = result
+        self.executions = []
+
+    def columns(self, table):
+        self.table = table
+        return self.rows
+
+    def execute(self, sql, parameter):
+        self.executions.append((sql, parameter))
+        return self
+
+    def fetchone(self):
+        return self.result
+
+    def close(self):
+        pass
+
+
+class FakeConnection:
+    def __init__(self, columns, result):
+        self.schema_cursor = FakeCursor([SimpleNamespace(column_name=name) for name in columns])
+        self.query_cursor = FakeCursor(result=result)
+        self.cursor_calls = 0
+        self.closed = False
+
+    def cursor(self):
+        self.cursor_calls += 1
+        return self.schema_cursor if self.cursor_calls == 1 else self.query_cursor
+
+    def close(self):
+        self.closed = True
+
+
+class AccessConfigurationTests(unittest.TestCase):
+    def test_builds_safe_unc_path(self):
+        config = AccessConfig('192.168.1.252', r'naqh\AMBULATORIO_SERV', 'AMBULATORIO_SERV.accdb')
+        self.assertEqual(r'\\192.168.1.252\naqh\AMBULATORIO_SERV\AMBULATORIO_SERV.accdb', config.unc_path)
+
+    def test_rejects_unsafe_or_invalid_paths(self):
+        invalid = [
+            AccessConfig('http://server', 'share', 'file.accdb'),
+            AccessConfig('server', r'share\..\private', 'file.accdb'),
+            AccessConfig('server', r'C:\data', 'file.accdb'),
+            AccessConfig('server', 'share/path', 'file.accdb'),
+            AccessConfig('server', 'share', r'dir\file.accdb'),
+            AccessConfig('server', 'share', 'file.sqlite'),
+        ]
+        for config in invalid:
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                validate_access_config(config)
+
+
+class AccessLookupTests(unittest.TestCase):
+    def setUp(self):
+        self.config = AccessConfig('server', 'share', 'patients.accdb')
+
+    def test_missing_driver_has_specific_error(self):
+        service = AccessPatientService()
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [], connect=lambda *args, **kwargs: None)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            with self.assertRaises(AccessLookupError) as raised:
+                service.search(self.config, '123')
+        self.assertEqual('ACCESS_DRIVER_MISSING', raised.exception.code)
+
+    def test_query_is_read_only_projected_parameterized_and_cached(self):
+        columns = ['prontuario', 'nome do paciente', 'Telefone', 'campo_grande_nao_usado']
+        connection = FakeConnection(columns, ('123', 'Paciente Teste', '9999'))
+        calls = []
+        fake_pyodbc = SimpleNamespace(
+            drivers=lambda: [ACCESS_DRIVER],
+            connect=lambda connection_string, **kwargs: calls.append((connection_string, kwargs)) or connection,
+        )
+        service = AccessPatientService()
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            first = service.search(self.config, '123')
+            second = service.search(self.config, '123')
+        self.assertTrue(first['found'])
+        self.assertEqual('memory_cache', second['source'])
+        self.assertEqual(1, len(calls))
+        connection_string, kwargs = calls[0]
+        self.assertIn('READONLY=TRUE', connection_string)
+        self.assertTrue(kwargs['autocommit'])
+        sql, parameter = connection.query_cursor.executions[0]
+        self.assertIn('SELECT TOP 1', sql)
+        self.assertNotIn('campo_grande_nao_usado', sql)
+        self.assertNotIn('INSERT', sql.upper())
+        self.assertEqual('123', parameter)
+
+    def test_negative_cache_expires_after_sixty_seconds(self):
+        now = [0.0]
+        connection = FakeConnection(['prontuario'], None)
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        service = AccessPatientService(clock=lambda: now[0])
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            self.assertEqual('access', service.search(self.config, '404')['source'])
+            self.assertEqual('memory_cache', service.search(self.config, '404')['source'])
+            now[0] = 61.0
+            self.assertEqual('access', service.search(self.config, '404')['source'])
+
+    def test_disabled_configuration_does_not_connect(self):
+        service = AccessPatientService()
+        with self.assertRaises(AccessLookupError) as raised:
+            service.search(AccessConfig('server', 'share', 'file.accdb', False), '1')
+        self.assertEqual('ACCESS_DISABLED', raised.exception.code)
+
+    def test_cache_is_lru_bounded_and_configuration_change_invalidates_it(self):
+        first_connection = FakeConnection(['prontuario'], None)
+        connections = [first_connection, FakeConnection(['prontuario'], None)]
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connections.pop(0))
+        service = AccessPatientService(max_cache=2)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            service.search(self.config, '1')
+            service.search(self.config, '2')
+            service.search(self.config, '3')
+            self.assertEqual(['2', '3'], list(service._cache))
+            service.search(AccessConfig('other-server', 'share', 'patients.accdb'), '4')
+            self.assertEqual(['4'], list(service._cache))
+            self.assertTrue(first_connection.closed)
+
+
+if __name__ == '__main__':
+    unittest.main()
