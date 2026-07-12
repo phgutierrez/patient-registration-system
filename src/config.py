@@ -4,6 +4,10 @@ import secrets
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from src.default_integrations import (
+    DEFAULT_CALENDAR_ID, DEFAULT_CALENDAR_TZ, DEFAULT_CALENDAR_ICS_URL,
+    DEFAULT_FORMS_EDIT_ID, DEFAULT_FORMS_PUBLIC_ID, DEFAULT_FORMS_VIEW_URL,
+)
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -83,9 +87,9 @@ class Config:
     AUTO_MIGRATE = _env_bool('AUTO_MIGRATE', False)
     
     # Google Calendar Configuration
-    GOOGLE_CALENDAR_ID = (os.getenv('GOOGLE_CALENDAR_ID') or '').strip()
-    GOOGLE_CALENDAR_TZ = os.getenv('GOOGLE_CALENDAR_TZ', 'America/Fortaleza')
-    GOOGLE_CALENDAR_ICS_URL = (os.getenv('GOOGLE_CALENDAR_ICS_URL') or '').strip()
+    GOOGLE_CALENDAR_ID = (os.getenv('GOOGLE_CALENDAR_ID') or DEFAULT_CALENDAR_ID).strip()
+    GOOGLE_CALENDAR_TZ = os.getenv('GOOGLE_CALENDAR_TZ') or DEFAULT_CALENDAR_TZ
+    GOOGLE_CALENDAR_ICS_URL = (os.getenv('GOOGLE_CALENDAR_ICS_URL') or DEFAULT_CALENDAR_ICS_URL).strip()
     ORTOPEDIA_AGENDA_URL = (
         os.getenv('ORTOPEDIA_AGENDA_URL')
         or GOOGLE_CALENDAR_ICS_URL
@@ -103,11 +107,11 @@ class Config:
     # URL edição: https://docs.google.com/forms/d/[ID_EDICAO]/edit  <- NÃO use este!
     
     # Default embutido fica vazio neste repositório; configure explicitamente via ambiente.
-    DEFAULT_GOOGLE_FORMS_PUBLIC_ID = ''
-    DEFAULT_GOOGLE_FORMS_VIEWFORM_URL = ''
+    DEFAULT_GOOGLE_FORMS_PUBLIC_ID = DEFAULT_FORMS_PUBLIC_ID
+    DEFAULT_GOOGLE_FORMS_VIEWFORM_URL = DEFAULT_FORMS_VIEW_URL
     
     # Environment overrides (optional)
-    GOOGLE_FORMS_EDIT_ID = (os.getenv('GOOGLE_FORMS_EDIT_ID') or '').strip()
+    GOOGLE_FORMS_EDIT_ID = (os.getenv('GOOGLE_FORMS_EDIT_ID') or DEFAULT_FORMS_EDIT_ID).strip()
     GOOGLE_FORMS_PUBLIC_ID = (os.getenv('GOOGLE_FORMS_PUBLIC_ID') or DEFAULT_GOOGLE_FORMS_PUBLIC_ID).strip()
     GOOGLE_FORMS_VIEWFORM_URL = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or DEFAULT_GOOGLE_FORMS_VIEWFORM_URL).strip()
     GOOGLE_FORMS_TIMEOUT = int(os.getenv('GOOGLE_FORMS_TIMEOUT', '10'))

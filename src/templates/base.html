@@ -704,7 +704,12 @@
     </script>
 </head>
 
-<body>
+<body data-desktop-mode="{{ 'true' if desktop_mode else 'false' }}"
+      data-shutdown-url="{{ url_for('main.shutdown') }}"
+      data-shutdown-status-url="{{ url_for('main.shutdown_status') }}"
+      data-heartbeat-url="{{ url_for('lifecycle.heartbeat') }}"
+      data-lifecycle-close-url="{{ url_for('lifecycle.shutdown') }}"
+      data-heartbeat-seconds="{{ config.get('LIFECYCLE_HEARTBEAT_SECONDS', 5) if config else 5 }}">
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">
@@ -833,57 +838,6 @@
     </footer>
 
     <script>
-        // Função para desligar o servidor
-        async function shutdownServer(button) {
-            if (button?.disabled || !confirm('Deseja encerrar o sistema neste computador?')) return;
-            const original = button ? button.innerHTML : '';
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<span class="spinner-border spinner-border-sm"></span><span class="sidebar-logout-text">Encerrando...</span>';
-            }
-            try {
-                const response = await fetch('{{ url_for("main.shutdown") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível solicitar o encerramento.');
-                showShutdownScreen(false);
-                pollShutdownStatus();
-            } catch (error) {
-                if (button) {
-                    button.disabled = false;
-                    button.innerHTML = original;
-                }
-                alert(error.message || 'Não foi possível encerrar o sistema.');
-            }
-        }
-
-        function showShutdownScreen(finished) {
-            document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;background:#f8fafc"><div style="text-align:center;padding:3rem;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.1);max-width:560px"><div id="shutdownIndicator" class="${finished ? '' : 'spinner-border text-primary'}" style="${finished ? 'font-size:4rem;color:#10b981' : ''}">${finished ? '&#10003;' : ''}</div><h2 id="shutdownTitle" style="color:#1e293b;margin:1rem 0">${finished ? 'Sistema encerrado' : 'Encerrando sistema...'}</h2><p id="shutdownMessage" style="color:#64748b;margin:0">${finished ? 'Esta aba já pode ser fechada.' : 'Aguarde enquanto o servidor finaliza as tarefas em andamento.'}</p></div></div>`;
-        }
-
-        async function pollShutdownStatus() {
-            const deadline = Date.now() + 12000;
-            while (Date.now() < deadline) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                try {
-                    const response = await fetch('{{ url_for("main.shutdown_status") }}', {cache: 'no-store'});
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.state === 'stopped') break;
-                        continue;
-                    }
-                } catch (_) {
-                    showShutdownScreen(true);
-                    return;
-                }
-            }
-            showShutdownScreen(true);
-        }
-        
         document.addEventListener('DOMContentLoaded', function () {
             // Menu Toggle
             const menuToggle = document.getElementById('menuToggle');
@@ -945,69 +899,7 @@
             });
         });
     </script>
-    <script>
-        // Heartbeat / lifecycle: envia session para o servidor em modo desktop
-        const HEARTBEAT_INTERVAL_SECONDS = {{ config.get('LIFECYCLE_HEARTBEAT_SECONDS', 5) if config else 5 }};
-        const HEARTBEAT_TIMEOUT_SECONDS = {{ config.get('LIFECYCLE_TIMEOUT_SECONDS', 30) if config else 30 }};
-
-        function getQueryParam(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
-        }
-
-        function getCsrfToken() {
-            const meta = document.querySelector('meta[name="csrf-token"]');
-            return meta ? meta.getAttribute('content') : '';
-        }
-
-        const queryLifecycleSession = getQueryParam('session');
-        if (queryLifecycleSession) sessionStorage.setItem('lifecycleSession', queryLifecycleSession);
-        let lifecycleSession = queryLifecycleSession || sessionStorage.getItem('lifecycleSession');
-        if (!lifecycleSession && {{ 'true' if desktop_mode else 'false' }}) {
-            lifecycleSession = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            sessionStorage.setItem('lifecycleSession', lifecycleSession);
-        }
-        let heartbeatTimer = null;
-
-        function sendHeartbeat() {
-            if (!lifecycleSession) return;
-
-            fetch('/lifecycle/heartbeat', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({ session: lifecycleSession }),
-                credentials: 'same-origin'
-            }).catch(() => {
-                // Silencioso: servidor pode estar encerrando
-            });
-        }
-
-        function startLifecycleHeartbeat() {
-            if (!lifecycleSession) return;
-            // enviar imediatamente e depois em intervalo
-            sendHeartbeat();
-            heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_SECONDS * 1000);
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            startLifecycleHeartbeat();
-        });
-
-        // Ao fechar a aba, tentar notificar o servidor (beacon - best effort)
-        window.addEventListener('beforeunload', function() {
-            if (!lifecycleSession) return;
-            try {
-                // Para sendBeacon, usar FormData ao invés de JSON para CSRF
-                const formData = new FormData();
-                formData.append('session', lifecycleSession);
-                formData.append('csrf_token', getCsrfToken());
-                navigator.sendBeacon('/lifecycle/shutdown', formData);
-            } catch (e) {}
-        });
-    </script>
+    <script defer src="{{ url_for('static', filename='js/lifecycle.js') }}"></script>
 </body>
 
 </html>

@@ -15,6 +15,12 @@ import time
 import socket
 import urllib.request
 import uuid
+from dotenv import dotenv_values, set_key
+from src.default_integrations import (
+    DEFAULT_CALENDAR_ID, DEFAULT_CALENDAR_TZ, DEFAULT_CALENDAR_ICS_URL,
+    DEFAULT_FORMS_EDIT_ID, DEFAULT_FORMS_PUBLIC_ID, DEFAULT_FORMS_VIEW_URL,
+    PUBLIC_ENV_DEFAULTS, calendar_ics_url, forms_view_url,
+)
 
 # Configurar logging com mais detalhes
 logging.basicConfig(
@@ -29,10 +35,6 @@ logger = logging.getLogger(__name__)
 # Variável global para controlar o servidor
 server_running = True
 
-DEFAULT_CALENDAR_ID = ''
-DEFAULT_CALENDAR_TZ = 'America/Fortaleza'
-
-
 def configure_file_logging(base_dir: str) -> str:
     log_dir = os.path.join(base_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
@@ -46,16 +48,38 @@ def configure_file_logging(base_dir: str) -> str:
 
 
 def build_default_ortopedia_agenda_url(calendar_id: str) -> str:
-    cid = (calendar_id or '').strip()
-    if not cid:
-        return ''
-    return f'https://calendar.google.com/calendar/ical/{cid}/public/basic.ics'
+    return calendar_ics_url(calendar_id)
+
+
+def _fill_blank_public_env_defaults(env_path: str) -> None:
+    current = dotenv_values(env_path)
+    calendar_id = str(current.get('GOOGLE_CALENDAR_ID') or os.getenv('GOOGLE_CALENDAR_ID') or DEFAULT_CALENDAR_ID).strip()
+    calendar_url = str(current.get('GOOGLE_CALENDAR_ICS_URL') or os.getenv('GOOGLE_CALENDAR_ICS_URL') or calendar_ics_url(calendar_id)).strip()
+    forms_public_id = str(current.get('GOOGLE_FORMS_PUBLIC_ID') or os.getenv('GOOGLE_FORMS_PUBLIC_ID') or DEFAULT_FORMS_PUBLIC_ID).strip()
+    effective_defaults = {
+        **PUBLIC_ENV_DEFAULTS,
+        'GOOGLE_CALENDAR_ID': calendar_id,
+        'GOOGLE_CALENDAR_ICS_URL': calendar_url,
+        'ORTOPEDIA_AGENDA_URL': str(os.getenv('ORTOPEDIA_AGENDA_URL') or calendar_url).strip(),
+        'GOOGLE_FORMS_PUBLIC_ID': forms_public_id,
+        'GOOGLE_FORMS_VIEWFORM_URL': str(os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or forms_view_url(forms_public_id)).strip(),
+    }
+    updated = []
+    for key, default in effective_defaults.items():
+        if not str(current.get(key) or '').strip():
+            effective_default = str(os.getenv(key) or default).strip()
+            set_key(env_path, key, effective_default, quote_mode='never')
+            os.environ[key] = effective_default
+            updated.append(key)
+    if updated:
+        logger.info('Defaults públicos aplicados ao .env: %s', ', '.join(updated))
 
 
 def ensure_env_file(base_dir: str):
     """Cria .env com defaults seguros quando não existir (útil no executável)."""
     env_path = os.path.join(base_dir, '.env')
     if os.path.exists(env_path):
+        _fill_blank_public_env_defaults(env_path)
         return
 
     calendar_id = (os.getenv('GOOGLE_CALENDAR_ID') or DEFAULT_CALENDAR_ID).strip()
@@ -65,9 +89,9 @@ def ensure_env_file(base_dir: str):
         or os.getenv('GOOGLE_CALENDAR_ICS_URL')
         or build_default_ortopedia_agenda_url(calendar_id)
     )
-    forms_edit_id = (os.getenv('GOOGLE_FORMS_EDIT_ID') or '').strip()
-    forms_public_id = (os.getenv('GOOGLE_FORMS_PUBLIC_ID') or '').strip()
-    forms_viewform_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
+    forms_edit_id = (os.getenv('GOOGLE_FORMS_EDIT_ID') or DEFAULT_FORMS_EDIT_ID).strip()
+    forms_public_id = (os.getenv('GOOGLE_FORMS_PUBLIC_ID') or DEFAULT_FORMS_PUBLIC_ID).strip()
+    forms_viewform_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or forms_view_url(forms_public_id)).strip()
 
     generated_secret = secrets.token_hex(32)
 
@@ -175,9 +199,9 @@ def create_initial_data(app):
         ortopedia_agenda_url = (
             os.getenv('ORTOPEDIA_AGENDA_URL')
             or os.getenv('GOOGLE_CALENDAR_ICS_URL')
-            or build_default_ortopedia_agenda_url(os.getenv('GOOGLE_CALENDAR_ID', DEFAULT_CALENDAR_ID))
+            or build_default_ortopedia_agenda_url(os.getenv('GOOGLE_CALENDAR_ID') or DEFAULT_CALENDAR_ID)
         )
-        ortopedia_forms_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or '').strip()
+        ortopedia_forms_url = (os.getenv('GOOGLE_FORMS_VIEWFORM_URL') or DEFAULT_FORMS_VIEW_URL).strip()
 
         ortopedia_settings = SpecialtySettings.query.filter_by(specialty_id=ortopedia.id).first()
         if not ortopedia_settings:
@@ -190,6 +214,9 @@ def create_initial_data(app):
         elif not (ortopedia_settings.agenda_url or '').strip() and ortopedia_agenda_url:
             ortopedia_settings.agenda_url = ortopedia_agenda_url
             logger.info('  [OK] Configuração atualizada: agenda padrão da Ortopedia')
+        if ortopedia_settings and not (ortopedia_settings.forms_url or '').strip() and ortopedia_forms_url:
+            ortopedia_settings.forms_url = ortopedia_forms_url
+            logger.info('  [OK] Configuração atualizada: formulário padrão da Ortopedia')
 
         # Procedimentos padrão de Ortopedia
         ortopedia_proc_count = SpecialtyProcedure.query.filter_by(specialty_id=ortopedia.id).count()

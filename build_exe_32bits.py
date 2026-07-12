@@ -63,6 +63,15 @@ def assert_prerequisites() -> None:
     import pymupdf
     if not hasattr(pymupdf.Document, 'bake'):
         raise RuntimeError('A versão instalada do PyMuPDF não oferece Document.bake().')
+    lifecycle_js = ROOT / 'src' / 'static' / 'js' / 'lifecycle.js'
+    source = lifecycle_js.read_text(encoding='utf-8')
+    if 'window.shutdownServer' not in source:
+        raise RuntimeError('lifecycle.js não exporta window.shutdownServer.')
+    node = shutil.which('node')
+    if node:
+        checked = subprocess.run([node, '--check', str(lifecycle_js)], check=False)
+        if checked.returncode != 0:
+            raise RuntimeError('lifecycle.js contém erro de sintaxe.')
 
 
 def build_arguments(dist_root: Path, run_root: Path) -> list[str]:
@@ -89,6 +98,7 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
     required = (
         executable,
         app_dir / '_internal' / 'src' / 'templates',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'lifecycle.js',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.min.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.bundle.min.js',
         app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
