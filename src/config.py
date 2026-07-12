@@ -137,6 +137,7 @@ class Config:
     DESKTOP_MODE = _env_bool('DESKTOP_MODE', False)
     LIFECYCLE_TIMEOUT_SECONDS = int(os.getenv('LIFECYCLE_TIMEOUT_SECONDS', '30'))
     LIFECYCLE_HEARTBEAT_SECONDS = int(os.getenv('LIFECYCLE_HEARTBEAT_SECONDS', '5'))
+    LIFECYCLE_SHUTDOWN_GRACE_SECONDS = int(os.getenv('LIFECYCLE_SHUTDOWN_GRACE_SECONDS', '15'))
     SERVER_BIND_HOST = os.getenv('SERVER_BIND_HOST', SERVER_HOST)  # Backward compatibility
     
     # Apps Script Web App (DESABILITADO - agora usa submissão ao Forms)

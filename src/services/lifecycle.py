@@ -1,8 +1,7 @@
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta
-from flask import current_app
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +13,7 @@ state = {
     'empty_since': None,
 }
 _monitor_started = False
+_state_lock = threading.RLock()
 
 
 def generate_session_id() -> str:
@@ -22,17 +22,37 @@ def generate_session_id() -> str:
 
 def touch_session(session_id: str):
     """Registra/atualiza o heartbeat da sessão"""
-    state['sessions'][session_id] = datetime.utcnow()
-    state['had_sessions'] = True
-    state['empty_since'] = None
-    logger.debug(f"Heartbeat registered for session {session_id}")
+    with _state_lock:
+        state['sessions'][session_id] = datetime.utcnow()
+        state['had_sessions'] = True
+        state['empty_since'] = None
 
 
 def remove_session(session_id: str):
-    if session_id in state['sessions']:
-        del state['sessions'][session_id]
-    if state['had_sessions'] and not state['sessions']:
-        state['empty_since'] = datetime.utcnow()
+    with _state_lock:
+        state['sessions'].pop(session_id, None)
+        if state['had_sessions'] and not state['sessions'] and state['empty_since'] is None:
+            state['empty_since'] = datetime.utcnow()
+
+
+def expire_stale_sessions(now: datetime, heartbeat_timeout: int) -> list[str]:
+    with _state_lock:
+        stale = [session_id for session_id, last in state['sessions'].items()
+                 if (now - last).total_seconds() > heartbeat_timeout]
+        for session_id in stale:
+            state['sessions'].pop(session_id, None)
+        if stale and state['had_sessions'] and not state['sessions'] and state['empty_since'] is None:
+            state['empty_since'] = now
+        return stale
+
+
+def should_shutdown(now: datetime, grace_seconds: int) -> bool:
+    with _state_lock:
+        return bool(
+            state['had_sessions'] and not state['sessions']
+            and state['empty_since'] is not None
+            and (now - state['empty_since']).total_seconds() >= grace_seconds
+        )
 
 
 def start_monitor(app):
@@ -67,11 +87,12 @@ def start_monitor(app):
             
         while True:
             try:
-                time.sleep(5)
+                time.sleep(1)
                 with app.app_context():
                     desktop_mode = app.config.get('DESKTOP_MODE', False)
                     bind_host = app.config.get('SERVER_BIND_HOST', '127.0.0.1')
                     timeout_seconds = int(app.config.get('LIFECYCLE_TIMEOUT_SECONDS', 30))
+                    grace_seconds = int(app.config.get('LIFECYCLE_SHUTDOWN_GRACE_SECONDS', 15))
 
                     if not desktop_mode:
                         continue
@@ -80,38 +101,13 @@ def start_monitor(app):
                         continue
 
                     now = datetime.utcnow()
-                    # check all sessions
-                    stale_sessions = []
-                    for sess, last in list(state['sessions'].items()):
-                        if (now - last).total_seconds() > timeout_seconds:
-                            stale_sessions.append(sess)
-
-                    closed_cleanly = (
-                        state['had_sessions']
-                        and not state['sessions']
-                        and state['empty_since'] is not None
-                        and (now - state['empty_since']).total_seconds() > min(timeout_seconds, 5)
-                    )
-
-                    if stale_sessions or closed_cleanly:
-                        logger.info(f"Sessões sem heartbeat: {stale_sessions}. Iniciando shutdown gracioso...")
-                        # Tentar shutdown gracioso via endpoint main.shutdown (se disponível)
-                        try:
-                            # Preferir encerrar pela própria aplicação
-                            def do_shutdown():
-                                logger.info("Executando shutdown gracioso do processo")
-                                import os
-                                os._exit(0)
-
-                            threading.Thread(target=do_shutdown, daemon=True).start()
-                        except Exception as e:
-                            logger.exception("Falha ao tentar shutdown gracioso: %s", e)
-                            try:
-                                import os
-                                os._exit(0)
-                            except Exception:
-                                pass
-                        break
+                    stale_sessions = expire_stale_sessions(now, timeout_seconds)
+                    if stale_sessions:
+                        logger.info('%d sessão(ões) local(is) expiraram.', len(stale_sessions))
+                    if should_shutdown(now, grace_seconds):
+                        from src.services.server_control import server_controller
+                        if server_controller.request_shutdown('last-browser-closed'):
+                            break
             except Exception:
                 logger.exception("Erro no monitor de lifecycle")
 

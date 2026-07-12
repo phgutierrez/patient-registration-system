@@ -79,32 +79,26 @@ def browser_closing():
     return jsonify({'success': True}), 200
 
 @main.route('/shutdown', methods=['POST'])
-@login_required
 def shutdown():
-    """Rota para desligar o servidor"""
+    """Solicita shutdown gracioso; permitido somente no servidor local."""
     from flask import current_app
     if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
         return jsonify({'success': False, 'error': 'Desligamento disponível somente no modo local.'}), 403
-    try:
-        def shutdown_server():
-            """Função para encerrar o servidor após responder à requisição"""
-            import time
-            time.sleep(1)  # Aguardar a resposta ser enviada
-            
-            # Tentar diferentes métodos de shutdown
-            try:
-                # Método 1: Usar sys.exit() em uma thread separada
-                sys.exit(0)
-            except:
-                # Método 2: Forçar encerramento do processo
-                os._exit(0)
-        
-        # Iniciar thread de shutdown
-        threading.Thread(target=shutdown_server, daemon=True).start()
-        
-        return jsonify({'success': True, 'message': 'Servidor sendo encerrado...'}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    from src.services.server_control import server_controller
+    requested = server_controller.request_shutdown('browser-button')
+    status = server_controller.status()
+    if requested or status['state'] == 'stopping':
+        return jsonify({'success': True, 'message': 'Servidor sendo encerrado...', **status}), 202
+    return jsonify({'success': False, 'error': 'Controlador do servidor indisponível.', **status}), 503
+
+
+@main.route('/shutdown/status', methods=['GET'])
+def shutdown_status():
+    from flask import current_app
+    if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
+        return jsonify({'error': 'Operação disponível somente no modo local.'}), 403
+    from src.services.server_control import server_controller
+    return jsonify(server_controller.status()), 200
 
 @main.route('/agenda')
 @login_required

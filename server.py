@@ -1,7 +1,7 @@
 """
 Servidor de produção usando Waitress
 """
-from waitress import serve
+from waitress.server import create_server
 import argparse
 import os
 import logging
@@ -104,6 +104,7 @@ SECURITY_HSTS_INCLUDE_SUBDOMAINS=true
 SECURITY_HSTS_PRELOAD=false
 LIFECYCLE_TIMEOUT_SECONDS=30
 LIFECYCLE_HEARTBEAT_SECONDS=5
+LIFECYCLE_SHUTDOWN_GRACE_SECONDS=15
 ADMIN_BOOTSTRAP_USERNAME=
 ADMIN_BOOTSTRAP_PASSWORD=
 ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
@@ -314,6 +315,8 @@ def main():
     try:
         args = _parse_args()
         host, port = _apply_mode(args.mode)
+        if args.check or args.self_check:
+            os.environ['DESKTOP_MODE'] = 'false'
         base_dir = os.path.abspath(args.data_dir) if args.data_dir else get_base_dir()
         os.makedirs(base_dir, exist_ok=True)
         write_probe = os.path.join(base_dir, '.write-test.tmp')
@@ -361,16 +364,35 @@ def main():
                 target=open_browser, args=(host, port, session_id), daemon=True
             ).start()
         
-        # Servir a aplicação com Waitress
-        serve(
+        # Servir com uma instância controlável para shutdown gracioso.
+        from src.services.server_control import server_controller
+        from src.services.access_patient_service import access_patient_service
+        from src.extensions import db
+
+        waitress_server = create_server(
             app,
             host=host,
             port=port,
             threads=4,  # Número de threads para processar requisições
             channel_timeout=120,
             cleanup_interval=30,
+            asyncore_loop_timeout=1,
             url_scheme='http'
         )
+        def cleanup_services():
+            access_patient_service.invalidate()
+            with app.app_context():
+                db.session.remove()
+
+        server_controller.register(
+            waitress_server,
+            cleanup_services,
+            allow_force_exit=getattr(sys, 'frozen', False),
+        )
+        try:
+            waitress_server.run()
+        finally:
+            server_controller.mark_stopped()
     except KeyboardInterrupt:
         logger.info('\nServidor interrompido pelo usuário')
     except Exception as e:
