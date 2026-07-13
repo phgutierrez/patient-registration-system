@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import shutil
+import hashlib
 import os
 import struct
 import subprocess
 import sys
+import sysconfig
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +22,9 @@ DIST_ROOT = ROOT / 'dist' / 'Sistema32bits'
 APP_NAME = 'PatientRegistration'
 BASELINE_FILES = 920
 BASELINE_BYTES = 81_126_589
+GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
+GREENLET_WHEEL_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
+LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 
 DATA_FILES = (
     (ROOT / 'src' / 'templates', 'src/templates'),
@@ -34,6 +39,7 @@ DATA_FILES = (
 
 HIDDEN_IMPORTS = (
     'sqlalchemy.sql.default_comparator',
+    'greenlet._greenlet',
     'pymupdf',
     'pyodbc',
 )
@@ -41,7 +47,7 @@ HIDDEN_IMPORTS = (
 EXCLUDES = (
     'matplotlib', 'numpy', 'pandas', 'pytest', 'IPython', 'jupyter',
     'notebook', 'sphinx', 'tkinter', 'sqlalchemy.testing', 'mypy',
-    'test', 'doctest', 'pydoc', 'lib2to3',
+    'test', 'doctest', 'pydoc', 'lib2to3', 'greenlet.tests',
 )
 
 
@@ -54,13 +60,27 @@ def assert_within_project(path: Path) -> Path:
 
 
 def assert_prerequisites() -> None:
-    if struct.calcsize('P') * 8 != 32:
-        raise RuntimeError('Ative um Python 32-bit antes de executar este build.')
-    required = [ENTRYPOINT, ROOT / 'requirements.txt', *(source for source, _ in DATA_FILES)]
+    if sys.version_info[:2] != (3, 11) or struct.calcsize('P') * 8 != 32 or sysconfig.get_platform() != 'win32':
+        raise RuntimeError('O build exige exatamente CPython 3.11 para Windows 32-bit (win32).')
+    required = [ENTRYPOINT, ROOT / 'requirements.txt', GREENLET_WHEEL, *(source for source, _ in DATA_FILES)]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError('Arquivos obrigatórios ausentes:\n- ' + '\n- '.join(missing))
+    wheel_hash = hashlib.sha256(GREENLET_WHEEL.read_bytes()).hexdigest()
+    if wheel_hash != GREENLET_WHEEL_SHA256:
+        raise RuntimeError('O wheel local do greenlet falhou na verificação SHA-256.')
+    import greenlet
+    import pyodbc
+    import sqlalchemy
     import pymupdf
+    if greenlet.__version__ != '2.0.2':
+        raise RuntimeError(f'greenlet incompatível: esperado 2.0.2, encontrado {greenlet.__version__}.')
+    if not str(greenlet._greenlet.__file__).lower().endswith('.pyd'):
+        raise RuntimeError('A extensão binária win32 do greenlet não está carregada.')
+    if not str(pyodbc.__file__).lower().endswith('.pyd'):
+        raise RuntimeError('A extensão binária win32 do pyodbc não está carregada.')
+    if not sqlalchemy.__version__.startswith('1.4.'):
+        raise RuntimeError(f'SQLAlchemy incompatível com o build: {sqlalchemy.__version__}.')
     if not hasattr(pymupdf.Document, 'bake'):
         raise RuntimeError('A versão instalada do PyMuPDF não oferece Document.bake().')
     lifecycle_js = ROOT / 'src' / 'static' / 'js' / 'lifecycle.js'
@@ -156,6 +176,8 @@ def main() -> int:
     print(f'Build {APP_NAME}: Python {sys.version.split()[0]} ({struct.calcsize("P") * 8}-bit)')
     PyInstaller.__main__.run(build_arguments(dist_root, run_root))
     files, size = validate_distribution(output)
+    LAST_BUILD_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAST_BUILD_FILE.write_text(str(output / (APP_NAME + '.exe')) + '\n', encoding='utf-8')
     print(f'[OK] Build validado: {files} arquivos, {size / 1024 / 1024:.2f} MiB')
     print(f'Baseline: {BASELINE_FILES} arquivos, {BASELINE_BYTES / 1024 / 1024:.2f} MiB')
     print(f'Redução: {BASELINE_FILES - files} arquivos, {(BASELINE_BYTES - size) / 1024 / 1024:.2f} MiB')

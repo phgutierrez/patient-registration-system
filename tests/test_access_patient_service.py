@@ -9,29 +9,35 @@ from src.services.access_patient_service import (
 
 
 class FakeCursor:
-    def __init__(self, rows=None, result=None):
-        self.rows = rows or []
+    def __init__(self, columns=None, result=None, execute_error=None):
+        self.description = None
+        self.columns_for_description = columns
         self.result = result
+        self.execute_error = execute_error
         self.executions = []
+        self.closed = False
 
-    def columns(self, table):
-        self.table = table
-        return self.rows
-
-    def execute(self, sql, parameter):
+    def execute(self, sql, parameter=None):
+        if self.execute_error:
+            raise self.execute_error
         self.executions.append((sql, parameter))
+        if 'WHERE 1=0' in sql:
+            self.description = [
+                (name, None, None, None, None, None, None)
+                for name in (self.columns_for_description or [])
+            ]
         return self
 
     def fetchone(self):
         return self.result
 
     def close(self):
-        pass
+        self.closed = True
 
 
 class FakeConnection:
-    def __init__(self, columns, result):
-        self.schema_cursor = FakeCursor([SimpleNamespace(column_name=name) for name in columns])
+    def __init__(self, columns, result, schema_error=None):
+        self.schema_cursor = FakeCursor(columns=columns, execute_error=schema_error)
         self.query_cursor = FakeCursor(result=result)
         self.cursor_calls = 0
         self.closed = False
@@ -98,6 +104,61 @@ class AccessLookupTests(unittest.TestCase):
         self.assertNotIn('campo_grande_nao_usado', sql)
         self.assertNotIn('INSERT', sql.upper())
         self.assertEqual('123', parameter)
+        schema_sql, schema_parameter = connection.schema_cursor.executions[0]
+        self.assertEqual('SELECT * FROM [cadastro_de_pacientes] WHERE 1=0', schema_sql)
+        self.assertIsNone(schema_parameter)
+        self.assertTrue(connection.schema_cursor.closed)
+        self.assertTrue(connection.query_cursor.closed)
+
+    def test_schema_discovery_does_not_use_cursor_columns(self):
+        class CursorWithoutColumns(FakeCursor):
+            def columns(self, *args, **kwargs):
+                raise AssertionError('cursor.columns() não deve ser usado')
+
+        connection = FakeConnection(['prontuario', 'Nome do Paciente'], ('123', 'Teste'))
+        connection.schema_cursor = CursorWithoutColumns(columns=['prontuario', 'Nome do Paciente'])
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            result = AccessPatientService().search(self.config, '123')
+        self.assertTrue(result['found'])
+
+    def test_schema_maps_accents_and_known_aliases(self):
+        columns = ['prontuario', 'Nome do Paciente', 'Data Nascimento', 'Nome da Mãe', 'NºCartSus', 'Endereço', 'Município', 'Telefone', 'Sexo']
+        values = ('1', 'José', None, 'Mãe', 'CNS', 'Rua', 'Cidade', '999', 'M')
+        connection = FakeConnection(columns, values)
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            data = AccessPatientService().search(self.config, '1')['data']
+        self.assertEqual('José', data['nome'])
+        self.assertEqual('Mãe', data['nome_mae'])
+        self.assertEqual('CNS', data['cns'])
+        self.assertEqual('Cidade', data['cidade'])
+
+    def test_missing_table_has_specific_error(self):
+        error = RuntimeError('42S02', 'Could not find table cadastro_de_pacientes')
+        connection = FakeConnection([], None, schema_error=error)
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            with self.assertRaises(AccessLookupError) as raised:
+                AccessPatientService().search(self.config, '1')
+        self.assertEqual('ACCESS_TABLE_NOT_FOUND', raised.exception.code)
+        self.assertTrue(connection.schema_cursor.closed)
+
+    def test_empty_description_has_specific_error(self):
+        connection = FakeConnection([], None)
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            with self.assertRaises(AccessLookupError) as raised:
+                AccessPatientService().test_connection(self.config)
+        self.assertEqual('ACCESS_SCHEMA_EMPTY', raised.exception.code)
+
+    def test_missing_prontuario_column_has_specific_error(self):
+        connection = FakeConnection(['Nome do Paciente'], None)
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER], connect=lambda *a, **k: connection)
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            with self.assertRaises(AccessLookupError) as raised:
+                AccessPatientService().test_connection(self.config)
+        self.assertEqual('ACCESS_PRONTUARIO_COLUMN_MISSING', raised.exception.code)
 
     def test_negative_cache_expires_after_sixty_seconds(self):
         now = [0.0]

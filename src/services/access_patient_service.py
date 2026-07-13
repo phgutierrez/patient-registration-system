@@ -143,16 +143,75 @@ class AccessPatientService:
     def _quote(identifier: str) -> str:
         return '[' + identifier.replace(']', ']]') + ']'
 
+    @staticmethod
+    def _sqlstates(exc: Exception) -> tuple[str, ...]:
+        """Extract ODBC SQLSTATE values without logging the full driver message."""
+        states = []
+        for item in getattr(exc, 'args', ()):
+            text = str(item).strip().upper()
+            match = re.fullmatch(r'([0-9A-Z]{5})', text) or re.match(r'^\[([0-9A-Z]{5})\]', text)
+            if match and match.group(1) not in states:
+                states.append(match.group(1))
+        return tuple(states)
+
+    def _log_odbc_failure(self, stage: str, exc: Exception, attempt: int | None = None) -> None:
+        logger.warning(
+            'Falha Access na etapa=%s tipo=%s sqlstate=%s tentativa=%s',
+            stage,
+            type(exc).__name__,
+            ','.join(self._sqlstates(exc)) or 'indisponível',
+            attempt if attempt is not None else '-',
+        )
+
+    def _is_missing_table_error(self, exc: Exception) -> bool:
+        states = set(self._sqlstates(exc))
+        detail = str(exc).lower()
+        return bool(states.intersection({'42S02', 'S0002'})) or any(
+            token in detail
+            for token in ('could not find', 'cannot find', 'não foi possível encontrar', 'tabela inexistente')
+        )
+
     def _discover_columns(self, connection) -> dict[str, str]:
         if self._columns is not None:
             return self._columns
+        cursor = None
         try:
-            rows = list(connection.cursor().columns(table=TABLE_NAME))
-            names = [str(getattr(row, 'column_name', None) or row[3]) for row in rows]
+            # Alguns drivers Access antigos falham em cursor.columns(), embora
+            # executem SELECT normalmente. WHERE 1=0 lê somente os metadados.
+            cursor = connection.cursor()
+            cursor.execute(f'SELECT * FROM {self._quote(TABLE_NAME)} WHERE 1=0')
+            description = cursor.description
         except Exception as exc:
-            raise AccessLookupError('ACCESS_TABLE_INVALID', 'Não foi possível ler a estrutura da tabela de pacientes.', 'Confirme que cadastro_de_pacientes existe no arquivo configurado.', 502) from exc
+            self._log_odbc_failure('descoberta_esquema', exc)
+            if self._is_missing_table_error(exc):
+                raise AccessLookupError(
+                    'ACCESS_TABLE_NOT_FOUND',
+                    'A tabela cadastro_de_pacientes não foi encontrada.',
+                    'Selecione o arquivo Access correto nas Configurações.',
+                    502,
+                ) from exc
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    cursor.close()
+                except Exception:
+                    logger.warning('Não foi possível fechar o cursor de metadados do Access.')
+        if not description:
+            raise AccessLookupError(
+                'ACCESS_SCHEMA_EMPTY',
+                'O driver não retornou a estrutura da tabela de pacientes.',
+                'Verifique o arquivo e a compatibilidade do Microsoft Access Database Engine.',
+                502,
+            )
+        names = [str(column[0]) for column in description if column and column[0]]
         if not names:
-            raise AccessLookupError('ACCESS_TABLE_INVALID', 'A tabela cadastro_de_pacientes não foi encontrada.', 'Selecione o arquivo Access correto.', 502)
+            raise AccessLookupError(
+                'ACCESS_SCHEMA_EMPTY',
+                'A tabela de pacientes não possui colunas legíveis.',
+                'Verifique a integridade do arquivo Access configurado.',
+                502,
+            )
         normalized = {_normalize(name): name for name in names}
         mapping = {}
         for canonical, aliases in COLUMN_ALIASES.items():
@@ -161,7 +220,12 @@ class AccessPatientService:
                     mapping[canonical] = normalized[_normalize(alias)]
                     break
         if 'prontuario' not in mapping:
-            raise AccessLookupError('ACCESS_TABLE_INVALID', 'A coluna de prontuário não foi encontrada.', 'Verifique a estrutura de cadastro_de_pacientes.', 502)
+            raise AccessLookupError(
+                'ACCESS_PRONTUARIO_COLUMN_MISSING',
+                'A coluna de prontuário não foi encontrada.',
+                'Verifique se o arquivo configurado contém a tabela esperada.',
+                502,
+            )
         self._columns = mapping
         return mapping
 
@@ -191,6 +255,7 @@ class AccessPatientService:
             if hit:
                 return {'found': value is not None, 'data': value, 'source': 'memory_cache', 'query_time_ms': round((self.clock() - started) * 1000, 2)}
             for attempt in range(2):
+                cursor = None
                 try:
                     connection = self._connection or self._connect(config)
                     columns = self._discover_columns(connection)
@@ -200,7 +265,6 @@ class AccessPatientService:
                     cursor = connection.cursor()
                     cursor.execute(sql, prontuario)
                     row = cursor.fetchone()
-                    cursor.close()
                     value = None if row is None else {canonical: row[index] for index, (canonical, _) in enumerate(selected)}
                     self._store(prontuario, value)
                     logger.info('Consulta Access concluída em %.1f ms (%s)', (self.clock() - started) * 1000, 'encontrado' if value else 'não encontrado')
@@ -208,10 +272,17 @@ class AccessPatientService:
                 except AccessLookupError:
                     raise
                 except Exception as exc:
+                    self._log_odbc_failure('consulta_paciente', exc, attempt + 1)
                     self._close_connection()
                     self._columns = None
                     if attempt == 1:
                         raise self._classify_error(exc, config) from exc
+                finally:
+                    if cursor is not None:
+                        try:
+                            cursor.close()
+                        except Exception:
+                            logger.warning('Não foi possível fechar o cursor de consulta do Access.')
         raise AssertionError('unreachable')
 
     def test_connection(self, config: AccessConfig) -> dict[str, Any]:
@@ -219,7 +290,14 @@ class AccessPatientService:
         with self._lock:
             self._prepare(config)
             connection = self._connection or self._connect(config)
-            columns = self._discover_columns(connection)
+            try:
+                columns = self._discover_columns(connection)
+            except AccessLookupError:
+                raise
+            except Exception as exc:
+                self._close_connection()
+                self._columns = None
+                raise self._classify_error(exc, config) from exc
             return {'ok': True, 'code': 'ACCESS_CONNECTION_OK', 'message': 'Conexão somente leitura realizada com sucesso.', 'hint': f'Tabela {TABLE_NAME} e coluna {columns["prontuario"]} encontradas.', 'query_time_ms': round((self.clock() - started) * 1000, 2)}
 
 

@@ -199,9 +199,21 @@ run_network.bat
 
 ### Opção 1: Executável Windows (Recomendado)
 1. **Baixe** a versão mais recente: [PatientRegistration-windows.zip](../../releases)
-2. **Extraia** a pasta `PatientRegistration` (377 MB com dependências)
+2. **Extraia** a pasta `PatientRegistration` com todas as dependências
 3. **Execute** `PatientRegistration.exe`
 4. Sistema abre automaticamente no navegador padrão
+
+### Build do executável Windows 32-bit
+
+Execute `build_exe_32bits.bat` na raiz do projeto. O build exige CPython 3.11
+32-bit, que pode ser instalado somente para o usuário, e não requer Visual C++
+Build Tools nem privilégios administrativos. O wheel win32 do `greenlet` fica
+em `build_support/`, tem seu SHA-256 verificado e as demais dependências são
+instaladas somente quando existe pacote binário compatível.
+
+O caminho exato do executável gerado é exibido ao final. Se a distribuição
+anterior estiver aberta, o build cria uma nova pasta em `dist/` sem tentar
+sobrescrever o processo em uso.
 
 > 💡 **Importante**: Mantenha a estrutura completa de pastas. Não mova apenas o arquivo .exe!
 
