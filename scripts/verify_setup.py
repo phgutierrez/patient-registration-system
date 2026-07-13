@@ -100,7 +100,10 @@ def verify() -> bool:
             valid &= fail('Tabelas ausentes: ' + ', '.join(missing))
         else:
             ok('Banco íntegro e tabelas obrigatórias presentes.')
-        required_access_columns = {'access_host', 'access_share_path', 'access_filename', 'access_enabled'}
+        required_access_columns = {
+            'access_host', 'access_share_path', 'access_filename', 'access_enabled',
+            'access_source', 'access_local_path',
+        }
         missing_access_columns = sorted(required_access_columns - access_columns)
         if missing_access_columns:
             valid &= fail('Configuração Access incompleta: ' + ', '.join(missing_access_columns))

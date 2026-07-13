@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -68,6 +70,24 @@ class AccessConfigurationTests(unittest.TestCase):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 validate_access_config(config)
 
+    def test_accepts_existing_local_access_file_and_rejects_nonlocal_paths(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_file = Path(temp_dir) / 'patients.accdb'
+            local_file.touch()
+            config = AccessConfig('', '', '', source='local', local_path=str(local_file))
+            validate_access_config(config)
+            self.assertEqual(str(local_file), config.database_path)
+
+        invalid = [
+            AccessConfig('', '', '', source='local', local_path='patients.accdb'),
+            AccessConfig('', '', '', source='local', local_path=r'\\server\share\patients.accdb'),
+            AccessConfig('', '', '', source='local', local_path=r'C:\data\patients.sqlite'),
+            AccessConfig('', '', '', source='invalid', local_path=r'C:\data\patients.accdb'),
+        ]
+        for config in invalid:
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                validate_access_config(config)
+
 
 class AccessLookupTests(unittest.TestCase):
     def setUp(self):
@@ -109,6 +129,32 @@ class AccessLookupTests(unittest.TestCase):
         self.assertIsNone(schema_parameter)
         self.assertTrue(connection.schema_cursor.closed)
         self.assertTrue(connection.query_cursor.closed)
+
+    def test_local_source_uses_direct_file_and_readonly_connection(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_file = Path(temp_dir) / 'patients.accdb'
+            local_file.touch()
+            config = AccessConfig('', '', '', source='local', local_path=str(local_file))
+            connection = FakeConnection(['prontuario'], ('123',))
+            calls = []
+            fake_pyodbc = SimpleNamespace(
+                drivers=lambda: [ACCESS_DRIVER],
+                connect=lambda connection_string, **kwargs: calls.append(connection_string) or connection,
+            )
+            with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+                result = AccessPatientService().search(config, '123')
+        self.assertTrue(result['found'])
+        self.assertIn(f'DBQ={local_file}', calls[0])
+        self.assertIn('READONLY=TRUE', calls[0])
+        self.assertNotIn('\\\\server', calls[0])
+
+    def test_missing_local_file_has_specific_error(self):
+        config = AccessConfig('', '', '', source='local', local_path=r'C:\missing\patients.accdb')
+        fake_pyodbc = SimpleNamespace(drivers=lambda: [ACCESS_DRIVER])
+        with patch('src.services.access_patient_service.pyodbc', fake_pyodbc):
+            with self.assertRaises(AccessLookupError) as raised:
+                AccessPatientService().search(config, '123')
+        self.assertEqual('ACCESS_FILE_NOT_FOUND', raised.exception.code)
 
     def test_schema_discovery_does_not_use_cursor_columns(self):
         class CursorWithoutColumns(FakeCursor):

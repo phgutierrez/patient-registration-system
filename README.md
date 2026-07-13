@@ -215,6 +215,13 @@ O caminho exato do executável gerado é exibido ao final. Se a distribuição
 anterior estiver aberta, o build cria uma nova pasta em `dist/` sem tentar
 sobrescrever o processo em uso.
 
+Na área administrativa em **Configurações → Banco Access de Pacientes**, a
+origem da consulta pode ser definida como arquivo em rede ou arquivo local. Os
+modos são mutuamente exclusivos. Em `localhost`, o botão **Procurar arquivo**
+abre a janela nativa do Windows; em um cliente da LAN, o caminho informado deve
+existir no computador servidor. Em ambos os modos a conexão permanece somente
+leitura.
+
 > 💡 **Importante**: Mantenha a estrutura completa de pastas. Não mova apenas o arquivo .exe!
 
 ### Opção 2: Instalação Python

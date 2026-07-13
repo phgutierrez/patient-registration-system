@@ -133,26 +133,61 @@
                      id="access-enabled-{{ esp.id }}" {{ 'checked' if not esp.settings or esp.settings.access_enabled }}>
               <label class="form-check-label fw-semibold" for="access-enabled-{{ esp.id }}">Ativar busca no Access</label>
             </div>
-            <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label fw-semibold">IP ou nome do servidor</label>
-                <input type="text" name="access_host" class="form-control" required maxlength="255"
-                       value="{{ esp.settings.access_host if esp.settings and esp.settings.access_host else '192.168.1.252' }}"
-                       placeholder="192.168.1.252">
+            {% set access_source = esp.settings.access_source if esp.settings and esp.settings.access_source else 'network' %}
+            <fieldset class="mb-3">
+              <legend class="form-label fw-semibold mb-2">Origem do banco de pacientes</legend>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="border rounded p-3 d-flex gap-2 h-100 access-source-option" for="access-source-network-{{ esp.id }}">
+                    <input class="form-check-input access-source-radio" type="radio" name="access_source" value="network"
+                           id="access-source-network-{{ esp.id }}" {{ 'checked' if access_source == 'network' }}>
+                    <span><strong>Arquivo em rede</strong><br><small class="text-muted">Usa servidor e compartilhamento UNC.</small></span>
+                  </label>
+                </div>
+                <div class="col-md-6">
+                  <label class="border rounded p-3 d-flex gap-2 h-100 access-source-option" for="access-source-local-{{ esp.id }}">
+                    <input class="form-check-input access-source-radio" type="radio" name="access_source" value="local"
+                           id="access-source-local-{{ esp.id }}" {{ 'checked' if access_source == 'local' }}>
+                    <span><strong>Arquivo local</strong><br><small class="text-muted">Lê diretamente um .accdb ou .mdb deste computador.</small></span>
+                  </label>
+                </div>
               </div>
-              <div class="col-md-5">
-                <label class="form-label fw-semibold">Compartilhamento e subpastas</label>
-                <input type="text" name="access_share_path" class="form-control" required maxlength="500"
-                       value="{{ esp.settings.access_share_path if esp.settings and esp.settings.access_share_path else 'naqh\\AMBULATORIO_SERV' }}"
-                       placeholder="naqh\AMBULATORIO_SERV">
-                <div class="form-text">Não inclua o IP nem o nome do arquivo.</div>
+            </fieldset>
+            <div class="access-network-fields" data-access-source-section="network">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">IP ou nome do servidor</label>
+                  <input type="text" name="access_host" class="form-control" required maxlength="255"
+                         value="{{ esp.settings.access_host if esp.settings and esp.settings.access_host else '192.168.1.252' }}"
+                         placeholder="192.168.1.252">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label fw-semibold">Compartilhamento e subpastas</label>
+                  <input type="text" name="access_share_path" class="form-control" required maxlength="500"
+                         value="{{ esp.settings.access_share_path if esp.settings and esp.settings.access_share_path else 'naqh\\AMBULATORIO_SERV' }}"
+                         placeholder="naqh\AMBULATORIO_SERV">
+                  <div class="form-text">Não inclua o IP nem o nome do arquivo.</div>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Nome do arquivo</label>
+                  <input type="text" name="access_filename" class="form-control" required maxlength="255"
+                         value="{{ esp.settings.access_filename if esp.settings and esp.settings.access_filename else 'AMBULATORIO_SERV.accdb' }}"
+                         placeholder="arquivo.accdb">
+                </div>
               </div>
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">Nome do arquivo</label>
-                <input type="text" name="access_filename" class="form-control" required maxlength="255"
-                       value="{{ esp.settings.access_filename if esp.settings and esp.settings.access_filename else 'AMBULATORIO_SERV.accdb' }}"
-                       placeholder="arquivo.accdb">
+            </div>
+            <div class="access-local-fields" data-access-source-section="local">
+              <label class="form-label fw-semibold">Arquivo Access local</label>
+              <div class="input-group">
+                <input type="text" name="access_local_path" class="form-control" maxlength="1000"
+                       value="{{ esp.settings.access_local_path if esp.settings and esp.settings.access_local_path else '' }}"
+                       placeholder="C:\Dados\AMBULATORIO_SERV.accdb">
+                <button type="button" class="btn btn-outline-secondary select-local-access-btn"
+                        data-url="{{ url_for('specialty_settings.select_local_access_file') }}">
+                  <i class="fas fa-folder-open me-1"></i>Procurar arquivo
+                </button>
               </div>
+              <div class="form-text">A janela abre no computador servidor. Em clientes da rede, informe um caminho que exista no servidor.</div>
             </div>
             <div id="access-test-result-{{ esp.id }}" class="mt-3" aria-live="polite"></div>
             <div class="mt-3">
@@ -315,6 +350,46 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input.access-source-radio').forEach(radio => {
+    radio.addEventListener('change', () => updateAccessSource(radio.closest('form')));
+  });
+  document.querySelectorAll('form').forEach(form => {
+    if (form.querySelector('input.access-source-radio')) updateAccessSource(form);
+  });
+
+  document.querySelectorAll('.select-local-access-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+      const form = button.closest('form');
+      const pathInput = form.querySelector('input[name="access_local_path"]');
+      const result = form.querySelector('[id^="access-test-result-"]');
+      const original = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aguardando seleção...';
+      try {
+        const response = await fetch(button.dataset.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({initial_path: pathInput.value})
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || 'Não foi possível abrir a janela de arquivos.');
+        if (data.selected) {
+          pathInput.value = data.path;
+          result.innerHTML = `<div class="alert alert-info py-2 mb-0">Arquivo selecionado: <strong>${escapeAccessText(data.filename)}</strong>. Salve as configurações para ativá-lo.</div>`;
+        }
+      } catch (error) {
+        result.innerHTML = `<div class="alert alert-danger py-2 mb-0">${escapeAccessText(error.message)}</div>`;
+      } finally {
+        button.disabled = false;
+        button.innerHTML = original;
+      }
+    });
+  });
+
   document.querySelectorAll('.test-access-btn').forEach(button => {
     button.addEventListener('click', async () => {
       const form = button.closest('form');
@@ -343,6 +418,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+function updateAccessSource(form) {
+  const selected = form.querySelector('input[name="access_source"]:checked')?.value || 'network';
+  form.querySelectorAll('[data-access-source-section]').forEach(section => {
+    const active = section.dataset.accessSourceSection === selected;
+    section.classList.toggle('d-none', !active);
+    section.querySelectorAll('input, button').forEach(control => { control.disabled = !active; });
+  });
+  form.querySelectorAll('.access-source-option').forEach(option => {
+    option.classList.toggle('border-primary', option.querySelector('input')?.checked === true);
+    option.classList.toggle('bg-primary-subtle', option.querySelector('input')?.checked === true);
+  });
+}
 function escapeAccessText(value) {
   const node = document.createElement('span');
   node.textContent = String(value ?? '');

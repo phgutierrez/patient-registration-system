@@ -7,7 +7,7 @@ import time
 import unicodedata
 from collections import OrderedDict
 from dataclasses import dataclass
-from pathlib import PureWindowsPath
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 try:
@@ -35,18 +35,48 @@ class AccessConfig:
     share_path: str
     filename: str
     enabled: bool = True
+    source: str = 'network'
+    local_path: str | None = None
 
     @property
-    def signature(self) -> tuple[str, str, str, bool]:
-        return (self.host.lower(), self.share_path.lower(), self.filename.lower(), self.enabled)
+    def signature(self) -> tuple[str, str, str, bool, str, str]:
+        return (
+            (self.host or '').lower(),
+            (self.share_path or '').lower(),
+            (self.filename or '').lower(),
+            self.enabled,
+            (self.source or '').lower(),
+            (self.local_path or '').lower(),
+        )
 
     @property
     def unc_path(self) -> str:
         validate_access_config(self)
+        if (self.source or '').strip().lower() != 'network':
+            raise ValueError('O caminho UNC está disponível somente no modo de rede.')
+        return str(PureWindowsPath(f'//{self.host}/{self.share_path}/{self.filename}'))
+
+    @property
+    def database_path(self) -> str:
+        validate_access_config(self)
+        if (self.source or '').strip().lower() == 'local':
+            return str(PureWindowsPath(str(self.local_path)))
         return str(PureWindowsPath(f'//{self.host}/{self.share_path}/{self.filename}'))
 
 
 def validate_access_config(config: AccessConfig) -> None:
+    source = (config.source or '').strip().lower()
+    if source not in {'network', 'local'}:
+        raise ValueError('Selecione banco em rede ou arquivo local.')
+    if source == 'local':
+        local_value = (config.local_path or '').strip()
+        local_path = PureWindowsPath(local_value)
+        if not local_value or not local_path.is_absolute() or not local_path.drive or local_value.startswith(('\\\\', '//')):
+            raise ValueError('Selecione um arquivo local com caminho absoluto neste computador.')
+        if local_path.suffix.lower() not in {'.accdb', '.mdb'}:
+            raise ValueError('O arquivo local deve possuir extensão .accdb ou .mdb.')
+        return
+
     host = (config.host or '').strip()
     share = (config.share_path or '').strip().strip('\\')
     filename = (config.filename or '').strip()
@@ -116,11 +146,23 @@ class AccessPatientService:
         drivers = {driver.lower() for driver in pyodbc.drivers()}
         if ACCESS_DRIVER.lower() not in drivers:
             raise AccessLookupError('ACCESS_DRIVER_MISSING', 'Microsoft Access Database Engine não está instalado.', 'Instale o driver Access da mesma arquitetura do sistema.', 503)
-        connection_string = f'DRIVER={{{ACCESS_DRIVER}}};DBQ={config.unc_path};READONLY=TRUE;'
+        source = (config.source or '').strip().lower()
+        if source == 'local' and not Path(config.database_path).is_file():
+            raise AccessLookupError(
+                'ACCESS_FILE_NOT_FOUND',
+                'O arquivo Access local configurado não foi encontrado.',
+                'Selecione novamente o arquivo nas Configurações.',
+                404,
+            )
+        connection_string = f'DRIVER={{{ACCESS_DRIVER}}};DBQ={config.database_path};READONLY=TRUE;'
         started = self.clock()
         try:
             self._connection = pyodbc.connect(connection_string, timeout=5, autocommit=True)
-            logger.info('Conexão Access somente leitura aberta em %.1f ms', (self.clock() - started) * 1000)
+            logger.info(
+                'Conexão Access somente leitura aberta em %.1f ms (origem=%s)',
+                (self.clock() - started) * 1000,
+                source,
+            )
             return self._connection
         except Exception as exc:
             raise self._classify_error(exc, config) from exc
@@ -135,7 +177,7 @@ class AccessPatientService:
             return AccessLookupError('ACCESS_FILE_NOT_FOUND', 'O arquivo Access configurado não foi encontrado.', 'Revise o endereço e o nome do arquivo nas Configurações.', 404)
         if any(token in detail for token in ('network path', 'rede não foi encontrado', 'network name')):
             return AccessLookupError('ACCESS_SHARE_UNAVAILABLE', 'O compartilhamento do banco do CPAM não está acessível.', 'Verifique o compartilhamento configurado e as permissões da rede.', 503)
-        if any(token in detail for token in ('server', 'host', 'unreachable', 'não respondeu')):
+        if (config.source or '').strip().lower() == 'network' and any(token in detail for token in ('server', 'host', 'unreachable', 'não respondeu')):
             return AccessLookupError('ACCESS_HOST_UNREACHABLE', f'O servidor {config.host} não respondeu.', 'Verifique a conexão com a rede do CPAM.', 503)
         return AccessLookupError('ACCESS_QUERY_FAILED', 'Não foi possível consultar o banco do CPAM.', 'Tente novamente ou solicite ao administrador que teste a conexão.', 502)
 

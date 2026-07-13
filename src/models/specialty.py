@@ -37,6 +37,8 @@ class SpecialtySettings(db.Model):
     access_share_path = db.Column(db.String(500), nullable=False, default=r'naqh\AMBULATORIO_SERV', server_default=r'naqh\AMBULATORIO_SERV')
     access_filename = db.Column(db.String(255), nullable=False, default='AMBULATORIO_SERV.accdb', server_default='AMBULATORIO_SERV.accdb')
     access_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    access_source = db.Column(db.String(20), nullable=False, default='network', server_default='network')
+    access_local_path = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -116,6 +116,8 @@ def ensure_security_schema(app) -> None:
             add_column_if_missing('specialty_settings', 'access_share_path', "VARCHAR(500) NOT NULL DEFAULT 'naqh\\AMBULATORIO_SERV'")
             add_column_if_missing('specialty_settings', 'access_filename', "VARCHAR(255) NOT NULL DEFAULT 'AMBULATORIO_SERV.accdb'")
             add_column_if_missing('specialty_settings', 'access_enabled', 'BOOLEAN NOT NULL DEFAULT 1')
+            add_column_if_missing('specialty_settings', 'access_source', "VARCHAR(20) NOT NULL DEFAULT 'network'")
+            add_column_if_missing('specialty_settings', 'access_local_path', 'TEXT')
 
         conn.commit()
     finally:
