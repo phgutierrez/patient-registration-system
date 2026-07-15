@@ -8,6 +8,7 @@ from src.runtime_security import ensure_security_schema, migrate_legacy_pdf_stor
 import logging
 import traceback
 import os
+import secrets
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,8 @@ def create_app(config_class=Config):
         app = Flask(__name__)
     
     app.config.from_object(config_class)
+    # Não é persistido: invalida seleção/login de uma execução anterior do EXE.
+    app.config['DESKTOP_RUNTIME_ID'] = secrets.token_urlsafe(24)
     migrate_legacy_pdf_storage(app)
     ensure_security_schema(app)
 
@@ -59,7 +62,18 @@ def create_app(config_class=Config):
         return redirect(url_for('auth.select_user'))
 
     @app.before_request
-    def enforce_password_change():
+    def enforce_desktop_runtime_and_password_change():
+        from src.services.auth_session import (
+            clear_authentication_session,
+            has_stale_desktop_authentication,
+        )
+
+        if has_stale_desktop_authentication():
+            clear_authentication_session(preserve_specialty=True)
+            if request.endpoint == 'auth.select_user':
+                return None
+            return redirect(url_for('auth.select_user'))
+
         if not current_user.is_authenticated:
             return None
         if not getattr(current_user, 'must_change_password', False):

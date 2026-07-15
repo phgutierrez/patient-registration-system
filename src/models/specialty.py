@@ -18,7 +18,10 @@ class Specialty(db.Model):
 
     # Relacionamentos
     settings = db.relationship('SpecialtySettings', back_populates='specialty', uselist=False, cascade='all, delete-orphan')
-    procedures = db.relationship('SpecialtyProcedure', back_populates='specialty', cascade='all, delete-orphan', order_by='SpecialtyProcedure.sort_order')
+    procedures = db.relationship(
+        'SpecialtyProcedure', back_populates='specialty', cascade='all, delete-orphan',
+        order_by='SpecialtyProcedure.sort_order, SpecialtyProcedure.id',
+    )
     users = db.relationship('User', back_populates='specialty', foreign_keys='User.specialty_id')
     surgery_requests = db.relationship('SurgeryRequest', back_populates='specialty', foreign_keys='SurgeryRequest.specialty_id')
 

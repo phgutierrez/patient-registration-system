@@ -1,4 +1,6 @@
 # src/routes/specialty_settings.py
+import threading
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required
 from src.extensions import db, limiter
@@ -12,6 +14,7 @@ from src.services.windows_file_picker import (
 )
 
 specialty_settings_bp = Blueprint('specialty_settings', __name__, url_prefix='/configuracoes')
+_procedure_order_lock = threading.Lock()
 
 
 def _access_config_from_form(settings, *, enabled=None):
@@ -133,7 +136,6 @@ def add_procedure(specialty_id):
     specialty = Specialty.query.filter_by(id=specialty_id, slug='ortopedia').first_or_404()
     descricao = request.form.get('descricao', '').strip()
     codigo_sus = request.form.get('codigo_sus', '').strip()
-    sort_order = request.form.get('sort_order', 0)
 
     if not descricao:
         flash('Descrição é obrigatória.', 'error')
@@ -147,14 +149,22 @@ def add_procedure(specialty_id):
         return redirect(url_for('specialty_settings.index') + f'#esp-{specialty_id}')
 
     try:
-        proc = SpecialtyProcedure(
-            specialty_id=specialty_id,
-            descricao=descricao,
-            codigo_sus=codigo_sus or None,
-            sort_order=int(sort_order) if sort_order else 0,
-        )
-        db.session.add(proc)
-        db.session.commit()
+        # O executável usa um único processo Waitress. O lock mantém max + insert
+        # atômicos entre suas threads e evita posições repetidas em cliques simultâneos.
+        with _procedure_order_lock:
+            greatest_order = (
+                db.session.query(db.func.max(SpecialtyProcedure.sort_order))
+                .filter(SpecialtyProcedure.specialty_id == specialty_id)
+                .scalar()
+            )
+            proc = SpecialtyProcedure(
+                specialty_id=specialty_id,
+                descricao=descricao,
+                codigo_sus=codigo_sus or None,
+                sort_order=(greatest_order + 1) if greatest_order is not None else 0,
+            )
+            db.session.add(proc)
+            db.session.commit()
         flash(f'Procedimento "{descricao}" adicionado!', 'success')
     except Exception as e:
         db.session.rollback()
@@ -175,7 +185,6 @@ def edit_procedure(proc_id):
             .first_or_404())
     proc.descricao = request.form.get('descricao', proc.descricao).strip()
     proc.codigo_sus = request.form.get('codigo_sus', '').strip() or None
-    proc.sort_order = int(request.form.get('sort_order', proc.sort_order) or 0)
 
     try:
         db.session.commit()

@@ -71,9 +71,18 @@ class ShutdownRouteTests(unittest.TestCase):
 
     def test_local_shutdown_works_without_login(self):
         server_controller.register(FakeServer())
-        response = self.app.test_client().post('/shutdown', environ_base={'REMOTE_ADDR': '127.0.0.1'})
+        client = self.app.test_client()
+        with client.session_transaction() as session:
+            session['_user_id'] = '12'
+            session['pending_user_id'] = 12
+            session['specialty_slug'] = 'ortopedia'
+        response = client.post('/shutdown', environ_base={'REMOTE_ADDR': '127.0.0.1'})
         self.assertEqual(202, response.status_code)
         self.assertTrue(response.get_json()['success'])
+        with client.session_transaction() as session:
+            self.assertEqual('ortopedia', session.get('specialty_slug'))
+            self.assertNotIn('_user_id', session)
+            self.assertNotIn('pending_user_id', session)
 
     def test_remote_shutdown_is_forbidden(self):
         server_controller.register(FakeServer())

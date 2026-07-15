@@ -858,7 +858,16 @@
                     // Paciente encontrado - preencher campos
                     const patientData = data.data;
                     
-                    // Função auxiliar para buscar campo case-insensitive
+                    // Normaliza aliases vindos de versões diferentes do serviço Access.
+                    function normalizeFieldName(value) {
+                        return String(value || '')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-z0-9]/gi, '')
+                            .toLowerCase();
+                    }
+
+                    // Função auxiliar para buscar campo ignorando caixa, acentos, espaços e underscores.
                     function getFieldValue(obj, fieldNames) {
                         if (!obj) return null;
                         if (!Array.isArray(fieldNames)) {
@@ -870,9 +879,10 @@
                             if (obj[fieldName] !== undefined) {
                                 return obj[fieldName];
                             }
-                            // Procurar case-insensitive
+                            // Procurar pela forma normalizada
                             const keys = Object.keys(obj);
-                            const matchedKey = keys.find(k => k.toLowerCase() === fieldName.toLowerCase());
+                            const normalizedFieldName = normalizeFieldName(fieldName);
+                            const matchedKey = keys.find(k => normalizeFieldName(k) === normalizedFieldName);
                             if (matchedKey) {
                                 return obj[matchedKey];
                             }
@@ -904,9 +914,11 @@
                     }
                     
                     // Preencher campo Nome da Mãe
-                    const nomeMAEValue = getFieldValue(patientData, ['nome da mae', 'nomemae', 'mae', 'nome mae']);
+                    const nomeMAEValue = getFieldValue(patientData, ['nome_mae', 'nome da mãe', 'nome da mae', 'nomemae', 'mae', 'nome mae']);
                     if (nomeMAEValue) {
-                        document.getElementById('nome_mae').value = nomeMAEValue;
+                        const nomeMaeInput = document.getElementById('nome_mae');
+                        nomeMaeInput.value = nomeMAEValue;
+                        nomeMaeInput.dispatchEvent(new Event('input', { bubbles: true }));
                     }
                     
                     // Preencher campo CNS (NºCartSUS)

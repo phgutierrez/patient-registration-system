@@ -84,6 +84,8 @@ def shutdown():
     from flask import current_app
     if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
         return jsonify({'success': False, 'error': 'Desligamento disponível somente no modo local.'}), 403
+    from src.services.auth_session import clear_authentication_session
+    clear_authentication_session(preserve_specialty=True)
     from src.services.server_control import server_controller
     requested = server_controller.request_shutdown('browser-button')
     status = server_controller.status()

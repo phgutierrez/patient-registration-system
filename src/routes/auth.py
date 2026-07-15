@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import login_user, login_required, current_user
 from sqlalchemy import text
 
 from src.extensions import db, limiter
@@ -11,6 +11,10 @@ from src.runtime_security import (
     generate_temporary_password,
     slugify_username,
     request_is_loopback,
+)
+from src.services.auth_session import (
+    bind_session_to_current_runtime,
+    clear_authentication_session,
 )
 
 auth = Blueprint('auth', __name__)
@@ -91,6 +95,7 @@ def select_user():
                 flash('Solicitante não encontrado para a especialidade selecionada.', 'error')
             else:
                 session['pending_user_id'] = user.id
+                bind_session_to_current_runtime()
                 session.modified = True
                 return redirect(url_for('auth.select_user'))
 
@@ -109,6 +114,7 @@ def select_user():
                     session['specialty_slug'] = selected_slug
                 session.permanent = True
                 login_user(pending_user, remember=False, fresh=True)
+                bind_session_to_current_runtime()
 
                 if pending_user.must_change_password:
                     flash('Antes de continuar, defina uma nova senha.', 'warning')
@@ -178,6 +184,7 @@ def first_admin():
                 session['specialty_slug'] = 'ortopedia'
                 session.permanent = True
                 login_user(user, remember=False, fresh=True)
+                bind_session_to_current_runtime()
                 flash('Administrador criado com sucesso.', 'success')
                 return redirect(url_for('main.index'))
         except Exception:
@@ -222,8 +229,7 @@ def change_password():
 @auth.route('/logout')
 @login_required
 def logout():
-    logout_user()
-    session.clear()
+    clear_authentication_session(preserve_specialty=True)
     flash('Você saiu do sistema.', 'success')
     return redirect(url_for('auth.select_user'))
 
