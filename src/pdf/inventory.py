@@ -13,6 +13,7 @@ class PdfDocumentSpec:
     flow: str
     output_prefix: str
     page_selector: Optional[Callable[[Dict[str, str]], int]] = None
+    conditional_required_fields: FrozenSet[str] = frozenset()
 
     def template_path(self, app_root: Path) -> Path:
         return app_root / 'static' / self.template_name
@@ -39,9 +40,14 @@ DOCUMENTS = {
         template_name='REQUISIÇÃO HEMOCOMPONENTE.pdf',
         expected_template_pages=2,
         populated_pages=frozenset({0}),
-        required_fields=frozenset({'Paciente', 'Idade', 'Cirurgia Proposta'}),
+        required_fields=frozenset({
+            'Paciente', 'Idade', 'Cirurgia Proposta',
+            'Diagnóstico e Indicação Clínica',
+            'PROGRAMADA Para determinada data e horaml de Concentrado de Hemácias',
+        }),
         flow='reserva de sangue da solicitação cirúrgica',
         output_prefix='Hemocomponente',
+        conditional_required_fields=frozenset({'Texto5'}),
     ),
 }
 

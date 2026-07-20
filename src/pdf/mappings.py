@@ -1,5 +1,6 @@
 import unicodedata
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Dict
 
 
@@ -13,6 +14,22 @@ def normalize_text(value: object) -> str:
 def _aliases(target: Dict[str, object], names, value: object) -> None:
     for name in names:
         target[name] = value if value is not None else ''
+
+
+def _hemocomponent_weight_values(value: object) -> tuple[str, str]:
+    """Retorna peso e Peso × 10 sem zeros decimais artificiais."""
+    try:
+        decimal_value = Decimal(str(value).strip().replace(',', '.'))
+    except (InvalidOperation, ValueError, AttributeError):
+        return '', ''
+    if not decimal_value.is_finite() or decimal_value <= 0:
+        return '', ''
+
+    def clean(number: Decimal) -> str:
+        text = format(number, 'f')
+        return text.rstrip('0').rstrip('.') if '.' in text else text
+
+    return clean(decimal_value), clean(decimal_value * Decimal('10'))
 
 
 def build_internacao_mapping(patient, surgery, requester, now: datetime = None) -> Dict[str, object]:
@@ -85,22 +102,29 @@ def build_internacao_mapping(patient, surgery, requester, now: datetime = None) 
 def build_hemocomponente_mapping(patient, surgery, requester, now: datetime = None) -> Dict[str, object]:
     now = now or datetime.now()
     values: Dict[str, object] = {}
+    weight, weight_times_ten = _hemocomponent_weight_values(getattr(surgery, 'peso', None))
     _aliases(values, ['Paciente', 'NomePaciente', 'Nome', 'Nome Paciente', 'Nome do Paciente'], patient.nome)
     _aliases(values, ['Idade', 'Idade_af_age'], patient.idade)
-    _aliases(values, ['Peso', 'Peso_af_number'], surgery.peso or '')
+    _aliases(values, ['Peso', 'Peso_af_number'], weight)
+    values['Texto5'] = weight_times_ten
     _aliases(values, ['Data de Nascimento', 'Data de Nascimento_af_date',
                       'Data_Nascimento', 'DNascimento'], patient.data_nascimento.strftime('%d/%m/%Y'))
-    _aliases(values, ['Diagnóstico', 'Diagnostico', 'Diagnóstico e Indicação Clínica',
-                      'Diagnostico e Indicacao Clinica', 'Indicação Clínica'], patient.diagnostico or '')
+    _aliases(values, ['Diagn\ufffdstico e Indica\ufffd\ufffdo Cl\ufffdnica',
+                      'Diagnóstico', 'Diagnostico', 'Diagnóstico e Indicação Clínica',
+                      'Diagnostico e Indicacao Clinica', 'Indicação Clínica'], 'Reserva para cirurgia')
     _aliases(values, ['Cirurgia Proposta', 'Cirurgia_Proposta', 'Procedimento',
                       'Procedimento_af_text'], surgery.procedimento_solicitado)
     _aliases(values, ['CRM', 'CRM_af_text'], getattr(requester, 'crm', '') or '')
     _aliases(values, ['CNS', 'CNS_af_text'], getattr(requester, 'cns', '') or '')
-    _aliases(values, ['Data da Solicitação', 'Data_Solicitacao', 'DATA'], now.strftime('%d/%m/%Y'))
+    _aliases(values, ['Data da Solicitação', 'Data_Solicitacao', 'DATA'], '')
     _aliases(values, ['Hora da Solicitação'], now.strftime('%H:%M'))
     _aliases(values, ['Observações', 'Observacoes', 'Notas'], '')
     values['Prontuário'] = patient.prontuario or ''
     values['Prontuario'] = patient.prontuario or ''
     values['Group4'] = 'Feminino' if patient.sexo == 'F' else 'Masculino'
     values['Internação'] = 'SUS'
+    _aliases(values, [
+        'PROGRAMADA Para determinada data e horaml de Concentrado de Hem\ufffdcias',
+        'PROGRAMADA Para determinada data e horaml de Concentrado de Hemácias',
+    ], 'X')
     return values

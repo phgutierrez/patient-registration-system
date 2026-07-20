@@ -60,14 +60,27 @@ class DefaultIntegrationTests(unittest.TestCase):
         self.assertEqual(custom_form, values['GOOGLE_FORMS_PUBLIC_ID'])
 
 
-class LifecycleJavascriptTests(unittest.TestCase):
-    def test_lifecycle_script_is_external_and_exports_shutdown(self):
+class ManualShutdownJavascriptTests(unittest.TestCase):
+    def test_script_exposes_only_manual_shutdown(self):
         root = Path(__file__).parents[1]
         source = (root / 'src' / 'static' / 'js' / 'lifecycle.js').read_text(encoding='utf-8')
         template = (root / 'src' / 'templates' / 'base.html').read_text(encoding='utf-8')
         self.assertIn('window.shutdownServer', source)
         self.assertIn("filename='js/lifecycle.js'", template)
         self.assertNotIn('async function shutdownServer(button)', template)
+        self.assertNotIn('sendHeartbeat', source)
+        self.assertNotIn('sendBeacon', source)
+        self.assertNotIn('beforeunload', source)
+        self.assertNotIn('data-heartbeat-url', template)
+        self.assertNotIn('data-lifecycle-close-url', template)
+
+    def test_backend_has_no_automatic_shutdown_monitor(self):
+        root = Path(__file__).parents[1]
+        app_source = (root / 'src' / 'app.py').read_text(encoding='utf-8')
+        server_source = (root / 'server.py').read_text(encoding='utf-8')
+        self.assertNotIn('start_monitor', app_source)
+        self.assertNotIn('routes.lifecycle', app_source)
+        self.assertNotIn('LIFECYCLE_SHUTDOWN_GRACE_SECONDS', server_source)
 
 
 if __name__ == '__main__':

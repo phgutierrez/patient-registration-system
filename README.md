@@ -98,7 +98,7 @@ src/
 │   ├── patients.py     # Gerenciamento de pacientes
 │   ├── surgery.py      # Fluxo de solicitação de cirurgia
 │   ├── auth.py         # Autenticação
-│   └── lifecycle.py    # Heartbeat/shutdown (modo desktop)
+│   └── specialty_settings.py # Configuração exclusiva de Ortopedia
 ├── services/
 │   ├── calendar_service.py      # Parsing ICS
 │   ├── calendar_cache_service.py # Cache thread-safe de 60s

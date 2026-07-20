@@ -89,13 +89,23 @@ class MappingTests(unittest.TestCase):
         values = build_hemocomponente_mapping(patient, surgery, requester)
         match = resolve_mapping('Diagn�stico e Indica��o Cl�nica', values)
         self.assertIsNotNone(match)
-        self.assertEqual(patient.diagnostico, match[1])
+        self.assertEqual('Reserva para cirurgia', match[1])
+        self.assertEqual('', values['DATA'])
+        self.assertEqual('X', values['PROGRAMADA Para determinada data e horaml de Concentrado de Hemácias'])
 
-    def test_optional_fields_are_empty(self):
+    def test_hemocomponent_weight_calculation(self):
         patient, surgery, requester = fake_records()
-        patient.diagnostico = None
-        values = build_hemocomponente_mapping(patient, surgery, requester)
-        self.assertEqual('', values['Diagnóstico'])
+        for weight, expected_weight, expected_calculation in (
+            (72, '72', '720'),
+            (72.5, '72.5', '725'),
+            (None, '', ''),
+            ('inválido', '', ''),
+        ):
+            with self.subTest(weight=weight):
+                surgery.peso = weight
+                values = build_hemocomponente_mapping(patient, surgery, requester)
+                self.assertEqual(expected_weight, values['Peso'])
+                self.assertEqual(expected_calculation, values['Texto5'])
 
 
 class RendererTests(unittest.TestCase):
@@ -119,7 +129,26 @@ class RendererTests(unittest.TestCase):
 
     def test_hemocomponent_is_baked(self):
         patient, surgery, requester = fake_records()
+        values = build_hemocomponente_mapping(
+            patient, surgery, requester, datetime(2031, 12, 24, 14, 30),
+        )
+        pdf_bytes = generate_pdf('hemocomponente', values, APP_ROOT)
+        self._assert_final_pdf(pdf_bytes, 2)
+        document = pymupdf.open(stream=pdf_bytes, filetype='pdf')
+        try:
+            text = '\n'.join(page.get_text() for page in document)
+            self.assertIn('Reserva para cirurgia', text)
+            self.assertIn('720', text)
+            self.assertIn('29/02/1984', text)
+            self.assertNotIn('24/12/2031', text)
+        finally:
+            document.close()
+
+    def test_hemocomponent_without_weight_remains_valid(self):
+        patient, surgery, requester = fake_records()
+        surgery.peso = None
         values = build_hemocomponente_mapping(patient, surgery, requester)
+        self.assertEqual('', values['Texto5'])
         self._assert_final_pdf(generate_pdf('hemocomponente', values, APP_ROOT), 2)
 
     def test_only_selected_radio_option_is_marked(self):

@@ -706,10 +706,7 @@
 
 <body data-desktop-mode="{{ 'true' if desktop_mode else 'false' }}"
       data-shutdown-url="{{ url_for('main.shutdown') }}"
-      data-shutdown-status-url="{{ url_for('main.shutdown_status') }}"
-      data-heartbeat-url="{{ url_for('lifecycle.heartbeat') }}"
-      data-lifecycle-close-url="{{ url_for('lifecycle.shutdown') }}"
-      data-heartbeat-seconds="{{ config.get('LIFECYCLE_HEARTBEAT_SECONDS', 5) if config else 5 }}">
+      data-shutdown-status-url="{{ url_for('main.shutdown_status') }}">
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-header">

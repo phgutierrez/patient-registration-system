@@ -6,9 +6,6 @@
         desktopMode: body.dataset.desktopMode === 'true',
         shutdownUrl: body.dataset.shutdownUrl,
         shutdownStatusUrl: body.dataset.shutdownStatusUrl,
-        heartbeatUrl: body.dataset.heartbeatUrl,
-        lifecycleCloseUrl: body.dataset.lifecycleCloseUrl,
-        heartbeatSeconds: Number(body.dataset.heartbeatSeconds || 5),
     };
 
     function csrfToken() {
@@ -62,33 +59,4 @@
         }
     };
 
-    if (!settings.desktopMode) return;
-
-    const querySession = new URLSearchParams(window.location.search).get('session');
-    if (querySession) sessionStorage.setItem('lifecycleSession', querySession);
-    let lifecycleSession = querySession || sessionStorage.getItem('lifecycleSession');
-    if (!lifecycleSession) {
-        lifecycleSession = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        sessionStorage.setItem('lifecycleSession', lifecycleSession);
-    }
-
-    function sendHeartbeat() {
-        fetch(settings.heartbeatUrl, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-            body: JSON.stringify({session: lifecycleSession}),
-            credentials: 'same-origin',
-        }).catch(() => {});
-    }
-
-    sendHeartbeat();
-    window.setInterval(sendHeartbeat, settings.heartbeatSeconds * 1000);
-    window.addEventListener('beforeunload', () => {
-        try {
-            const data = new FormData();
-            data.append('session', lifecycleSession);
-            data.append('csrf_token', csrfToken());
-            navigator.sendBeacon(settings.lifecycleCloseUrl, data);
-        } catch (_) {}
-    });
 })();

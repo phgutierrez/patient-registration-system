@@ -137,11 +137,8 @@ class Config:
     SERVER_HOST = os.getenv('SERVER_HOST', '127.0.0.1')  # 0.0.0.0 for LAN
     SERVER_PORT = int(os.getenv('SERVER_PORT', '5000'))
     
-    # Desktop lifecycle / auto-shutdown (only for desktop mode)
+    # Desktop mode habilita apenas o encerramento manual pelo servidor local.
     DESKTOP_MODE = _env_bool('DESKTOP_MODE', False)
-    LIFECYCLE_TIMEOUT_SECONDS = int(os.getenv('LIFECYCLE_TIMEOUT_SECONDS', '30'))
-    LIFECYCLE_HEARTBEAT_SECONDS = int(os.getenv('LIFECYCLE_HEARTBEAT_SECONDS', '5'))
-    LIFECYCLE_SHUTDOWN_GRACE_SECONDS = int(os.getenv('LIFECYCLE_SHUTDOWN_GRACE_SECONDS', '15'))
     SERVER_BIND_HOST = os.getenv('SERVER_BIND_HOST', SERVER_HOST)  # Backward compatibility
     
     # Apps Script Web App (DESABILITADO - agora usa submissão ao Forms)

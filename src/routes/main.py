@@ -8,7 +8,6 @@ from src.extensions import limiter
 from src.runtime_security import require_admin
 import os
 import sys
-import threading
 import logging
 from datetime import datetime, date, timedelta
 import json
@@ -16,10 +15,6 @@ import json
 logger = logging.getLogger(__name__)
 
 main = Blueprint('main', __name__)
-
-# Variável para rastrear última atividade
-last_activity = None
-
 
 @main.route('/')
 @main.route('/index')
@@ -59,24 +54,6 @@ def change_specialty():
         logout_user()
     session.pop('specialty_slug', None)
     return redirect(url_for('auth.select_user'))
-
-@main.route('/api/heartbeat', methods=['GET'])
-@login_required
-def heartbeat():
-    """Rota para receber heartbeat do cliente e manter a conexão viva"""
-    global last_activity
-    from datetime import datetime
-    last_activity = datetime.now()
-    return jsonify({'status': 'alive', 'timestamp': last_activity.isoformat()}), 200
-
-@main.route('/api/browser-closing', methods=['POST'])
-@login_required
-def browser_closing():
-    """Compatibilidade: o encerramento real é controlado pelo lifecycle local."""
-    from flask import current_app
-    if not current_app.config.get('DESKTOP_MODE', False) or request.remote_addr not in {'127.0.0.1', '::1'}:
-        return jsonify({'success': False, 'error': 'Operação indisponível no modo rede.'}), 403
-    return jsonify({'success': True}), 200
 
 @main.route('/shutdown', methods=['POST'])
 def shutdown():
