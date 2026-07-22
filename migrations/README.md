@@ -16,6 +16,14 @@ As migrações devem ser aplicadas na seguinte ordem:
 006_add_conditional_get_support.py
     ↓
 007_add_specialties.py
+    ↓
+008_keep_orthopedics_only.py
+    ↓
+009_add_access_patient_settings.py
+    ↓
+010_add_local_access_source.py
+    ↓
+011_link_calendar_events_to_surgery.py
 ```
 
 ---
@@ -40,7 +48,7 @@ As migrações devem ser aplicadas na seguinte ordem:
 
 **O que faz:**
 - Cria tabela `calendar_event_status` para rastreamento
-- Armazena UID de eventos e status (REALIZADA/SUSPENSA)
+- Armazena UID de eventos e status da agenda
 
 **Tabela afetada:** `calendar_event_status` (criar)
 
@@ -72,6 +80,17 @@ As migrações devem ser aplicadas na seguinte ordem:
 - `surgery_requests` (adicionar foreign key)
 
 **Dependências:** 006
+
+---
+
+### 011 - Vincular Resultado da Agenda à Solicitação
+
+**O que faz:**
+- Adiciona vínculo opcional de `calendar_event_status` para `surgery_requests`
+- Amplia o UID de agendamento para 500 caracteres
+- Permite sincronizar `Pendente`, `Realizada` e `Suspensa`
+
+**Dependências:** 010
 
 ---
 

@@ -1,934 +1,125 @@
-{# src/templates/surgery/request.html #}
 {% extends "base.html" %}
-
-{% block title %}{{ 'Editar Solicitação' if is_edit_mode else 'Solicitar Cirurgia' }} - {{ patient.nome }}{% endblock %}
-
+{% block title %}{{ 'Editar solicitação' if is_edit_mode else 'Solicitar cirurgia' }} - {{ patient.nome }}{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/surgery-request.css') }}">{% endblock %}
+{% macro field_errors(field) -%}{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join(', ') }}</div>{% endif %}{%- endmacro %}
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <h1 class="mb-0">{{ 'Editar Solicitação de Cirurgia' if is_edit_mode else 'Solicitar Cirurgia' }}</h1>
-            {% if specialty %}
-            <span class="badge text-bg-primary mt-1" style="font-size:.8rem;">
-                <i class="fas fa-stethoscope me-1"></i>{{ specialty.name }}
-            </span>
-            {% endif %}
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <button type="button" class="btn btn-info" onclick="abrirModelos()">
-                <i class="fas fa-folder-open me-1 me-2"></i>Modelos Salvos
-            </button>
-            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Voltar para Paciente
-            </a>
-        </div>
+<div id="surgeryRequestApp" class="container-fluid request-shell"
+     data-user-id="{{ current_user.id }}" data-specialty="{{ specialty.slug if specialty else 'ortopedia' }}">
+  <header class="app-page-header request-heading">
+    <div>
+      <a class="back-link" href="{{ url_for('patients.view_patient', id=patient.id) }}"><i class="fas fa-arrow-left"></i> Voltar ao paciente</a>
+      <h1>{{ 'Editar solicitação' if is_edit_mode else 'Nova solicitação cirúrgica' }}</h1>
+      <p>Preencha os dados necessários para gerar a documentação.</p>
     </div>
+    <button type="button" class="btn btn-outline-primary" id="openModelsButton"><i class="fas fa-layer-group"></i> Modelos clínicos</button>
+  </header>
 
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Paciente</h5>
-            <p class="card-text"><strong>Nome:</strong> {{ patient.nome }}</p>
-            <p class="card-text"><strong>Prontuário:</strong> {{ patient.prontuario }}</p>
+  <section class="patient-context">
+    <span class="patient-avatar">{{ patient.nome[:1]|upper }}</span>
+    <span><small>Paciente</small><strong>{{ patient.nome }}</strong></span>
+    <span><small>Prontuário</small><strong>{{ patient.prontuario }}</strong></span>
+    <span><small>Nascimento</small><strong>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '—' }}</strong></span>
+    <span><small>Diagnóstico</small><strong>{{ patient.diagnostico }}</strong></span>
+  </section>
+
+  {% if form.errors %}
+  <div class="alert alert-danger error-summary" role="alert" tabindex="-1">
+    <strong><i class="fas fa-exclamation-circle"></i> Revise os campos destacados</strong>
+    <ul>{% for name, errors in form.errors.items() %}<li><a href="#{{ form[name].id }}">{{ form[name].label.text }}: {{ errors|join(', ') }}</a></li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="request-layout">
+    <nav class="section-nav" aria-label="Seções do formulário">
+      <a href="#clinicalSection" class="active"><span>1</span> Dados clínicos</a>
+      <a href="#procedureSection"><span>2</span> Procedimento</a>
+      <a href="#resourcesSection"><span>3</span> Recursos</a>
+      <a href="#admissionSection"><span>4</span> Internação</a>
+    </nav>
+
+    <form method="post" class="surgery-form" novalidate>
+      {{ form.hidden_tag() }}
+      <section id="clinicalSection" class="form-section">
+        <div class="section-title"><span><i class="fas fa-notes-medical"></i></span><div><h2>Dados clínicos</h2><p>Informações que justificam o procedimento.</p></div></div>
+        <div class="form-grid">
+          <div class="field col-small">{{ form.peso.label(class="form-label") }}{{ form.peso(class="form-control" + (" is-invalid" if form.peso.errors else ""), inputmode="decimal", placeholder="Ex.: 72,5") }}{{ field_errors(form.peso) }}</div>
+          <div class="field col-full">{{ form.sinais_sintomas.label(class="form-label") }}{{ form.sinais_sintomas(class="form-control" + (" is-invalid" if form.sinais_sintomas.errors else ""), rows=3, placeholder="Descreva os principais sinais e sintomas") }}{{ field_errors(form.sinais_sintomas) }}</div>
+          <div class="field col-full">{{ form.condicoes_justificativa.label(class="form-label") }}{{ form.condicoes_justificativa(class="form-control" + (" is-invalid" if form.condicoes_justificativa.errors else ""), rows=3, placeholder="Condições clínicas que justificam a cirurgia") }}{{ field_errors(form.condicoes_justificativa) }}</div>
+          <div class="field col-full">{{ form.resultados_diagnosticos.label(class="form-label") }}{{ form.resultados_diagnosticos(class="form-control" + (" is-invalid" if form.resultados_diagnosticos.errors else ""), rows=3, placeholder="Exames e resultados relevantes") }}{{ field_errors(form.resultados_diagnosticos) }}</div>
         </div>
-    </div>
+      </section>
 
-    <div class="alert alert-info d-flex align-items-center" role="alert">
-        <i class="fas fa-info-circle me-2 me-2"></i><div>Preencha todos os campos obrigatórios (*).</div>
-    </div>
-
-    <form method="POST" class="needs-validation" novalidate>
-        {{ form.csrf_token }}
-
-        <!-- Dados Clínicos -->
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
-                <h5 class="card-title mb-0"><i class="fas fa-notes-medical me-2"></i>Dados Clínicos</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        {{ form.peso.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
-                            {{ form.peso(class="form-control" + (" is-invalid" if form.peso.errors else ""),
-                            placeholder="Ex: 70.5 Kg") }}
-                            <span class="input-group-text">Kg</span>
-                        </div>
-                        {% if form.peso.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.peso.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    {{ form.sinais_sintomas.label(class="form-label") }}
-                    {{ form.sinais_sintomas(class="form-control" + (" is-invalid" if form.sinais_sintomas.errors else
-                    ""), rows=3, placeholder="Descreva os sinais e sintomas do paciente") }}
-                    {% if form.sinais_sintomas.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.sinais_sintomas.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="mb-3">
-                    {{ form.condicoes_justificativa.label(class="form-label") }}
-                    {{ form.condicoes_justificativa(class="form-control" + (" is-invalid" if
-                    form.condicoes_justificativa.errors else ""), rows=3, placeholder="Descreva as condições clínicas e
-                    a justificativa para a cirurgia") }}
-                    {% if form.condicoes_justificativa.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.condicoes_justificativa.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="mb-3">
-                    {{ form.resultados_diagnosticos.label(class="form-label") }}
-                    {{ form.resultados_diagnosticos(class="form-control" + (" is-invalid" if
-                    form.resultados_diagnosticos.errors else ""), rows=3, placeholder="Resultados de exames e
-                    diagnósticos relevantes") }}
-                    {% if form.resultados_diagnosticos.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.resultados_diagnosticos.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+      <section id="procedureSection" class="form-section">
+        <div class="section-title"><span><i class="fas fa-procedures"></i></span><div><h2>Procedimento</h2><p>Selecione o procedimento e informe quando será realizado.</p></div></div>
+        <div class="form-grid">
+          <div class="field col-full">
+            <label for="procedureSearch" class="form-label">Localizar procedimento</label>
+            <div class="procedure-search"><i class="fas fa-search"></i><input id="procedureSearch" class="form-control" type="search" autocomplete="off" placeholder="Filtrar a lista de procedimentos"></div>
+          </div>
+          <div class="field col-wide">{{ form.procedimento_solicitado.label(class="form-label") }}{{ form.procedimento_solicitado(id="procedimento_select", class="form-select" + (" is-invalid" if form.procedimento_solicitado.errors else "")) }}{{ field_errors(form.procedimento_solicitado) }}<small id="procedureFilterHint" class="form-text"></small></div>
+          <div class="field">{{ form.codigo_procedimento.label(class="form-label") }}{{ form.codigo_procedimento(id="codigo_sus_input", class="form-control", readonly=true, placeholder="Automático") }}</div>
+          <div class="field col-wide">
+            {{ form.tipo_cirurgia.label(class="form-label d-block") }}
+            <div class="choice-row">{% for option in form.tipo_cirurgia %}<label class="choice-pill">{{ option(class="form-check-input") }}<span>{{ option.label.text }}</span></label>{% endfor %}</div>
+            {{ field_errors(form.tipo_cirurgia) }}
+          </div>
+          <div class="field">{{ form.data_cirurgia.label(class="form-label") }}{{ form.data_cirurgia(class="form-control" + (" is-invalid" if form.data_cirurgia.errors else "")) }}{{ field_errors(form.data_cirurgia) }}</div>
+          <div class="field">{{ form.hora_cirurgia.label(class="form-label") }}{{ form.hora_cirurgia(class="form-control" + (" is-invalid" if form.hora_cirurgia.errors else "")) }}{{ field_errors(form.hora_cirurgia) }}</div>
+          <div class="field col-full"><label class="toggle-card">{{ form.internar_antes(class="form-check-input") }}<span><strong>{{ form.internar_antes.label.text }}</strong><small>Marque quando a internação ocorrer na véspera.</small></span></label></div>
         </div>
+      </section>
 
-        <!-- Dados do Procedimento -->
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
-                <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Dados do Procedimento</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        {{ form.procedimento_solicitado.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-file-signature"></i></span>
-                            {{ form.procedimento_solicitado(id="procedimento_select", class="form-select" + ("
-                            is-invalid" if form.procedimento_solicitado.errors else "")) }}
-                        </div>
-                        {% if form.procedimento_solicitado.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.procedimento_solicitado.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        {{ form.codigo_procedimento.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-barcode"></i></span>
-                            {{ form.codigo_procedimento(id="codigo_sus_input", class="form-control", readonly=true,
-                            placeholder="Código SUS") }}
-                        </div>
-                        <!-- Não costuma ter erro em campo readonly -->
-                    </div>
-                </div>
-
-                <div class="row align-items-center">
-                    <div class="col-md-4 mb-3">
-                        {{ form.tipo_cirurgia.label(class="form-label d-block") }} <!-- d-block para alinhar -->
-                        <div class="mt-2"> <!-- Espaçamento -->
-                            {% for subfield in form.tipo_cirurgia %}
-                            <div class="form-check form-check-inline">
-                                {{ subfield(class="form-check-input" + (" is-invalid" if form.tipo_cirurgia.errors else
-                                "")) }}
-                                {{ subfield.label(class="form-check-label") }}
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% if form.tipo_cirurgia.errors %}
-                        <div class="invalid-feedback d-block mt-1">
-                            {{ form.tipo_cirurgia.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        {{ form.data_cirurgia.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
-                            {{ form.data_cirurgia(class="form-control" + (" is-invalid" if form.data_cirurgia.errors
-                            else ""), type="date") }}
-                        </div>
-                        {% if form.data_cirurgia.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.data_cirurgia.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        {{ form.hora_cirurgia.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-clock"></i></span>
-                            {{ form.hora_cirurgia(class="form-control" + (" is-invalid" if form.hora_cirurgia.errors
-                            else ""), type="time") }}
-                        </div>
-                        {% if form.hora_cirurgia.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.hora_cirurgia.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <div class="form-check">
-                            {{ form.internar_antes(class="form-check-input") }}
-                            {{ form.internar_antes.label(class="form-check-label") }}
-                        </div>
-                        <!-- Não costuma ter erro em checkbox simples -->
-                    </div>
-                </div>
-            </div>
+      <section id="resourcesSection" class="form-section">
+        <div class="section-title"><span><i class="fas fa-toolbox"></i></span><div><h2>Recursos necessários</h2><p>Equipe, equipamentos e reservas para a sala.</p></div></div>
+        <div class="form-grid">
+          <div class="field col-wide">{{ form.assistente.label(class="form-label") }}{{ form.assistente(class="form-select" + (" is-invalid" if form.assistente.errors else "")) }}{{ field_errors(form.assistente) }}</div>
+          <div class="field col-wide">{{ form.duracao_prevista.label(class="form-label") }}{{ form.duracao_prevista(class="form-control" + (" is-invalid" if form.duracao_prevista.errors else ""), placeholder="Ex.: 2 horas") }}{{ field_errors(form.duracao_prevista) }}</div>
+          <div class="field col-full">{{ form.aparelhos_especiais.label(class="form-label") }}{{ form.aparelhos_especiais(class="form-control", placeholder="Ex.: Arco em C, mesa radiotransparente") }}</div>
+          <div class="field col-full resource-options">
+            <label class="toggle-card">{{ form.reserva_sangue(id="reserva_sangue_check", class="form-check-input") }}<span><strong>{{ form.reserva_sangue.label.text }}</strong><small>Gera também a requisição de hemocomponentes.</small></span></label>
+            <label class="toggle-card">{{ form.raio_x(class="form-check-input") }}<span><strong>{{ form.raio_x.label.text }}</strong><small>Disponibilidade de imagem em sala.</small></span></label>
+            <label class="toggle-card">{{ form.reserva_uti(class="form-check-input") }}<span><strong>{{ form.reserva_uti.label.text }}</strong><small>Solicitar reserva de vaga.</small></span></label>
+          </div>
+          <div id="bloodQuantityGroup" class="field col-wide conditional-field">{{ form.quantidade_sangue.label(class="form-label") }}{{ form.quantidade_sangue(id="quantidade_sangue_input", class="form-control" + (" is-invalid" if form.quantidade_sangue.errors else ""), placeholder="Ex.: 2 unidades") }}{{ field_errors(form.quantidade_sangue) }}</div>
         </div>
+      </section>
 
-        <!-- Recursos Necessários -->
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
-                <h5 class="card-title mb-0"><i class="fas fa-cogs me-2"></i>Recursos Necessários</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        {{ form.assistente.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-user-md"></i></span>
-                            {{ form.assistente(class="form-control" + (" is-invalid" if form.assistente.errors else ""),
-                            placeholder="Nome do cirurgião assistente, se houver") }}
-                        </div>
-                        {% if form.assistente.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.assistente.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        {{ form.aparelhos_especiais.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-toolbox"></i></span>
-                            {{ form.aparelhos_especiais(class="form-control", placeholder="Ex: Microscópio, Arco em C")
-                            }}
-                        </div>
-                        <!-- Campo opcional, geralmente sem validação obrigatória -->
-                    </div>
-                </div>
-
-                <div class="row align-items-center">
-                    <div class="col-md-3 mb-3">
-                        <div class="form-check">
-                            {{ form.reserva_sangue(class="form-check-input", id="reserva_sangue_check") }}
-                            {{ form.reserva_sangue.label(class="form-check-label") }}
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        {{ form.quantidade_sangue.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-tint"></i></span>
-                            {{ form.quantidade_sangue(class="form-control", placeholder="Unidades",
-                            id="quantidade_sangue_input", disabled=not form.reserva_sangue.data) }}
-                        </div>
-                        <!-- Erros podem ocorrer se for obrigatório quando reserva for marcada -->
-                        {% if form.quantidade_sangue.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.quantidade_sangue.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="form-check">
-                            {{ form.raio_x(class="form-check-input") }}
-                            {{ form.raio_x.label(class="form-check-label") }}
-                        </div>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <div class="form-check">
-                            {{ form.reserva_uti(class="form-check-input") }}
-                            {{ form.reserva_uti.label(class="form-check-label") }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        {{ form.duracao_prevista.label(class="form-label") }}
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="far fa-clock"></i></span>
-                            {{ form.duracao_prevista(class="form-control" + (" is-invalid" if
-                            form.duracao_prevista.errors else ""), placeholder="Ex: 2 horas 30 minutos") }}
-                        </div>
-                        {% if form.duracao_prevista.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.duracao_prevista.errors | join(', ') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+      <section id="admissionSection" class="form-section">
+        <div class="section-title"><span><i class="fas fa-hospital"></i></span><div><h2>Internação e OPME</h2><p>Orientações para continuidade do cuidado e materiais.</p></div></div>
+        <div class="form-grid">
+          <div class="field col-full">{{ form.evolucao_internacao.label(class="form-label") }}{{ form.evolucao_internacao(class="form-control", rows=3, placeholder="Evolução clínica para internação") }}</div>
+          <div class="field col-full">{{ form.prescricao_internacao.label(class="form-label") }}{{ form.prescricao_internacao(class="form-control", rows=3, placeholder="Prescrição e cuidados") }}</div>
+          <div class="field col-full">{{ form.exames_preop.label(class="form-label") }}{{ form.exames_preop(class="form-control", rows=3, placeholder="Exames pré-operatórios necessários") }}</div>
+          <fieldset class="field col-full opme-fieldset"><legend>{{ form.opme_items.label.text }}</legend><div class="opme-grid">{% for option in form.opme_items %}<label class="check-card">{{ option(class="form-check-input") }}<span>{{ option.label.text }}</span></label>{% endfor %}</div>{{ field_errors(form.opme_items) }}</fieldset>
+          <div class="field col-full">{{ form.opme_outro.label(class="form-label") }}{{ form.opme_outro(class="form-control" + (" is-invalid" if form.opme_outro.errors else ""), placeholder="Descreva material não listado") }}{{ field_errors(form.opme_outro) }}</div>
         </div>
+      </section>
 
-        <!-- Informações para Internação -->
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
-                <h5 class="card-title mb-0"><i class="fas fa-procedures me-2"></i>Informações para Internação</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    {{ form.evolucao_internacao.label(class="form-label") }}
-                    {{ form.evolucao_internacao(class="form-control" + (" is-invalid" if form.evolucao_internacao.errors
-                    else ""), rows=3, placeholder="Descreva a evolução prevista ou necessária para a internação") }}
-                    {% if form.evolucao_internacao.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.evolucao_internacao.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    {{ form.prescricao_internacao.label(class="form-label") }}
-                    {{ form.prescricao_internacao(class="form-control" + (" is-invalid" if
-                    form.prescricao_internacao.errors else ""), rows=5, placeholder="Prescrição médica inicial para a
-                    internação (medicamentos, dietas, cuidados)") }}
-                    {% if form.prescricao_internacao.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.prescricao_internacao.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    {{ form.exames_preop.label(class="form-label") }}
-                    {{ form.exames_preop(class="form-control" + (" is-invalid" if form.exames_preop.errors else ""),
-                    rows=3, placeholder="Liste os exames pré-operatórios necessários ou já realizados") }}
-                    {% if form.exames_preop.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.exames_preop.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    {{ form.opme_items.label(class="form-label d-block mb-2") }}
-                    <small class="text-muted d-block mb-2">(Órteses, Próteses e Materiais Especiais)</small>
-                    <div class="row row-cols-1 row-cols-md-2 g-2">
-                        {% for subfield in form.opme_items %}
-                        <div class="col">
-                            <div class="form-check">
-                                {{ subfield(class="form-check-input") }}
-                                <label class="form-check-label" for="{{ subfield.id }}">{{ subfield.label.text }}</label>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% if form.opme_items.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.opme_items.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    {{ form.opme_outro.label(class="form-label") }}
-                    {{ form.opme_outro(class="form-control" + (" is-invalid" if form.opme_outro.errors else ""),
-                    placeholder="Descreva outro OPME, se necessário") }}
-                    {% if form.opme_outro.errors %}
-                    <div class="invalid-feedback d-block">
-                        {{ form.opme_outro.errors | join(', ') }}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Ações -->
-        <div class="d-flex justify-content-between gap-2 mb-4">
-            <div>
-                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-1 me-2"></i>Voltar para o Paciente
-                </a>
-            </div>
-            <div class="d-flex gap-3">
-                <button type="button" class="btn btn-warning" onclick="salvarComoModelo()">
-                    <i class="fas fa-save me-1 me-2"></i>Salvar como Modelo
-                </button>
-                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">
-                    <i class="fas fa-times me-1 me-2"></i>Cancelar
-                </a>
-                {{ form.submit(class="btn btn-primary", value=('Salvar Alterações' if is_edit_mode else 'Solicitar Cirurgia')) }}
-            </div>
-        </div>
+      <footer class="request-actions">
+        <button type="button" class="btn btn-outline-primary" id="saveAsModelButton"><i class="fas fa-save"></i> Salvar como modelo</button>
+        <span class="action-spacer"></span>
+        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-light">Cancelar</a>
+        {{ form.submit(class="btn btn-primary", value=('Salvar alterações' if is_edit_mode else 'Gerar solicitação')) }}
+      </footer>
     </form>
+  </div>
+  <script type="application/json" id="procedureCodeMap">{{ procedure_code_map|tojson }}</script>
 </div>
 
-<!-- Modal para exibir modelos salvos -->
-<div class="modal fade" id="modelosModal" tabindex="-1" aria-labelledby="modelosModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modelosModalLabel">
-                    <i class="fas fa-folder-open me-2"></i>Modelos Salvos
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <div id="modeloFeedback"></div>
-                <div class="card bg-light border-0 mb-3">
-                    <div class="card-body py-3">
-                        <label for="nomeModelo" class="form-label fw-semibold">Nome do modelo clínico</label>
-                        <div class="input-group">
-                            <input type="text" id="nomeModelo" class="form-control" maxlength="80" placeholder="Ex.: Osteossíntese de tornozelo">
-                            <button type="button" class="btn btn-warning" id="btnSalvarModelo"><i class="fas fa-save me-1"></i><span>Salvar novo</span></button>
-                        </div>
-                        <div class="form-text">O modelo não inclui paciente, data, hora, assistente ou outros dados de agendamento.</div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <input type="text" id="buscaModelos" class="form-control" placeholder="Buscar modelo por nome ou procedimento...">
-                </div>
-                <div id="modelosList">
-                    <p class="text-muted text-center">Carregando modelos...</p>
-                </div>
-                <div id="botaoExpandir" class="mt-3" style="display: none;">
-                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="toggleMostrarTodos()">
-                        <i class="fas fa-expand-alt me-1"></i>Ver todos os modelos
-                    </button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
+<div class="modal fade" id="modelsModal" tabindex="-1" aria-labelledby="modelsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><div><h2 class="modal-title h5 mb-1" id="modelsModalLabel">Modelos clínicos</h2><p class="small text-muted mb-0">Somente campos clínicos e recursos são reutilizados.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+    <div class="modal-body">
+      <div id="modelFeedback" aria-live="polite"></div>
+      <div class="model-editor">
+        <label for="modelName" class="form-label">Nome do modelo</label>
+        <div class="input-group"><input id="modelName" class="form-control" maxlength="80" placeholder="Ex.: Osteossíntese de tornozelo"><button id="persistModelButton" type="button" class="btn btn-primary">Salvar campos atuais</button></div>
+        <small>Paciente, peso, assistente, data e horário nunca são incluídos.</small>
+      </div>
+      <div class="model-search"><i class="fas fa-search"></i><input id="modelSearch" class="form-control" placeholder="Buscar por nome ou procedimento"></div>
+      <div id="modelsList" class="models-list"></div>
     </div>
+  </div></div>
 </div>
-
-<script>
-    let modelosModalInstance = null;
-    let mostrarTodosModelos = false;
-    const MODELOS_STORAGE_NAMESPACE = 'cirurgiaModelos';
-    const activeSpecialtySlug = {{ (specialty.slug if specialty else 'ortopedia') | tojson }};
-    const activeUserId = {{ (current_user.id if current_user.is_authenticated else 0) | tojson }};
-
-    function getModelosStorageKey() {
-        return `${MODELOS_STORAGE_NAMESPACE}:${activeSpecialtySlug}:u${activeUserId}`;
-    }
-
-    function loadModelos() {
-        return JSON.parse(localStorage.getItem(getModelosStorageKey())) || [];
-    }
-
-    function saveModelos(modelos) {
-        localStorage.setItem(getModelosStorageKey(), JSON.stringify(modelos));
-    }
-
-    function generateModeloId() {
-        return `mdl_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const reservaSangueCheck = document.getElementById('reserva_sangue_check');
-        const quantidadeSangueInput = document.getElementById('quantidade_sangue_input');
-        const modelosModalEl = document.getElementById('modelosModal');
-        const buscaInput = document.getElementById('buscaModelos');
-
-        // Inicializa modal (Bootstrap 5) sem jQuery
-        if (modelosModalEl && window.bootstrap && bootstrap.Modal) {
-            modelosModalInstance = new bootstrap.Modal(modelosModalEl);
-            modelosModalEl.addEventListener('show.bs.modal', carregarModelos);
-        }
-
-        // Busca em tempo real
-        if (buscaInput) {
-            buscaInput.addEventListener('input', function() {
-                carregarModelos(this.value.toLowerCase());
-            });
-        }
-
-        function toggleQuantidadeSangue() {
-            if (reservaSangueCheck.checked) {
-                quantidadeSangueInput.disabled = false;
-                quantidadeSangueInput.required = true; // Torna obrigatório se reserva for marcada
-            } else {
-                quantidadeSangueInput.disabled = true;
-                quantidadeSangueInput.required = false;
-                quantidadeSangueInput.value = ''; // Limpa o valor se desmarcar
-            }
-        }
-
-        // Verifica o estado inicial ao carregar a página
-        if (reservaSangueCheck && quantidadeSangueInput) {
-            toggleQuantidadeSangue();
-            reservaSangueCheck.addEventListener('change', toggleQuantidadeSangue);
-        }
-
-        // Adiciona validação Bootstrap ao enviar (opcional, mas recomendado)
-        const form = document.querySelector('.needs-validation');
-        if (form) {
-            form.addEventListener('submit', event => {
-                if (!form.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                form.classList.add('was-validated');
-            }, false);
-        }
-
-        // --- NOVO SCRIPT: Preencher Código SUS --- 
-        const procedureSelect = document.getElementById('procedimento_select');
-        const codeInput = document.getElementById('codigo_sus_input');
-
-        // --- procedureMap dinâmico vindo do backend ---
-        const procedureMap = {{ procedure_code_map | tojson }};
-
-        function updateSusCode() {
-            if (procedureSelect && codeInput) {
-                const selectedProcedure = procedureSelect.value;
-                codeInput.value = procedureMap[selectedProcedure] || ''; // Busca no mapa ou retorna vazio
-            }
-        }
-
-        if (procedureSelect && codeInput) {
-            procedureSelect.addEventListener('change', updateSusCode);
-            // Atualiza o código ao carregar a página, caso haja valor pré-selecionado
-            updateSusCode();
-        }
-
-    });
-
-    // Função para coletar dados do formulário
-    function coletarDadosFormulario() {
-        const form = document.querySelector('.needs-validation');
-        const formData = new FormData(form);
-        
-        const dados = {
-            peso: formData.get('peso'),
-            sinais_sintomas: formData.get('sinais_sintomas'),
-            condicoes_justificativa: formData.get('condicoes_justificativa'),
-            resultados_diagnosticos: formData.get('resultados_diagnosticos'),
-            procedimento_solicitado: formData.get('procedimento_solicitado'),
-            codigo_procedimento: formData.get('codigo_procedimento'),
-            tipo_cirurgia: formData.get('tipo_cirurgia'),
-            data_cirurgia: formData.get('data_cirurgia'),
-            internar_antes: formData.get('internar_antes') ? true : false,
-            hora_cirurgia: formData.get('hora_cirurgia'),
-            assistente: formData.get('assistente'),
-            aparelhos_especiais: formData.get('aparelhos_especiais'),
-            reserva_sangue: formData.get('reserva_sangue') ? true : false,
-            quantidade_sangue: formData.get('quantidade_sangue'),
-            raio_x: formData.get('raio_x') ? true : false,
-            reserva_uti: formData.get('reserva_uti') ? true : false,
-            duracao_prevista: formData.get('duracao_prevista'),
-            evolucao_internacao: formData.get('evolucao_internacao'),
-            prescricao_internacao: formData.get('prescricao_internacao'),
-            exames_preop: formData.get('exames_preop'),
-            opme_items: formData.getAll('opme_items'),
-            opme_outro: formData.get('opme_outro')
-        };
-        
-        return dados;
-    }
-
-    // Função para salvar modelo
-    function salvarComoModelo() {
-        const nomeModelo = prompt('Digite um nome para o modelo:', '');
-        
-        if (nomeModelo === null) {
-            return; // Cancelado
-        }
-        
-        if (nomeModelo.trim() === '') {
-            alert('Por favor, digite um nome para o modelo.');
-            return;
-        }
-        
-        const dadosModelo = {
-            id: generateModeloId(),
-            nome: nomeModelo.trim(),
-            dados: coletarDadosFormulario(),
-            dataCriacao: new Date().toISOString(),
-            usosCount: 0  // Iniciar contador de usos
-        };
-        
-        // Salvar no localStorage (escopo: especialidade + usuário)
-        let modelos = loadModelos();
-        modelos.push(dadosModelo);
-        saveModelos(modelos);
-        
-        alert(`Modelo "${nomeModelo}" salvo com sucesso!`);
-    }
-
-    // Função para abrir modal de modelos
-    function abrirModelos() {
-        const modalEl = document.getElementById('modelosModal');
-        if (!modalEl || !window.bootstrap || !bootstrap.Modal) {
-            console.warn('Bootstrap Modal não disponível.');
-            return;
-        }
-
-        if (!modelosModalInstance) {
-            modelosModalInstance = new bootstrap.Modal(modalEl);
-            modalEl.addEventListener('show.bs.modal', carregarModelos);
-        }
-
-        carregarModelos();
-        modelosModalInstance.show();
-    }
-
-    // Função para carregar modelos
-    function carregarModelos(termoBusca = '') {
-        const modelosList = document.getElementById('modelosList');
-        const botaoExpandir = document.getElementById('botaoExpandir');
-        let modelos = loadModelos();
-        
-        if (modelos.length === 0) {
-            modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo salvo ainda.</p>';
-            if (botaoExpandir) botaoExpandir.style.display = 'none';
-            return;
-        }
-        
-        // Ordenar por uso (decrescente) e depois por nome
-        modelos.sort((a, b) => {
-            const usosA = a.usosCount || 0;
-            const usosB = b.usosCount || 0;
-            if (usosA !== usosB) return usosB - usosA;
-            return a.nome.localeCompare(b.nome);
-        });
-        
-        // Filtrar por termo de busca
-        let modelosFiltrados = modelos;
-        if (termoBusca) {
-            modelosFiltrados = modelos.filter(m => 
-                m.nome.toLowerCase().includes(termoBusca) || 
-                (m.dados.procedimento_solicitado && m.dados.procedimento_solicitado.toLowerCase().includes(termoBusca))
-            );
-        }
-        
-        if (modelosFiltrados.length === 0) {
-            modelosList.innerHTML = '<p class="text-muted text-center">Nenhum modelo encontrado.</p>';
-            if (botaoExpandir) botaoExpandir.style.display = 'none';
-            return;
-        }
-        
-        // Mostrar os 3 primeiros, ou todos se mostrarTodosModelos for true
-        const modelosExibidos = mostrarTodosModelos ? modelosFiltrados : modelosFiltrados.slice(0, 3);
-        const temMais = modelosFiltrados.length > 3;
-        
-        let html = '<div class="list-group">';
-        modelosExibidos.forEach((modelo, index) => {
-            const usosCount = modelo.usosCount || 0;
-            const badgeUso = usosCount > 0 ? `<span class="badge bg-info ms-2">${usosCount} ${usosCount === 1 ? 'uso' : 'usos'}</span>` : '';
-            
-            html += `
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${modelo.nome}${badgeUso}</h6>
-                            <small class="text-muted">Procedimento: ${modelo.dados.procedimento_solicitado || 'N/A'}</small>
-                        </div>
-                        <div class="d-flex gap-2 ms-3">
-                            <button type="button" class="btn btn-sm btn-primary" onclick='carregarModelo(${JSON.stringify(modelo.id)})' title="Carregar modelo">
-                                <i class="fas fa-download me-1"></i>Carregar
-                            </button>
-                            <button type="button" class="btn btn-sm btn-danger" onclick='deletarModelo(${JSON.stringify(modelo.id)})' title="Deletar modelo">
-                                <i class="fas fa-trash me-1"></i>Deletar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        modelosList.innerHTML = html;
-        
-        // Mostrar/esconder botão de expandir
-        if (botaoExpandir) {
-            botaoExpandir.style.display = temMais && !mostrarTodosModelos ? 'block' : 'none';
-        }
-    }
-
-    // Função para expandir/recolher lista de modelos
-    function toggleMostrarTodos() {
-        mostrarTodosModelos = !mostrarTodosModelos;
-        const botaoExpandir = document.getElementById('botaoExpandir');
-        const buscaInput = document.getElementById('buscaModelos');
-        const termoBusca = buscaInput ? buscaInput.value.toLowerCase() : '';
-        carregarModelos(termoBusca);
-    }
-
-    // Função para carregar dados de um modelo
-    function carregarModelo(modeloId) {
-        let modelos = loadModelos();
-        
-        // Encontrar modelo pelo ID
-        const index = modelos.findIndex(m => String(m.id) === String(modeloId));
-        if (index === -1) {
-            alert('Modelo não encontrado.');
-            return;
-        }
-        
-        const modelo = modelos[index];
-        const dados = modelo.dados;
-        
-        // Incrementar contador de usos
-        modelo.usosCount = (modelo.usosCount || 0) + 1;
-        modelos[index] = modelo;
-        saveModelos(modelos);
-        
-        // Preencher campos de texto
-        document.querySelector('[name="peso"]').value = dados.peso || '';
-        document.querySelector('[name="sinais_sintomas"]').value = dados.sinais_sintomas || '';
-        document.querySelector('[name="condicoes_justificativa"]').value = dados.condicoes_justificativa || '';
-        document.querySelector('[name="resultados_diagnosticos"]').value = dados.resultados_diagnosticos || '';
-        document.querySelector('[name="procedimento_solicitado"]').value = dados.procedimento_solicitado || '';
-        document.querySelector('[name="codigo_procedimento"]').value = dados.codigo_procedimento || '';
-        document.querySelector('[name="data_cirurgia"]').value = dados.data_cirurgia || '';
-        document.querySelector('[name="hora_cirurgia"]').value = dados.hora_cirurgia || '';
-        document.querySelector('[name="assistente"]').value = dados.assistente || '';
-        document.querySelector('[name="aparelhos_especiais"]').value = dados.aparelhos_especiais || '';
-        document.querySelector('[name="quantidade_sangue"]').value = dados.quantidade_sangue || '';
-        document.querySelector('[name="duracao_prevista"]').value = dados.duracao_prevista || '';
-        document.querySelector('[name="evolucao_internacao"]').value = dados.evolucao_internacao || '';
-        document.querySelector('[name="prescricao_internacao"]').value = dados.prescricao_internacao || '';
-        document.querySelector('[name="exames_preop"]').value = dados.exames_preop || '';
-        document.querySelector('[name="opme_outro"]').value = dados.opme_outro || '';
-        
-        // Preencher radio buttons
-        if (dados.tipo_cirurgia) {
-            const tipoField = document.querySelector(`[name="tipo_cirurgia"][value="${dados.tipo_cirurgia}"]`);
-            if (tipoField) {
-                tipoField.checked = true;
-            }
-        }
-        
-        // Preencher checkboxes
-        const internarAntesField = document.querySelector('[name="internar_antes"]');
-        if (internarAntesField) {
-            internarAntesField.checked = dados.internar_antes || false;
-        }
-        const reservaSangueField = document.querySelector('[name="reserva_sangue"]');
-        if (reservaSangueField) {
-            reservaSangueField.checked = dados.reserva_sangue || false;
-        }
-        const raioXField = document.querySelector('[name="raio_x"]');
-        if (raioXField) {
-            raioXField.checked = dados.raio_x || false;
-        }
-        const reservaUtiField = document.querySelector('[name="reserva_uti"]');
-        if (reservaUtiField) {
-            reservaUtiField.checked = dados.reserva_uti || false;
-        }
-
-        // Preencher OPME (novo formato) com fallback para modelos legados
-        const opmeItemsFields = document.querySelectorAll('[name="opme_items"]');
-        const selectedOpme = Array.isArray(dados.opme_items) ? dados.opme_items : [];
-        opmeItemsFields.forEach(field => {
-            field.checked = selectedOpme.includes(field.value);
-        });
-
-        if ((!dados.opme_items || !Array.isArray(dados.opme_items)) && dados.opme) {
-            const opmeTokens = dados.opme.split(',').map(item => item.trim()).filter(Boolean);
-            let opmeOutroLegacy = '';
-
-            opmeItemsFields.forEach(field => {
-                if (opmeTokens.includes(field.value)) {
-                    field.checked = true;
-                }
-            });
-
-            const outroPrefix = 'Outro:';
-            const outroItem = opmeTokens.find(item => item.startsWith(outroPrefix));
-            if (outroItem) {
-                opmeOutroLegacy = outroItem.substring(outroPrefix.length).trim();
-            }
-
-            if (!opmeOutroLegacy) {
-                const knownValues = new Set(Array.from(opmeItemsFields).map(field => field.value));
-                const unknownTokens = opmeTokens.filter(item => !knownValues.has(item) && !item.startsWith(outroPrefix));
-                if (unknownTokens.length > 0) {
-                    opmeOutroLegacy = unknownTokens.join(', ');
-                }
-            }
-
-            if (opmeOutroLegacy) {
-                document.querySelector('[name="opme_outro"]').value = opmeOutroLegacy;
-            }
-        }
-        
-        // Disparar evento para atualizar a quantidade de sangue se necessário
-        if (reservaSangueField) {
-            reservaSangueField.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Atualizar código SUS
-        const procedureSelect = document.getElementById('procedimento_select');
-        if (procedureSelect) {
-            procedureSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Fechar modal
-        if (modelosModalInstance) {
-            modelosModalInstance.hide();
-        }
-        
-        // Limpar barra de busca
-        const buscaInput = document.getElementById('buscaModelos');
-        if (buscaInput) {
-            buscaInput.value = '';
-        }
-        mostrarTodosModelos = false;
-        
-        // Scroll para o topo do formulário
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        alert(`Modelo "${modelo.nome}" carregado com sucesso!`);
-    }
-
-    // Função para deletar modelo
-    function deletarModelo(modeloId) {
-        if (!confirm('Tem certeza que deseja deletar este modelo?')) {
-            return;
-        }
-        
-        let modelos = loadModelos();
-        const index = modelos.findIndex(m => String(m.id) === String(modeloId));
-        
-        if (index === -1) {
-            alert('Modelo não encontrado.');
-            return;
-        }
-        
-        const nomeModelo = modelos[index].nome;
-        modelos.splice(index, 1);
-        saveModelos(modelos);
-        
-        carregarModelos(); // Recarregar lista
-        alert(`Modelo "${nomeModelo}" deletado com sucesso!`);
-    }
-</script>
-<script>
-/* Gerenciador v2: modelos clínicos versionados e compatíveis com registros legados. */
-(() => {
-    const CLINICAL_FIELDS = [
-        'sinais_sintomas', 'condicoes_justificativa', 'resultados_diagnosticos',
-        'procedimento_solicitado', 'codigo_procedimento', 'tipo_cirurgia',
-        'internar_antes', 'aparelhos_especiais', 'reserva_sangue', 'quantidade_sangue',
-        'raio_x', 'reserva_uti', 'duracao_prevista', 'evolucao_internacao',
-        'prescricao_internacao', 'exames_preop', 'opme_items', 'opme_outro'
-    ];
-    let editingModeloId = null;
-
-    const safeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-    const feedback = (message, type='success') => {
-        const target = document.getElementById('modeloFeedback');
-        if (target) target.innerHTML = `<div class="alert alert-${type} py-2">${safeText(message)}</div>`;
-    };
-
-    window.loadModelos = function() {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(getModelosStorageKey()) || '[]');
-            return Array.isArray(parsed) ? parsed.map(m => ({...m, version: 2, dados: pickClinical(m.dados || {})})) : [];
-        } catch (error) {
-            console.warn('Modelos locais inválidos:', error);
-            return [];
-        }
-    };
-
-    function pickClinical(source) {
-        const result = {};
-        CLINICAL_FIELDS.forEach(name => {
-            if (Object.prototype.hasOwnProperty.call(source, name)) result[name] = source[name];
-        });
-        if (!Array.isArray(result.opme_items) && source.opme) {
-            const known = [...document.querySelectorAll('[name="opme_items"]')].map(el => el.value);
-            const tokens = String(source.opme).split(',').map(v => v.trim()).filter(Boolean);
-            result.opme_items = tokens.filter(v => known.includes(v));
-            if (!result.opme_outro) result.opme_outro = tokens.filter(v => !known.includes(v) && !v.toLowerCase().startsWith('outro:')).join(', ');
-        }
-        return result;
-    }
-
-    window.coletarDadosFormulario = function() {
-        const formData = new FormData(document.querySelector('.needs-validation'));
-        const result = {};
-        CLINICAL_FIELDS.forEach(name => {
-            if (name === 'opme_items') result[name] = formData.getAll(name);
-            else if (['internar_antes','reserva_sangue','raio_x','reserva_uti'].includes(name)) result[name] = formData.has(name);
-            else result[name] = formData.get(name) || '';
-        });
-        return result;
-    };
-
-    window.salvarComoModelo = function() {
-        editingModeloId = null;
-        const name = document.getElementById('nomeModelo');
-        if (name) name.value = '';
-        abrirModelos();
-        setTimeout(() => name?.focus(), 250);
-    };
-
-    function persistModelo() {
-        const input = document.getElementById('nomeModelo');
-        const nome = (input?.value || '').trim();
-        if (!nome) return feedback('Informe um nome para o modelo.', 'warning');
-        const modelos = loadModelos();
-        const duplicate = modelos.find(m => m.nome.toLowerCase() === nome.toLowerCase() && String(m.id) !== String(editingModeloId));
-        if (duplicate) return feedback('Já existe um modelo com esse nome.', 'warning');
-        const now = new Date().toISOString();
-        if (editingModeloId) {
-            const index = modelos.findIndex(m => String(m.id) === String(editingModeloId));
-            if (index < 0) return feedback('Modelo não encontrado.', 'danger');
-            modelos[index] = {...modelos[index], nome, dados: coletarDadosFormulario(), atualizadoEm: now, version: 2};
-            feedback(`Modelo "${nome}" atualizado.`);
-        } else {
-            modelos.push({id: generateModeloId(), nome, dados: coletarDadosFormulario(), dataCriacao: now, atualizadoEm: now, usosCount: 0, version: 2});
-            feedback(`Modelo "${nome}" salvo.`);
-        }
-        editingModeloId = null; input.value = ''; document.querySelector('#btnSalvarModelo span').textContent = 'Salvar novo'; saveModelos(modelos); carregarModelos(document.getElementById('buscaModelos')?.value.toLowerCase() || '');
-    }
-
-    window.carregarModelos = function(termoBusca='') {
-        const target = document.getElementById('modelosList'); if (!target) return;
-        const term = String(termoBusca).trim().toLowerCase();
-        const modelos = loadModelos().filter(m => !term || m.nome.toLowerCase().includes(term) || String(m.dados.procedimento_solicitado || '').toLowerCase().includes(term)).sort((a,b) => new Date(b.atualizadoEm || b.dataCriacao || 0) - new Date(a.atualizadoEm || a.dataCriacao || 0));
-        document.getElementById('botaoExpandir').style.display = 'none';
-        if (!modelos.length) { target.innerHTML = '<div class="text-center text-muted py-3">Nenhum modelo encontrado.</div>'; return; }
-        target.innerHTML = `<div class="list-group">${modelos.map(m => `<div class="list-group-item"><div class="d-flex flex-wrap justify-content-between gap-2"><div><h6 class="mb-1">${safeText(m.nome)}</h6><div class="small text-muted">${safeText(m.dados.procedimento_solicitado || 'Procedimento não informado')} · ${m.usosCount || 0} uso(s)</div></div><div class="btn-group btn-group-sm"><button type="button" class="btn btn-primary" data-model-load="${safeText(m.id)}">Aplicar</button><button type="button" class="btn btn-outline-secondary" data-model-edit="${safeText(m.id)}">Atualizar</button><button type="button" class="btn btn-outline-danger" data-model-delete="${safeText(m.id)}" aria-label="Excluir"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`;
-        target.querySelectorAll('[data-model-load]').forEach(b => b.onclick=()=>carregarModelo(b.dataset.modelLoad));
-        target.querySelectorAll('[data-model-edit]').forEach(b => b.onclick=()=>editarModelo(b.dataset.modelEdit));
-        target.querySelectorAll('[data-model-delete]').forEach(b => b.onclick=()=>deletarModelo(b.dataset.modelDelete));
-    };
-
-    function setField(name, value) {
-        const fields = [...document.querySelectorAll(`[name="${name}"]`)]; if (!fields.length) return;
-        if (name === 'opme_items') fields.forEach(el => el.checked = Array.isArray(value) && value.includes(el.value));
-        else if (fields[0].type === 'radio') fields.forEach(el => el.checked = el.value === value);
-        else if (fields[0].type === 'checkbox') fields[0].checked = Boolean(value);
-        else fields[0].value = value ?? '';
-    }
-
-    window.carregarModelo = function(id) {
-        const modelos = loadModelos(), index = modelos.findIndex(m => String(m.id) === String(id));
-        if (index < 0) return feedback('Modelo não encontrado.', 'danger');
-        Object.entries(modelos[index].dados).forEach(([name,value]) => setField(name,value));
-        modelos[index].usosCount = (modelos[index].usosCount || 0) + 1; modelos[index].ultimoUso = new Date().toISOString(); saveModelos(modelos);
-        ['reserva_sangue','procedimento_solicitado'].forEach(name => document.querySelector(`[name="${name}"]`)?.dispatchEvent(new Event('change',{bubbles:true})));
-        modelosModalInstance?.hide(); window.scrollTo({top:0,behavior:'smooth'});
-    };
-
-    window.editarModelo = function(id) {
-        const modelo = loadModelos().find(m => String(m.id) === String(id)); if (!modelo) return;
-        editingModeloId = modelo.id; document.getElementById('nomeModelo').value = modelo.nome; feedback('Ajuste o formulário ao fundo e clique em Atualizar modelo.', 'info');
-        document.querySelector('#btnSalvarModelo span').textContent = 'Atualizar modelo';
-    };
-
-    window.deletarModelo = function(id) {
-        const modelos = loadModelos(), modelo = modelos.find(m => String(m.id) === String(id)); if (!modelo) return;
-        if (!confirm(`Excluir o modelo "${modelo.nome}"?`)) return;
-        saveModelos(modelos.filter(m => String(m.id) !== String(id))); carregarModelos(document.getElementById('buscaModelos')?.value.toLowerCase() || ''); feedback('Modelo excluído.');
-    };
-
-    document.addEventListener('DOMContentLoaded',()=>document.getElementById('btnSalvarModelo')?.addEventListener('click',persistModelo));
-})();
-</script>
 {% endblock %}
+{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/surgery-request.js') }}"></script>{% endblock %}

@@ -44,6 +44,11 @@ class SurgeryRequest(db.Model):
     specialty = db.relationship('Specialty', back_populates='surgery_requests', foreign_keys=[specialty_id])
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     created_by_user = db.relationship('User', back_populates='created_surgery_requests', foreign_keys=[created_by_user_id])
+    calendar_event_statuses = db.relationship(
+        'CalendarEventStatus',
+        back_populates='surgery_request',
+        foreign_keys='CalendarEventStatus.surgery_request_id',
+    )
 
     # Metadados
     status = db.Column(db.String(20), default='Pendente')
@@ -52,7 +57,7 @@ class SurgeryRequest(db.Model):
     
     # Campos de agendamento no Google Calendar
     scheduled_at = db.Column(db.DateTime, nullable=True)  # Quando foi agendado
-    scheduled_event_id = db.Column(db.String(255), nullable=True)  # ID do evento no Google Calendar
+    scheduled_event_id = db.Column(db.String(500), nullable=True)  # UID do evento no Google Calendar
     scheduled_event_link = db.Column(db.String(500), nullable=True)  # Link direto para o evento
     calendar_status = db.Column(db.String(20), nullable=True)  # 'agendado', 'erro', etc.
     

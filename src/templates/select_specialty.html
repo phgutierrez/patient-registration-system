@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 
 {% block title %}Selecionar Especialidade{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/specialty-select.css') }}">{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 680px; margin: 4rem auto;">
-    <div class="card shadow-sm border-0">
-        <div class="card-header text-white py-4" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+<div class="container specialty-select-shell">
+    <div class="card specialty-access-card">
+        <div class="card-header specialty-access-header text-white py-4 text-center">
+            <img src="{{ url_for('static', filename='logo ortoped.png') }}" alt="Logo do sistema" class="specialty-header-logo mb-2">
             <h2 class="mb-1 text-center" style="font-size: 1.6rem; font-weight: 700;">
-                <i class="fas fa-hospital-user me-2"></i>Sistema de Solicitação de Cirurgia
+                Sistema de Solicitação de Cirurgia
             </h2>
             <p class="mb-0 text-center" style="opacity: .85;">Selecione a especialidade para iniciar</p>
         </div>
@@ -24,9 +26,9 @@
                                  id="card_{{ sp.slug }}"
                                  style="transition: all .2s; {% if loop.first %}border-color: #3b82f6 !important; background:#eff6ff;{% endif %}">
                                 {% if sp.slug == 'ortopedia' %}
-                                <i class="fas fa-bone fa-3x mb-3" style="color: #3b82f6;"></i>
+                                <img src="{{ url_for('static', filename='logo ortoped.png') }}" alt="Logo da Ortopedia" class="specialty-card-logo">
                                 {% else %}
-                                <i class="fas fa-stethoscope fa-3x mb-3" style="color: #6366f1;"></i>
+                                <i class="fas fa-stethoscope specialty-card-icon"></i>
                                 {% endif %}
                                 <h5 class="mb-0 fw-semibold">{{ sp.name }}</h5>
                             </div>
@@ -45,32 +47,5 @@
     </div>
 </div>
 
-<style>
-  .specialty-card:hover {
-    border-color: #3b82f6 !important;
-    background: #eff6ff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,.1);
-  }
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.specialty-radio').forEach(function(radio) {
-        radio.addEventListener('change', function() {
-            // Reset todos
-            document.querySelectorAll('.specialty-card').forEach(function(c) {
-                c.style.borderColor = '';
-                c.style.background = '';
-            });
-            // Destacar selecionado
-            const card = document.getElementById('card_' + this.value);
-            if (card) {
-                card.style.borderColor = '#3b82f6';
-                card.style.background = '#eff6ff';
-            }
-        });
-    });
-});
-</script>
 {% endblock %}
+{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/specialty-select.js') }}"></script>{% endblock %}

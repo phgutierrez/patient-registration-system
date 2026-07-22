@@ -96,8 +96,8 @@ class Config:
         or _build_google_calendar_ics_url(GOOGLE_CALENDAR_ID)
     )
     
-    # Calendar cache TTL (60 seconds for fast updates)
-    CALENDAR_CACHE_TTL_SECONDS = int(os.getenv('CALENDAR_CACHE_TTL_SECONDS', '60'))
+    # Calendar cache TTL. Warm requests use stale-while-refresh semantics.
+    CALENDAR_CACHE_TTL_SECONDS = int(os.getenv('CALENDAR_CACHE_TTL_SECONDS', '300'))
     # Legacy minutes setting (deprecated, use seconds instead)
     CALENDAR_CACHE_TTL_MINUTES = int(os.getenv('CALENDAR_CACHE_TTL_MINUTES', '5'))
     

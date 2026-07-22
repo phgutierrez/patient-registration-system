@@ -1,45 +1,101 @@
 {% extends "base.html" %}
 {% block title %}Pacientes - Sistema de Solicitação de Cirurgia{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/patients.css') }}">{% endblock %}
 {% block content %}
-<div class="container-fluid py-3">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-    <div><h1 class="h3 mb-1"><i class="fas fa-users text-primary me-2"></i>Pacientes</h1><p class="text-muted mb-0">Consulta e gerenciamento dos cadastros</p></div>
-    <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary"><i class="fas fa-user-plus me-2"></i>Novo paciente</a>
-  </div>
+<div class="container-fluid page-shell patients-page">
+  <header class="app-page-header page-heading">
+    <div><span class="eyebrow">Cadastros</span><h1>Pacientes</h1><p>Localize rapidamente um paciente e inicie a solicitação cirúrgica.</p></div>
+    <a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Novo paciente</a>
+  </header>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body border-bottom">
-      <form method="get" class="row g-2 align-items-center">
-        <div class="col"><div class="input-group"><span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span><input name="q" value="{{ search }}" class="form-control" placeholder="Nome, prontuário, CNS ou cidade" aria-label="Buscar pacientes"></div></div>
-        <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Buscar</button>{% if search %}<a class="btn btn-link text-decoration-none" href="{{ url_for('patients.list_patients') }}">Limpar</a>{% endif %}</div>
-      </form>
-    </div>
+  <section class="patients-surface">
+    <form method="get" class="patients-toolbar" role="search">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input name="q" value="{{ search }}" maxlength="100" autocomplete="off"
+               placeholder="Nome, prontuário, CNS ou cidade" aria-label="Buscar pacientes">
+        {% if search %}<a href="{{ url_for('patients.list_patients') }}" aria-label="Limpar pesquisa"><i class="fas fa-times"></i></a>{% endif %}
+      </div>
+      <button class="btn btn-outline-primary" type="submit">Buscar</button>
+      <span class="result-count">{{ pagination.total }} paciente{{ '' if pagination.total == 1 else 's' }}</span>
+    </form>
+
     {% if patients %}
     <div class="d-none d-lg-block table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>Paciente</th><th>Identificação</th><th>Nascimento</th><th>Cidade</th><th>Diagnóstico</th><th class="text-end">Ações</th></tr></thead>
-        <tbody>{% for patient in patients %}<tr>
-          <td><a class="fw-semibold text-decoration-none" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ patient.nome }}</a></td>
-          <td><div><small class="text-muted">Pront.</small> {{ patient.prontuario or '—' }}</div><small class="text-muted">CNS {{ patient.cns or '—' }}</small></td>
-          <td>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '—' }}<small class="d-block text-muted">{{ patient.idade }} anos</small></td>
-          <td>{{ patient.cidade or '—' }}{% if patient.estado %}/{{ patient.estado }}{% endif %}</td>
-          <td class="patient-diagnosis" title="{{ patient.diagnostico or '' }}">{{ (patient.diagnostico[:65] ~ ('…' if patient.diagnostico|length > 65 else '')) if patient.diagnostico else '—' }}</td>
-          <td class="text-end"><div class="btn-group btn-group-sm">
-            <a class="btn btn-outline-secondary" href="{{ url_for('patients.edit_patient', id=patient.id) }}" title="Editar"><i class="fas fa-edit"></i></a>
-            <a class="btn btn-outline-success" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" title="Solicitar cirurgia"><i class="fas fa-notes-medical"></i></a>
-            <button class="btn btn-outline-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-          </div></td>
-        </tr>{% endfor %}</tbody>
+      <table class="table patients-table align-middle mb-0">
+        <thead><tr><th>Paciente</th><th>Prontuário / CNS</th><th>Nascimento</th><th>Cidade</th><th>Diagnóstico</th><th class="text-end">Ações</th></tr></thead>
+        <tbody>
+        {% for patient in patients %}
+          <tr>
+            <td><a class="patient-name" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ patient.nome }}</a><span class="patient-subtitle">{{ patient.contato or 'Contato não informado' }}</span></td>
+            <td><strong>{{ patient.prontuario or '—' }}</strong><span class="patient-subtitle">CNS {{ patient.cns or '—' }}</span></td>
+            <td>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '—' }}<span class="patient-subtitle">{{ patient.idade }} anos</span></td>
+            <td>{{ patient.cidade or '—' }}{% if patient.estado %}/{{ patient.estado }}{% endif %}</td>
+            <td><span class="diagnosis-clamp" title="{{ patient.diagnostico or '' }}">{{ patient.diagnostico or '—' }}</span></td>
+            <td class="text-end">
+              <div class="patient-actions">
+                <a class="btn btn-sm btn-success" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}"><i class="fas fa-notes-medical"></i> Solicitar</a>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Mais ações"><i class="fas fa-ellipsis-v"></i></button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{{ url_for('patients.view_patient', id=patient.id) }}"><i class="fas fa-eye"></i> Ver cadastro</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('patients.edit_patient', id=patient.id) }}"><i class="fas fa-edit"></i> Editar</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}"><i class="fas fa-trash-alt"></i> Excluir</button></li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
       </table>
     </div>
-    <div class="d-lg-none list-group list-group-flush">{% for patient in patients %}
-      <div class="list-group-item py-3"><div class="d-flex justify-content-between gap-2"><div><a class="fw-semibold text-decoration-none" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ patient.nome }}</a><div class="small text-muted">Pront. {{ patient.prontuario or '—' }} · {{ patient.cidade or '—' }}</div><div class="small mt-1">{{ patient.diagnostico[:70] if patient.diagnostico else 'Sem diagnóstico informado' }}</div></div><div class="dropdown"><button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Ações"><i class="fas fa-ellipsis-v"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item" href="{{ url_for('patients.edit_patient', id=patient.id) }}">Editar</a></li><li><a class="dropdown-item" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}">Solicitar cirurgia</a></li><li><button class="dropdown-item text-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}">Excluir</button></li></ul></div></div></div>
-    {% endfor %}</div>
-    {% else %}<div class="text-center py-5"><i class="fas fa-user-slash fa-3x text-muted mb-3"></i><h2 class="h5">{% if search %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</h2><p class="text-muted">{% if search %}Revise a busca ou limpe o filtro.{% else %}Cadastre o primeiro paciente para começar.{% endif %}</p></div>{% endif %}
-    <div class="card-footer bg-white d-flex flex-wrap justify-content-between align-items-center gap-2"><span class="small text-muted">{{ pagination.total }} paciente(s)</span>{% if pagination.pages > 1 %}<nav aria-label="Páginas"><ul class="pagination pagination-sm mb-0"><li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=pagination.prev_num) if pagination.has_prev else '#' }}">Anterior</a></li>{% for number in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}{% if number %}<li class="page-item {{ 'active' if number == pagination.page }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=number) }}">{{ number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}<li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=pagination.next_num) if pagination.has_next else '#' }}">Próxima</a></li></ul></nav>{% endif %}</div>
-  </div>
+
+    <div class="d-lg-none patient-mobile-list">
+      {% for patient in patients %}
+      <article class="patient-mobile-row">
+        <a class="patient-mobile-main" href="{{ url_for('patients.view_patient', id=patient.id) }}">
+          <strong>{{ patient.nome }}</strong>
+          <span>Pront. {{ patient.prontuario or '—' }} · {{ patient.cidade or 'Cidade não informada' }}</span>
+          <small>{{ patient.diagnostico or 'Sem diagnóstico informado' }}</small>
+        </a>
+        <div class="patient-mobile-actions">
+          <a class="btn btn-sm btn-success" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" aria-label="Solicitar cirurgia"><i class="fas fa-notes-medical"></i></a>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Mais ações"><i class="fas fa-ellipsis-v"></i></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('patients.edit_patient', id=patient.id) }}">Editar</a></li>
+              <li><button class="dropdown-item text-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}">Excluir</button></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="patients-empty">
+      <i class="fas fa-user-slash"></i>
+      <h2>{% if search %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</h2>
+      <p>{% if search %}Revise o termo ou limpe a pesquisa para visualizar todos.{% else %}Cadastre o primeiro paciente para começar.{% endif %}</p>
+      {% if search %}<a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-primary">Limpar pesquisa</a>{% else %}<a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary">Novo paciente</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if pagination.pages > 1 %}
+    <footer class="patients-footer">
+      <span>Página {{ pagination.page }} de {{ pagination.pages }}</span>
+      <nav aria-label="Paginação de pacientes"><ul class="pagination pagination-sm mb-0">
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=pagination.prev_num) if pagination.has_prev else '#' }}">Anterior</a></li>
+        {% for number in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if number %}<li class="page-item {{ 'active' if number == pagination.page }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=number) }}">{{ number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}"><a class="page-link" href="{{ url_for('patients.list_patients', q=search, page=pagination.next_num) if pagination.has_next else '#' }}">Próxima</a></li>
+      </ul></nav>
+    </footer>
+    {% endif %}
+  </section>
 </div>
 {% for patient in patients %}<form id="delete-form-{{ patient.id }}" action="{{ url_for('patients.delete_patient', id=patient.id) }}" method="post" hidden><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>{% endfor %}
-<style>.patient-diagnosis{max-width:280px;color:#64748b;font-size:.9rem}</style>
-<script>document.querySelectorAll('[data-delete-patient]').forEach(button=>button.addEventListener('click',()=>{if(confirm(`Excluir o paciente "${button.dataset.patientName}"? Esta ação não pode ser desfeita.`))document.getElementById(`delete-form-${button.dataset.deletePatient}`).submit()}));</script>
 {% endblock %}
+{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/patients.js') }}"></script>{% endblock %}

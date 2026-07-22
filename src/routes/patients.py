@@ -79,11 +79,17 @@ def list_patients():
     page = max(page or 1, 1)
     query = scoped_patients_query(Patient.query)
     if search:
-        term = f'%{search}%'
-        query = query.filter(or_(
-            Patient.nome.ilike(term), Patient.prontuario.ilike(term),
-            Patient.cns.ilike(term), Patient.cidade.ilike(term),
-        ))
+        exact_patient = None
+        if search.isdigit():
+            exact_patient = query.filter(Patient.prontuario == search).first()
+        if exact_patient is not None:
+            query = query.filter(Patient.id == exact_patient.id)
+        else:
+            term = f'%{search}%'
+            query = query.filter(or_(
+                Patient.nome.ilike(term), Patient.prontuario.ilike(term),
+                Patient.cns.ilike(term), Patient.cidade.ilike(term),
+            ))
     pagination = query.order_by(Patient.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )

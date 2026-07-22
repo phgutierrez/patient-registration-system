@@ -111,6 +111,13 @@ def ensure_security_schema(app) -> None:
             )
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_surgery_requests_created_by_user_id ON surgery_requests(created_by_user_id)')
 
+        if 'calendar_event_status' in tables:
+            add_column_if_missing('calendar_event_status', 'surgery_request_id', 'INTEGER')
+            cursor.execute(
+                'CREATE INDEX IF NOT EXISTS idx_calendar_event_status_surgery_request_id '
+                'ON calendar_event_status(surgery_request_id)'
+            )
+
         if 'specialty_settings' in tables:
             add_column_if_missing('specialty_settings', 'access_host', "VARCHAR(255) NOT NULL DEFAULT '192.168.1.252'")
             add_column_if_missing('specialty_settings', 'access_share_path', "VARCHAR(500) NOT NULL DEFAULT 'naqh\\AMBULATORIO_SERV'")
@@ -238,6 +245,24 @@ def scoped_patients_query(query):
     if not user_specialty_id:
         return query.filter(False)
     return query.filter_by(specialty_id=user_specialty_id)
+
+
+def scoped_surgery_requests_query(query):
+    """Apply the same specialty boundary used by surgery detail routes."""
+    if user_is_admin():
+        return query
+    user_specialty_id = getattr(current_user, 'specialty_id', None)
+    if not user_specialty_id:
+        return query.filter(False)
+    from src.models.surgery_request import SurgeryRequest
+    from src.models.patient import Patient
+    return query.outerjoin(Patient, SurgeryRequest.patient_id == Patient.id).filter(
+        (SurgeryRequest.specialty_id == user_specialty_id)
+        | (
+            SurgeryRequest.specialty_id.is_(None)
+            & (Patient.specialty_id == user_specialty_id)
+        )
+    )
 
 
 def get_protected_pdf_path(filename: str) -> Path:

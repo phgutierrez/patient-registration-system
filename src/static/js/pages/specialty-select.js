@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.specialty-radio').forEach(radio=>{radio.addEventListener('change',()=>{document.querySelectorAll('.specialty-card').forEach(card=>card.removeAttribute('data-selected'));document.getElementById(`card_${radio.value}`)?.setAttribute('data-selected','true');});});});

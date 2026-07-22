@@ -1,11 +1,17 @@
+"""Per-specialty, thread-safe Google Calendar cache.
+
+Warm requests never wait for the network. Expired data is returned immediately
+while a single background worker refreshes the ICS feed.
 """
-Thread-safe calendar cache service with 60-second TTL and conditional GET support.
-"""
+from __future__ import annotations
+
+import hashlib
 import json
 import logging
 import threading
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, NamedTuple
+from datetime import datetime
+from typing import Any, Dict, List, NamedTuple, Optional
+
 import requests
 from flask import current_app
 
@@ -13,279 +19,285 @@ from src.extensions import db
 from src.models.calendar_cache import CalendarCache
 from src.services.calendar_service import CalendarService
 
-
 logger = logging.getLogger(__name__)
 
+
 class CalendarData(NamedTuple):
-    """Container for calendar data and metadata"""
     events: List[Dict[str, Any]]
     events_by_date: Dict[str, List[Dict[str, Any]]]
     fetched_at: datetime
-    source_status: str  # 'ok', 'stale', 'error'
+    source_status: str  # ok, stale or error
     last_error: Optional[str]
 
 
 class CalendarCacheService:
-    """
-    Thread-safe calendar cache service with conditional GET support.
-    
-    Features:
-    - TTL-based caching (default 60 seconds)
-    - Conditional GET (ETag/If-Modified-Since)
-    - Thread-safe operations
-    - Graceful error handling (serves stale cache on failure)
-    - Database persistence for multi-process scenarios
-    """
-    
-    def __init__(self):
+    def __init__(
+        self,
+        calendar_id: str,
+        ics_url: str,
+        timezone_str: str = 'America/Fortaleza',
+    ):
+        self.base_calendar_id = calendar_id
+        self.ics_url = ics_url
+        self.timezone_str = timezone_str
+        url_hash = hashlib.sha256(ics_url.encode('utf-8')).hexdigest()[:16]
+        self.calendar_id = f'{calendar_id}:{url_hash}'
+        self.calendar_service = CalendarService(
+            calendar_id=calendar_id,
+            ics_url=ics_url,
+            timezone_str=timezone_str,
+        )
         self._lock = threading.RLock()
         self._memory_cache: Optional[CalendarData] = None
-        self._response_headers: Optional[Dict[str, str]] = None
-        
+        self._refresh_in_progress = False
+
     def get_calendar_data(self, force_refresh: bool = False) -> CalendarData:
-        """
-        Get cached calendar data with automatic refresh based on TTL.
-        
-        Args:
-            force_refresh: If True, bypass cache and fetch fresh data
-            
-        Returns:
-            CalendarData with events and metadata
-        """
+        ttl_seconds = max(
+            15,
+            int(current_app.config.get('CALENDAR_CACHE_TTL_SECONDS', 300)),
+        )
         with self._lock:
-            ttl_seconds = current_app.config.get('CALENDAR_CACHE_TTL_SECONDS', 60)
-            
-            # Check if we need to refresh
-            needs_refresh = force_refresh
-            age_seconds = 0
-            if not needs_refresh and self._memory_cache:
-                age_seconds = (datetime.utcnow() - self._memory_cache.fetched_at).total_seconds()
-                needs_refresh = age_seconds >= ttl_seconds
-            elif not self._memory_cache:
-                needs_refresh = True
-            
-            if not needs_refresh and self._memory_cache:
-                logger.debug(f"Calendar cache HIT (age: {age_seconds:.1f}s)")
-                return self._memory_cache
-            
-            # Need to refresh - try to get fresh data
-            logger.info("Calendar cache MISS - refreshing...")
-            fresh_data = self._fetch_fresh_data()
-            
-            if fresh_data:
-                # Success - update memory cache and persist to DB
-                self._memory_cache = fresh_data
-                self._persist_to_db(fresh_data)
-                logger.info(f"Calendar refreshed: {len(fresh_data.events)} events")
-                return fresh_data
-            
-            # Refresh failed - try to serve stale cache
-            if self._memory_cache:
-                logger.warning("Calendar refresh failed - serving stale cache")
-                return self._memory_cache._replace(source_status='stale')
-            
-            # No memory cache - try to load from DB
-            db_data = self._load_from_db()
-            if db_data:
-                logger.warning("Calendar refresh failed - serving stale DB cache")
-                self._memory_cache = db_data._replace(source_status='stale')
-                return self._memory_cache
-            
-            # No cache available - return empty data
-            logger.error("No calendar cache available - returning empty data")
-            return CalendarData(
-                events=[],
-                events_by_date={},
-                fetched_at=datetime.utcnow(),
-                source_status='error',
-                last_error='No cache available and refresh failed'
+            cached = self._memory_cache
+            if cached is None:
+                cached = self._load_from_db()
+                self._memory_cache = cached
+
+            if force_refresh:
+                refreshed = self._refresh()
+                if refreshed is not None:
+                    return refreshed
+                if cached is not None:
+                    return cached._replace(source_status='stale')
+                return self._empty_error('Não foi possível atualizar a agenda.')
+
+            if cached is not None:
+                age = (datetime.utcnow() - cached.fetched_at).total_seconds()
+                if age < ttl_seconds:
+                    return cached
+                self._start_background_refresh()
+                return cached._replace(source_status='stale')
+
+            refreshed = self._refresh()
+            return refreshed or self._empty_error(
+                'Agenda indisponível e ainda não existe cache local.'
             )
-    
-    def _fetch_fresh_data(self) -> Optional[CalendarData]:
-        """Fetch fresh data from Google Calendar ICS feed"""
+
+    def _start_background_refresh(self) -> None:
+        if self._refresh_in_progress:
+            return
+        self._refresh_in_progress = True
+        app = current_app._get_current_object()
+        worker = threading.Thread(
+            target=self._background_refresh,
+            args=(app,),
+            name=f'calendar-refresh-{self.base_calendar_id}',
+            daemon=True,
+        )
+        worker.start()
+
+    def _background_refresh(self, app) -> None:
         try:
-            # Get calendar service
-            from src.services.calendar_service import get_calendar_service
-            calendar_service = get_calendar_service()
-            
-            # Load existing cache metadata for conditional GET
-            cache_entry = CalendarCache.query.filter_by(
-                calendar_id=calendar_service.calendar_id
-            ).first()
-            
-            # Build conditional headers
-            headers = {}
-            if cache_entry and cache_entry.etag:
-                headers['If-None-Match'] = cache_entry.etag
-            if cache_entry and cache_entry.last_modified:
-                headers['If-Modified-Since'] = cache_entry.last_modified
-            
-            # Enhanced fetch with conditional GET
-            events, error, response_headers = self._fetch_with_conditional_get(
-                calendar_service, headers
+            with app.app_context():
+                with self._lock:
+                    self._refresh()
+        except Exception:
+            logger.exception(
+                'Falha inesperada na atualização assíncrona da agenda %s',
+                self.base_calendar_id,
             )
-            
-            if error:
-                logger.error(f"Calendar fetch failed: {error}")
-                return None
-            
-            # Group events by date
-            events_by_date = calendar_service.group_events_by_day(events)
-            
-            # Store response headers for conditional GET
-            self._response_headers = response_headers or {}
-            
-            return CalendarData(
-                events=events,
-                events_by_date=events_by_date,
-                fetched_at=datetime.utcnow(),
-                source_status='ok',
-                last_error=None
-            )
-            
-        except Exception as e:
-            logger.exception(f"Unexpected error fetching calendar: {e}")
-            return None
-    
-    def _fetch_with_conditional_get(self, 
-                                   calendar_service: CalendarService, 
-                                   headers: Dict[str, str]) -> tuple[List[Dict], Optional[str], Optional[Dict]]:
-        """Fetch ICS with conditional GET support"""
+        finally:
+            with self._lock:
+                self._refresh_in_progress = False
+
+    def _refresh(self) -> Optional[CalendarData]:
+        cache_entry = CalendarCache.query.filter_by(
+            calendar_id=self.calendar_id
+        ).first()
+        headers: Dict[str, str] = {}
+        if cache_entry and cache_entry.etag:
+            headers['If-None-Match'] = cache_entry.etag
+        if cache_entry and cache_entry.last_modified:
+            headers['If-Modified-Since'] = cache_entry.last_modified
+
         try:
             response = requests.get(
-                calendar_service.ics_url,
+                self.ics_url,
                 headers=headers,
-                timeout=calendar_service.request_timeout
+                timeout=self.calendar_service.request_timeout,
             )
-            
-            # Handle 304 Not Modified
             if response.status_code == 304:
-                logger.info("Calendar not modified (304) - keeping cached data")
-                # Update fetched_at for existing cache but keep existing events
-                if self._memory_cache:
-                    # Just update the timestamp to reset TTL
-                    updated_cache = self._memory_cache._replace(fetched_at=datetime.utcnow())
-                    return updated_cache.events, None, dict(response.headers)
-                else:
-                    # Load from DB
-                    db_data = self._load_from_db()
-                    if db_data:
-                        return db_data.events, None, dict(response.headers)
-                    return [], "No cached data for 304 response", None
-            
-            # Handle other non-200 responses
-            if response.status_code != 200:
-                error = f"HTTP {response.status_code}: {response.reason}"
-                return [], error, None
-            
-            # Parse ICS content
-            events = calendar_service._parse_ics(response.text)
-            
-            return events, None, dict(response.headers)
-            
-        except requests.exceptions.Timeout:
-            return [], "Request timeout", None
-        except requests.exceptions.ConnectionError:
-            return [], "Connection error", None
-        except Exception as e:
-            return [], str(e), None
-    
-    def _persist_to_db(self, data: CalendarData):
-        """Persist calendar data to database"""
+                cached = self._memory_cache or self._load_from_db()
+                if cached is None:
+                    logger.warning(
+                        'Agenda %s retornou 304 sem cache correspondente.',
+                        self.base_calendar_id,
+                    )
+                    return None
+                data = cached._replace(
+                    fetched_at=datetime.utcnow(),
+                    source_status='ok',
+                    last_error=None,
+                )
+            else:
+                response.raise_for_status()
+                events = self.calendar_service._parse_ics(response.text)
+                data = CalendarData(
+                    events=events,
+                    events_by_date=self.calendar_service.group_events_by_day(events),
+                    fetched_at=datetime.utcnow(),
+                    source_status='ok',
+                    last_error=None,
+                )
+            self._memory_cache = data
+            self._persist_to_db(data, dict(response.headers))
+            logger.info(
+                'Agenda %s atualizada: %s evento(s).',
+                self.base_calendar_id,
+                len(data.events),
+            )
+            return data
+        except requests.Timeout:
+            logger.warning('Timeout ao atualizar agenda %s.', self.base_calendar_id)
+        except requests.ConnectionError:
+            logger.warning('Falha de conexão ao atualizar agenda %s.', self.base_calendar_id)
+        except requests.HTTPError as exc:
+            logger.warning(
+                'HTTP %s ao atualizar agenda %s.',
+                getattr(exc.response, 'status_code', '?'),
+                self.base_calendar_id,
+            )
+        except Exception:
+            logger.exception('Erro ao atualizar agenda %s.', self.base_calendar_id)
+        return None
+
+    def _persist_to_db(
+        self,
+        data: CalendarData,
+        response_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
         try:
-            from src.services.calendar_service import get_calendar_service
-            calendar_service = get_calendar_service()
-            
-            # Get or create cache entry
-            cache_entry = CalendarCache.query.filter_by(
-                calendar_id=calendar_service.calendar_id
+            entry = CalendarCache.query.filter_by(
+                calendar_id=self.calendar_id
             ).first()
-            
-            if not cache_entry:
-                cache_entry = CalendarCache(calendar_id=calendar_service.calendar_id)
-                db.session.add(cache_entry)
-            
-            # Serialize events
-            events_json = json.dumps([
-                {
-                    'uid': e['uid'],
-                    'title': e['title'],
-                    'start': e['start'].isoformat(),
-                    'end': e['end'].isoformat(),
-                    'start_date': e.get('start_date').isoformat() if e.get('start_date') else None,
-                    'end_date': e.get('end_date').isoformat() if e.get('end_date') else None,
-                    'all_day': e['all_day'],
-                    'location': e['location'],
-                    'description': e['description'],
-                }
-                for e in data.events
-            ])
-            
-            # Update cache entry
-            cache_entry.fetched_at = data.fetched_at
-            cache_entry.events_json = events_json
-            cache_entry.error_message = data.last_error
-            
-            # Store ETag and Last-Modified for conditional GET
-            if self._response_headers:
-                cache_entry.etag = self._response_headers.get('ETag')
-                cache_entry.last_modified = self._response_headers.get('Last-Modified')
-            
+            if entry is None:
+                entry = CalendarCache(calendar_id=self.calendar_id)
+                db.session.add(entry)
+            entry.fetched_at = data.fetched_at
+            entry.events_json = json.dumps(
+                [self._serialize_event(event) for event in data.events],
+                ensure_ascii=False,
+            )
+            entry.error_message = data.last_error
+            response_headers = response_headers or {}
+            if response_headers.get('ETag'):
+                entry.etag = response_headers['ETag']
+            if response_headers.get('Last-Modified'):
+                entry.last_modified = response_headers['Last-Modified']
             db.session.commit()
-            logger.debug("Calendar cache persisted to database")
-            
-        except Exception as e:
-            logger.exception(f"Failed to persist calendar cache: {e}")
+        except Exception:
             db.session.rollback()
-    
+            logger.exception(
+                'Não foi possível persistir o cache da agenda %s.',
+                self.base_calendar_id,
+            )
+
     def _load_from_db(self) -> Optional[CalendarData]:
-        """Load calendar data from database"""
         try:
-            from src.services.calendar_service import get_calendar_service
-            calendar_service = get_calendar_service()
-            
-            cache_entry = CalendarCache.query.filter_by(
-                calendar_id=calendar_service.calendar_id
+            entry = CalendarCache.query.filter_by(
+                calendar_id=self.calendar_id
             ).first()
-            
-            if not cache_entry or not cache_entry.events_json:
+            if entry is None or not entry.events_json:
                 return None
-            
-            # Deserialize events
-            events_data = json.loads(cache_entry.events_json)
-            events = []
-            
-            for evt in events_data:
-                evt['start'] = datetime.fromisoformat(evt['start'])
-                evt['end'] = datetime.fromisoformat(evt['end'])
-                
-                # Convert all-day dates if present
-                if evt.get('start_date'):
-                    evt['start_date'] = datetime.fromisoformat(evt['start_date']).date()
-                if evt.get('end_date'):
-                    evt['end_date'] = datetime.fromisoformat(evt['end_date']).date()
-                
-                events.append(evt)
-            
-            # Group by date
-            events_by_date = calendar_service.group_events_by_day(events)
-            
+            events = [
+                self._deserialize_event(event)
+                for event in json.loads(entry.events_json)
+            ]
             return CalendarData(
                 events=events,
-                events_by_date=events_by_date,
-                fetched_at=cache_entry.fetched_at or datetime.utcnow(),
+                events_by_date=self.calendar_service.group_events_by_day(events),
+                fetched_at=entry.fetched_at or datetime.utcnow(),
                 source_status='ok',
-                last_error=cache_entry.error_message
+                last_error=entry.error_message,
             )
-            
-        except Exception as e:
-            logger.exception(f"Failed to load calendar cache from DB: {e}")
+        except Exception:
+            logger.exception(
+                'Não foi possível ler o cache da agenda %s.',
+                self.base_calendar_id,
+            )
             return None
 
+    @staticmethod
+    def _serialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            'uid': event.get('uid', ''),
+            'title': event.get('title', ''),
+            'start': event['start'].isoformat(),
+            'end': event['end'].isoformat(),
+            'start_date': (
+                event.get('start_date').isoformat()
+                if event.get('start_date')
+                else None
+            ),
+            'end_date': (
+                event.get('end_date').isoformat()
+                if event.get('end_date')
+                else None
+            ),
+            'all_day': bool(event.get('all_day')),
+            'location': event.get('location'),
+            'description': event.get('description'),
+        }
 
-# Global instance
-_calendar_cache_service = CalendarCacheService()
+    @staticmethod
+    def _deserialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
+        event['start'] = datetime.fromisoformat(event['start'])
+        event['end'] = datetime.fromisoformat(event['end'])
+        if event.get('start_date'):
+            event['start_date'] = datetime.fromisoformat(
+                event['start_date']
+            ).date()
+        if event.get('end_date'):
+            event['end_date'] = datetime.fromisoformat(
+                event['end_date']
+            ).date()
+        return event
 
-def get_calendar_cache_service() -> CalendarCacheService:
-    """Get the global calendar cache service instance"""
-    return _calendar_cache_service
+    @staticmethod
+    def _empty_error(message: str) -> CalendarData:
+        return CalendarData([], {}, datetime.utcnow(), 'error', message)
+
+
+_registry_lock = threading.RLock()
+_services: Dict[str, CalendarCacheService] = {}
+
+
+def get_calendar_cache_service(
+    calendar_id: Optional[str] = None,
+    ics_url: Optional[str] = None,
+    timezone_str: str = 'America/Fortaleza',
+) -> CalendarCacheService:
+    """Return an isolated cache service for a calendar configuration."""
+    if not calendar_id or not ics_url:
+        from src.services.calendar_service import get_calendar_service
+        legacy = get_calendar_service()
+        calendar_id = calendar_id or legacy.calendar_id
+        ics_url = ics_url or legacy.ics_url
+        timezone_str = timezone_str or legacy.timezone_str
+    registry_key = f'{calendar_id}|{ics_url}|{timezone_str}'
+    with _registry_lock:
+        service = _services.get(registry_key)
+        if service is None:
+            service = CalendarCacheService(calendar_id, ics_url, timezone_str)
+            _services[registry_key] = service
+        return service
+
+
+def invalidate_calendar_cache(calendar_id: Optional[str] = None) -> None:
+    """Drop in-process instances; persisted rows remain safe historical cache."""
+    with _registry_lock:
+        if calendar_id is None:
+            _services.clear()
+            return
+        prefix = f'{calendar_id}|'
+        for key in [key for key in _services if key.startswith(prefix)]:
+            _services.pop(key, None)

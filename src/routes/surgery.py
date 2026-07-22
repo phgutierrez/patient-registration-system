@@ -626,6 +626,16 @@ def schedule_confirm(id):
         try:
             defaults = build_forms_payload(surgery_request, patient)
             payload = validate_schedule_payload(request.get_json(silent=True) or {}, defaults)
+            reference = f'[SOLICITACAO:{surgery_request.id}]'
+            if reference not in payload['full_description']:
+                referenced_description = (
+                    payload['full_description'].rstrip() + '\n\n' + reference
+                )
+                if len(referenced_description) > 5000:
+                    raise ValueError(
+                        'Descrição muito longa para incluir a referência interna da solicitação.'
+                    )
+                payload['full_description'] = referenced_description
         except ValueError as e:
             return jsonify({
                 'ok': False,

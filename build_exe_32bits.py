@@ -89,9 +89,22 @@ def assert_prerequisites() -> None:
         raise RuntimeError('lifecycle.js não exporta window.shutdownServer.')
     node = shutil.which('node')
     if node:
-        checked = subprocess.run([node, '--check', str(lifecycle_js)], check=False)
-        if checked.returncode != 0:
-            raise RuntimeError('lifecycle.js contém erro de sintaxe.')
+        for script in sorted((ROOT / 'src' / 'static' / 'js').rglob('*.js')):
+            checked = subprocess.run([node, '--check', str(script)], check=False)
+            if checked.returncode != 0:
+                raise RuntimeError(f'{script.name} contém erro de sintaxe.')
+    else:
+        required_markers = {
+            'app-shell.js': 'sidebarPinned',
+            'agenda.js': 'eventStatusForm',
+            'patient-new.js': 'searchAccess',
+            'surgery-request.js': 'cirurgiaModelos',
+            'patients.js': 'data-delete-patient',
+        }
+        for name, marker in required_markers.items():
+            page_script = ROOT / 'src' / 'static' / 'js' / 'pages' / name
+            if marker not in page_script.read_text(encoding='utf-8'):
+                raise RuntimeError(f'{name} falhou na validação estrutural.')
 
 
 def build_arguments(dist_root: Path, run_root: Path) -> list[str]:
@@ -119,8 +132,15 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         executable,
         app_dir / '_internal' / 'src' / 'templates',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'lifecycle.js',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'app-shell.js',
+        app_dir / '_internal' / 'src' / 'static' / 'css' / 'app-shell.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.min.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.bundle.min.js',
+        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'fontawesome' / 'css' / 'all.min.css',
+        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'fontawesome' / 'webfonts' / 'fa-solid-900.woff2',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'agenda.js',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'patient-new.js',
+        app_dir / '_internal' / 'src' / 'static' / 'css' / 'pages' / 'patient-new.css',
         app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
         app_dir / '_internal' / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
     )

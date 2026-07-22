@@ -71,16 +71,26 @@ Patient
     ├── Integração Google Calendar
     └── Dados para geração de PDF
 
-CalendarCache (TTL 60s)
+CalendarCache (TTL padrão 300s)
 ├── Dados feed ICS com ETag/Last-Modified
 ├── Eventos parseados por data
 └── Rastreamento de status
 
 CalendarEventStatus
 ├── Mapeamento UID de evento
-├── Status: REALIZADA / SUSPENSA
-└── Motivos de suspensão
+├── Status: PENDENTE / REALIZADA / SUSPENSA
+├── Motivo opcional de suspensão
+└── Vínculo seguro com SurgeryRequest quando identificável
 ```
+
+### Interfaces operacionais
+
+- A página inicial usa somente o SQLite local para contadores e próximos procedimentos.
+- A lista de pacientes mantém busca e paginação no servidor, priorizando prontuário exato.
+- A solicitação permanece em uma única página e os modelos locais contêm apenas dados clínicos reutilizáveis.
+- A agenda guarda uma cópia por especialidade. Dados expirados são exibidos imediatamente enquanto uma única atualização ocorre em segundo plano.
+- O modal da agenda registra `Pendente`, `Realizada` ou `Suspensa` sem recarregar a página. Quando o evento contém uma referência segura, o status da solicitação é atualizado na mesma transação.
+- Bootstrap, Font Awesome, CSS e JavaScript são servidos localmente e incluídos no executável.
 
 ### Estrutura do Projeto
 ```
@@ -101,7 +111,7 @@ src/
 │   └── specialty_settings.py # Configuração exclusiva de Ortopedia
 ├── services/
 │   ├── calendar_service.py      # Parsing ICS
-│   ├── calendar_cache_service.py # Cache thread-safe de 60s
+│   ├── calendar_cache_service.py # Cache por especialidade, persistente e thread-safe
 │   ├── calendar_scheduler.py    # Integração Google Forms
 │   ├── forms_service.py         # Submissão Forms
 │   └── forms_mapping.py         # Mapeamento de campos
@@ -345,11 +355,11 @@ SECURITY_HSTS_ENABLED=false
 |----------|-----------|--------|-------------|
 | `SECRET_KEY` | Chave de criptografia de sessão Flask | gerada em runtime se vazia | Recomendado |
 | `SERVER_HOST` | Endereço de binding (127.0.0.1=local, 0.0.0.0=LAN) | 127.0.0.1 | Não |
-| `DESKTOP_MODE` | Habilitar auto-desligamento ao fechar navegador | false | Não |
+| `DESKTOP_MODE` | Habilitar o botão local de encerramento manual | false | Não |
 | `ADMIN_BOOTSTRAP_USERNAME` | Usuário opcional para bootstrap automatizado | - | Não |
 | `ADMIN_BOOTSTRAP_PASSWORD` | PIN opcional de exatamente 6 dígitos para bootstrap automatizado | - | Não |
 | `GOOGLE_CALENDAR_ID` | ID opcional do Google Calendar usado para derivar URL ICS padrão | - | Opcional |
-| `CALENDAR_CACHE_TTL_SECONDS` | Intervalo de atualização do calendário | 60 | Não |
+| `CALENDAR_CACHE_TTL_SECONDS` | Intervalo de atualização em segundo plano | 300 | Não |
 | `GOOGLE_FORMS_PUBLIC_ID` | ID público do formulário para agendamento | - | Opcional |
 
 ---
@@ -450,7 +460,7 @@ taskkill /PID <process_id> /F
 ```bash
 # Problema: Cache não está atualizando
 # Solução:
-# - Verificar CALENDAR_CACHE_TTL_SECONDS=60 no .env
+# - Verificar CALENDAR_CACHE_TTL_SECONDS=300 no .env
 # - Atualização manual: POST /agenda/cache/refresh
 # - Verificar se URL ICS está acessível
 ```

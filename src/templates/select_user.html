@@ -4,8 +4,10 @@
   {% if step == 'specialty' %}Selecionar Especialidade{% elif step == 'password' %}Confirmar Senha{% else %}Identificar Solicitante{% endif %}
 {% endblock %}
 
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/specialty-select.css') }}">{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width: 640px; margin: 4rem auto;">
+<div class="container specialty-select-shell">
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}
@@ -17,11 +19,10 @@
   {% endwith %}
 
   {% if step == 'specialty' %}
-  <div class="card border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
-    <div class="card-header text-center py-4"
-         style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color:white; border:none;">
+  <div class="card specialty-access-card">
+    <div class="card-header specialty-access-header text-center py-4">
       <img src="{{ url_for('static', filename='logo ortoped.png') }}"
-           alt="Logo" style="height:40px; margin-bottom:.75rem;">
+           alt="Logo do sistema" class="specialty-header-logo mb-2">
       <h1 style="font-size:1.6rem; font-weight:700; margin:0;">Sistema de Solicitação de Cirurgia</h1>
       <p style="margin:.5rem 0 0; opacity:.85; font-size:.95rem;">Selecione a especialidade para iniciar</p>
     </div>
@@ -41,9 +42,9 @@
                    style="transition:all .2s;
                           {% if loop.first %}border-color:#3b82f6!important;background:#eff6ff;{% endif %}">
                 {% if sp.slug == 'ortopedia' %}
-                  <i class="fas fa-bone fa-3x mb-3" style="color:#3b82f6;"></i>
+                  <img src="{{ url_for('static', filename='logo ortoped.png') }}" alt="Logo da Ortopedia" class="specialty-card-logo">
                 {% else %}
-                  <i class="fas fa-stethoscope fa-3x mb-3" style="color:#2563eb;"></i>
+                  <i class="fas fa-stethoscope specialty-card-icon"></i>
                 {% endif %}
                 <h5 class="mb-0 fw-semibold">{{ sp.name }}</h5>
               </div>
@@ -154,33 +155,5 @@
 
 </div>
 
-<style>
-  .specialty-card:hover {
-    border-color: #3b82f6 !important;
-    background: #eff6ff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,.1);
-  }
-  .form-select:focus,
-  .form-control:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 4px rgba(59,130,246,.1);
-  }
-</style>
-
-<script>
-document.querySelectorAll('.specialty-radio').forEach(function(radio) {
-  radio.addEventListener('change', function() {
-    document.querySelectorAll('.specialty-card').forEach(function(c) {
-      c.style.borderColor = '';
-      c.style.background = '';
-    });
-    const card = document.getElementById('card_' + this.value);
-    if (card) {
-      card.style.borderColor = '#3b82f6';
-      card.style.background = '#eff6ff';
-    }
-  });
-});
-</script>
 {% endblock %}
+{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/specialty-select.js') }}"></script>{% endblock %}

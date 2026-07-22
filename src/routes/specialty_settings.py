@@ -62,6 +62,7 @@ def save_settings(specialty_id):
         flash(f'Configuração do Access inválida: {exc}', 'error')
         return redirect(url_for('specialty_settings.index') + f'#esp-{specialty_id}')
 
+    previous_agenda_url = settings.agenda_url
     settings.agenda_url = request.form.get('agenda_url', '').strip() or None
     settings.forms_url = request.form.get('forms_url', '').strip() or None
     settings.access_host = access_config.host
@@ -74,6 +75,9 @@ def save_settings(specialty_id):
     try:
         db.session.commit()
         access_patient_service.invalidate()
+        if previous_agenda_url != settings.agenda_url:
+            from src.services.calendar_cache_service import invalidate_calendar_cache
+            invalidate_calendar_cache(f'specialty_{specialty_id}')
         flash(f'Configurações de {specialty.name} salvas com sucesso!', 'success')
     except Exception as e:
         db.session.rollback()

@@ -1,0 +1,1 @@
+document.addEventListener('keydown',event=>{if(!event.altKey)return;const key=event.key.toLowerCase();const target=key==='n'?'a[href*="patient/new"]':key==='l'?'a[href*="patients/patients"]':key==='a'?'a[href*="agenda"]':null;if(target){event.preventDefault();document.querySelector(target)?.click();}});
