@@ -44,6 +44,10 @@ def create_app(config_class=Config):
 
     # Inicializar extensões
     db.init_app(app)
+    from src.sync import sync_service
+    from src.sync.hooks import install_sync_hooks
+    sync_service.configure(app)
+    install_sync_hooks(sync_service)
     login_manager.init_app(app)
     csrf.init_app(app)
     migrate.init_app(app, db)
@@ -55,7 +59,7 @@ def create_app(config_class=Config):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return User.query.filter_by(id=int(user_id), sync_deleted=False).first()
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -63,6 +67,14 @@ def create_app(config_class=Config):
 
     @app.before_request
     def enforce_desktop_runtime_and_password_change():
+        runtime = sync_service.runtime
+        if (
+            runtime and runtime.enabled
+            and (runtime.pairing_required or runtime.recovery_key_once or runtime.error)
+            and request.endpoint not in {'sync.setup', 'static', 'health'}
+        ):
+            return redirect(url_for('sync.setup'))
+
         from src.services.auth_session import (
             clear_authentication_session,
             has_stale_desktop_authentication,
@@ -180,12 +192,16 @@ def create_app(config_class=Config):
     from src.routes.patients import patients
     from src.routes.surgery import surgery
     from src.routes.specialty_settings import specialty_settings_bp
+    from src.routes.profile import profile_bp
+    from src.routes.sync import sync_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(main)
     app.register_blueprint(patients)
     app.register_blueprint(surgery)
     app.register_blueprint(specialty_settings_bp)
+    app.register_blueprint(profile_bp)
+    app.register_blueprint(sync_bp)
 
     # Context processor: especialidade ativa disponível em todos os templates
     from src.services.specialty_service import specialty_context

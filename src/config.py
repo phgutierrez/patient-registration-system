@@ -36,6 +36,12 @@ class Config:
         # Se executado como script Python, usar o diretório do projeto
         BASE_DIR = Path(__file__).resolve().parent.parent
 
+    if str(BASE_DIR).startswith(('\\\\', '//')):
+        raise RuntimeError(
+            'O banco SQLite não pode ser armazenado diretamente em pasta de rede. '
+            'Inicie o executável compartilhado para que ele crie a cópia local.'
+        )
+
     # Carregar .env do diretório base (prioritário no executável)
     load_dotenv(BASE_DIR / '.env', override=False)
     # Fallback para execução a partir do diretório corrente
@@ -47,6 +53,12 @@ class Config:
     # Database configuration
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{INSTANCE_PATH}/prontuario.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Sincronização offline-first. O SQLite nunca pode apontar para caminho UNC.
+    SYNC_ENABLED = _env_bool('SYNC_ENABLED', False)
+    SYNC_ROOT = (os.getenv('SYNC_ROOT') or '').strip()
+    SYNC_INTERVAL_SECONDS = int(os.getenv('SYNC_INTERVAL_SECONDS', '5'))
+    SYNC_START_WORKER = _env_bool('SYNC_START_WORKER', False)
     
     # Security
     FLASK_ENV = os.getenv('FLASK_ENV', 'production')

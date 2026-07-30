@@ -15,6 +15,11 @@ class SetupDependenciesTests(unittest.TestCase):
             installer.GREENLET_SHA256,
             hashlib.sha256(installer.GREENLET_WHEEL.read_bytes()).hexdigest(),
         )
+        self.assertTrue(installer.CRYPTO_WHEEL.is_file())
+        self.assertEqual(
+            installer.CRYPTO_SHA256,
+            hashlib.sha256(installer.CRYPTO_WHEEL.read_bytes()).hexdigest(),
+        )
 
     def test_pip_error_classification(self):
         self.assertEqual(
@@ -32,6 +37,7 @@ class SetupDependenciesTests(unittest.TestCase):
         installer_source = (ROOT / 'scripts' / 'install_windows_dependencies.py').read_text(encoding='utf-8')
         self.assertIn('install_windows_dependencies.py', batch)
         self.assertIn('greenlet-2.0.2-cp311-cp311-win32.whl', batch)
+        self.assertIn('pycryptodome-3.23.0-cp37-abi3-win32.whl', batch)
         self.assertIn("'--only-binary=:all:'", installer_source)
         self.assertIn("'--no-deps', '--force-reinstall'", installer_source)
         self.assertNotIn('pip install -r requirements.txt', batch)

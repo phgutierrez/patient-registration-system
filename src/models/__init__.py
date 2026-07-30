@@ -8,8 +8,14 @@ from src.models.surgery_request import SurgeryRequest
 from src.models.calendar_cache import CalendarCache
 from src.models.calendar_event_status import CalendarEventStatus
 from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
+from src.models.sync import (
+    DeviceSettings, DocumentTemplateArchive, GeneratedDocumentSnapshot, SyncAppliedEvent,
+    SyncAuditRevision, SyncDeviceState, SyncOutbox,
+)
 
 __all__ = [
     'User', 'Patient', 'SurgeryRequest', 'CalendarCache', 'CalendarEventStatus',
     'Specialty', 'SpecialtySettings', 'SpecialtyProcedure',
+    'DeviceSettings', 'DocumentTemplateArchive', 'GeneratedDocumentSnapshot', 'SyncAppliedEvent',
+    'SyncAuditRevision', 'SyncDeviceState', 'SyncOutbox',
 ]

@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / 'requirements.txt'
 GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
 GREENLET_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
+CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
+CRYPTO_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
 PIP_LOG = ROOT / 'build' / 'setup_pip.log'
 
 
@@ -62,21 +64,34 @@ def run_pip(arguments: list[str]) -> None:
         raise DependencyInstallError(code, messages[code])
 
 
-def validate_local_wheel() -> None:
-    if not GREENLET_WHEEL.is_file():
-        raise DependencyInstallError('WHEEL_MISSING', 'Wheel local do greenlet não encontrado.')
-    actual = hashlib.sha256(GREENLET_WHEEL.read_bytes()).hexdigest()
-    if actual != GREENLET_SHA256:
-        raise DependencyInstallError('WHEEL_CORRUPT', 'SHA-256 do wheel local do greenlet é inválido.')
+def validate_local_wheels() -> None:
+    wheels = (
+        (GREENLET_WHEEL, GREENLET_SHA256, 'greenlet'),
+        (CRYPTO_WHEEL, CRYPTO_SHA256, 'PyCryptodome'),
+    )
+    for wheel, expected_hash, label in wheels:
+        if not wheel.is_file():
+            raise DependencyInstallError(
+                'WHEEL_MISSING', f'Wheel local do {label} não encontrado.'
+            )
+        actual = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        if actual != expected_hash:
+            raise DependencyInstallError(
+                'WHEEL_CORRUPT', f'SHA-256 do wheel local do {label} é inválido.'
+            )
 
 
 def validate_binary_imports() -> None:
+    from Crypto.Cipher import AES
+    import Crypto
     import greenlet
     import greenlet._greenlet as greenlet_binary
     import pymupdf
     import pyodbc
     import sqlalchemy
 
+    if Crypto.__version__ != '3.23.0' or AES.MODE_GCM != 11:
+        raise DependencyInstallError('IMPORT_INVALID', 'PyCryptodome/AES-GCM não passou na validação.')
     if greenlet.__version__ != '2.0.2':
         raise DependencyInstallError('IMPORT_INVALID', 'Versão inesperada do greenlet instalada.')
     if not str(greenlet_binary.__file__).casefold().endswith('.pyd'):
@@ -97,8 +112,9 @@ def install() -> None:
     bits = platform.architecture()[0]
     print(f'Python {platform.python_version()} ({bits}); somente wheels binários serão aceitos.')
     if bits == '32bit' and sys.version_info[:2] == (3, 11):
-        validate_local_wheel()
+        validate_local_wheels()
         run_pip(['install', '--no-deps', '--force-reinstall', str(GREENLET_WHEEL)])
+        run_pip(['install', '--no-deps', '--force-reinstall', str(CRYPTO_WHEEL)])
     else:
         run_pip(['install', '--only-binary=:all:', 'greenlet==2.0.2'])
 

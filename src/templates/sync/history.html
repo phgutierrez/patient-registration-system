@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Histórico de sincronização{% endblock %}
+{% block content %}
+<main class="container py-4">
+  <div class="page-header mb-4">
+    <div>
+      <span class="page-eyebrow">ADMINISTRAÇÃO</span>
+      <h1 class="h3 mb-1">Histórico de sincronização</h1>
+      <p class="text-secondary mb-0">Versões substituídas pela resolução de conflitos entre estações.</p>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Entidade</th>
+            <th>Campo</th>
+            <th>Resultado</th>
+            <th class="text-end">Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for revision in revisions %}
+          <tr>
+            <td>{{ revision.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td><code>{{ revision.entity_type }}</code></td>
+            <td>{{ revision.field_name }}</td>
+            <td>
+              <span class="badge {{ 'text-bg-success' if revision.accepted else 'text-bg-secondary' }}">
+                {{ 'Aplicada' if revision.accepted else 'Mantida local' }}
+              </span>
+            </td>
+            <td class="text-end">
+              {% if revision.previous_value_json %}
+              <form method="post" action="{{ url_for('sync.restore_revision', revision_id=revision.id) }}"
+                    onsubmit="return confirm('Restaurar esta versão? A restauração será sincronizada como uma nova alteração.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Restaurar</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-secondary py-5">Nenhum conflito registrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+{% endblock %}

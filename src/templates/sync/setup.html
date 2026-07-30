@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Configurar sincronização{% endblock %}
+{% block content %}
+<section class="container py-4" style="max-width:760px">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4 p-lg-5">
+      <span class="text-primary fw-bold text-uppercase small">Implantação multiestação</span>
+      {% if runtime.error %}<div class="alert alert-danger mt-3">{{ runtime.error }}</div>{% endif %}
+      {% if runtime.recovery_key_once %}
+      <h1 class="h3 mt-2">Guarde a chave de recuperação</h1>
+      <p>Ela será necessária uma única vez em cada novo computador. Não salve esta chave na pasta compartilhada.</p>
+      <div class="alert alert-warning">
+        Sem esta chave e sem uma estação já pareada, os dados criptografados não poderão ser recuperados.
+      </div>
+      <label class="form-label fw-semibold">Chave da implantação</label>
+      <textarea class="form-control font-monospace" rows="3" readonly>{{ runtime.recovery_key_once }}</textarea>
+      <form method="post" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="confirm_recovery">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" value="yes" name="saved_recovery" id="savedRecovery" required>
+          <label class="form-check-label" for="savedRecovery">Guardei a chave em local seguro fora dos computadores.</label>
+        </div>
+        <button class="btn btn-primary" type="submit">Confirmar e continuar</button>
+      </form>
+      {% elif runtime.pairing_required %}
+      <h1 class="h3 mt-2">Parear este computador</h1>
+      <p>Informe a chave de recuperação gerada na primeira estação.</p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="pair">
+        <label class="form-label fw-semibold" for="recoveryKey">Chave de recuperação</label>
+        <textarea class="form-control font-monospace" rows="3" id="recoveryKey" name="recovery_key" required autocomplete="off"></textarea>
+        <button class="btn btn-primary mt-3" type="submit">Parear estação</button>
+      </form>
+      {% else %}
+      <h1 class="h3 mt-2">Sincronização configurada</h1>
+      <p class="mb-0">Esta estação já possui a chave da implantação.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

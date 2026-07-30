@@ -6,7 +6,10 @@ from .renderer import render_acroform
 from .validators import validate_generated_pdf
 
 
-def generate_pdf(document_type: str, values: Mapping[str, object], app_root: Path) -> bytes:
+def generate_pdf(
+    document_type: str, values: Mapping[str, object], app_root: Path,
+    *, template_bytes: bytes | None = None,
+) -> bytes:
     spec = get_document_spec(document_type)
     normalized = {key: str(value or '') for key, value in values.items()}
     output_pages = spec.output_pages(normalized)
@@ -15,7 +18,7 @@ def generate_pdf(document_type: str, values: Mapping[str, object], app_root: Pat
         if normalized.get(name, '').strip()
     )
     result = render_acroform(
-        spec.template_path(Path(app_root)),
+        template_bytes or spec.template_path(Path(app_root)),
         normalized,
         expected_template_pages=spec.expected_template_pages,
         output_pages=output_pages,

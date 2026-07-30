@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib.metadata
+import hashlib
+import json
 import os
 import sqlite3
 import struct
@@ -19,7 +21,11 @@ REQUIRED_PACKAGES = {
     'waitress': '3.0.2',
     'PyMuPDF': '1.28.0',
     'python-dotenv': '1.2.2',
+    'pycryptodome': '3.23.0',
 }
+CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
+CRYPTO_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
+
 REQUIRED_TEMPLATES = (
     ROOT / 'src' / 'static' / 'Internacao.pdf',
     ROOT / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
@@ -57,6 +63,33 @@ def verify() -> bool:
         except importlib.metadata.PackageNotFoundError:
             valid &= fail(f'Dependência ausente: {package}')
 
+    try:
+        from Crypto.Cipher import AES
+        from src.sync.crypto import (
+            LocalKeyStore, decrypt_json, encrypt_json, generate_master_key,
+        )
+        key = generate_master_key()
+        header = {'kind': 'verify', 'format': 1}
+        encrypted = encrypt_json(key, {'ok': True}, header)
+        if decrypt_json(key, encrypted, header) != {'ok': True}:
+            valid &= fail('AES-256-GCM não concluiu o round-trip.')
+        else:
+            with tempfile.TemporaryDirectory(prefix='prs-dpapi-') as key_dir:
+                store = LocalKeyStore(Path(key_dir) / 'sync.key')
+                store.save(key)
+                if store.load() != key:
+                    valid &= fail('DPAPI não recuperou a chave local corretamente.')
+                else:
+                    ok('AES-256-GCM e armazenamento local da chave validados.')
+    except Exception as exc:
+        valid &= fail(f'Criptografia/DPAPI indisponível: {exc}')
+
+    if not CRYPTO_WHEEL.is_file():
+        valid &= fail('Wheel win32 local do PyCryptodome não encontrado.')
+    elif hashlib.sha256(CRYPTO_WHEEL.read_bytes()).hexdigest() != CRYPTO_SHA256:
+        valid &= fail('SHA-256 do wheel local do PyCryptodome é inválido.')
+    else:
+        ok('Wheel win32 do PyCryptodome validado por SHA-256.')
     env_path = ROOT / '.env'
     if not env_path.exists():
         valid &= fail('.env não encontrado.')
@@ -94,7 +127,13 @@ def verify() -> bool:
             } if 'specialty_settings' in tables else set()
         if check != 'ok':
             valid &= fail(f'Integridade do banco falhou: {check}')
-        required = {'users', 'specialties', 'specialty_settings', 'specialty_procedures', 'patient', 'surgery_requests'}
+        required = {
+            'users', 'specialties', 'specialty_settings', 'specialty_procedures',
+            'patient', 'surgery_requests', 'sync_outbox', 'sync_applied_events',
+            'sync_device_state', 'sync_audit_revisions',
+            'generated_document_snapshots', 'document_template_archives',
+            'device_settings',
+        }
         missing = sorted(required - tables)
         if missing:
             valid &= fail('Tabelas ausentes: ' + ', '.join(missing))

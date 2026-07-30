@@ -52,7 +52,7 @@ def get_specialty_settings(specialty=None):
     sp = specialty or get_active_specialty()
     if sp is None:
         return None
-    return SpecialtySettings.query.filter_by(specialty_id=sp.id).first()
+    return SpecialtySettings.query.filter_by(specialty_id=sp.id, sync_deleted=False).first()
 
 
 def get_specialty_procedures(specialty=None) -> List:
@@ -65,7 +65,7 @@ def get_specialty_procedures(specialty=None) -> List:
         return []
     return (
         SpecialtyProcedure.query
-        .filter_by(specialty_id=sp.id, is_active=True)
+        .filter_by(specialty_id=sp.id, is_active=True, sync_deleted=False)
         .order_by(SpecialtyProcedure.sort_order, SpecialtyProcedure.id)
         .all()
     )
@@ -103,7 +103,7 @@ def get_specialty_users(specialty=None) -> List:
     sp = specialty or get_active_specialty()
     if sp is None:
         return []
-    return User.query.filter_by(specialty_id=sp.id).all()
+    return User.query.filter_by(specialty_id=sp.id, sync_deleted=False).all()
 
 
 def get_user_choices(specialty=None) -> List[Tuple[str, str]]:

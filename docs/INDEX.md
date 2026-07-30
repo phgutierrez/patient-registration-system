@@ -8,8 +8,9 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 1. [QUICK_START.md](QUICK_START.md) — instalação e execução em poucos passos.
 2. [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) — implantação detalhada.
-3. [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md) — referência rápida de comandos.
-4. [security/README.md](security/README.md) — checklist e guias de segurança.
+3. [MULTISTATION_SYNC.md](MULTISTATION_SYNC.md) — implantação compartilhada, pareamento e recuperação.
+4. [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md) — referência rápida de comandos.
+5. [security/README.md](security/README.md) — checklist e guias de segurança.
 
 ---
 
@@ -18,6 +19,7 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 ### Instalação e operação
 - [QUICK_START.md](QUICK_START.md)
 - [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)
+- [MULTISTATION_SYNC.md](MULTISTATION_SYNC.md)
 - [COMANDOS_ESSENCIAIS.md](COMANDOS_ESSENCIAIS.md)
 
 ### Segurança
@@ -35,6 +37,7 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 - [REVERSAO_FORMS.md](REVERSAO_FORMS.md)
 
 ### Produto e histórico
+- [CHANGELOG_V2.6.md](CHANGELOG_V2.6.md)
 - [CHANGELOG_V2.5.md](CHANGELOG_V2.5.md)
 - [PRD.md](PRD.md)
 
@@ -87,4 +90,4 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 ## 📌 Versão atual da documentação
 
 - Versão: **v2.6**
-- Última atualização: **março/2026**
+- Última atualização: **julho/2026**

@@ -3,12 +3,13 @@ from flask_login import login_required, current_user
 from src.models.surgery_request import SurgeryRequest
 from src.models.patient import Patient
 from src.extensions import db, limiter
-from src.utils.pdf_utils import preencher_formulario_internacao, preencher_requisicao_hemocomponente
+from src.pdf.snapshots import (
+    create_request_snapshots, ensure_legacy_snapshot, render_snapshot,
+)
 from src.forms.surgery_form import SurgeryRequestForm
 from src.runtime_security import (
     ensure_patient_access,
     ensure_surgery_access,
-    get_protected_pdf_path,
     require_admin,
 )
 from src.services.specialty_service import (
@@ -16,11 +17,13 @@ from src.services.specialty_service import (
     get_procedure_code_map, get_sus_code_for_procedure, get_specialty_settings,
 )
 from datetime import datetime
+from io import BytesIO
 import os
 import logging
 import json
 import unicodedata
 import re
+import uuid
 
 surgery = Blueprint('surgery', __name__)
 logger = logging.getLogger(__name__)
@@ -139,37 +142,28 @@ def _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, o
     surgery_request.opme = opme_value
 
 
-def _safe_remove_generated_file(filename):
-    if not filename:
-        return
-    try:
-        file_path = get_protected_pdf_path(filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    except Exception as e:
-        logger.warning(f"Não foi possível remover arquivo antigo '{filename}': {e}")
-
-
-def _confirmation_redirect(surgery_request):
-    return redirect(url_for('surgery.confirmation', surgery_id=surgery_request.id))
-
-
-def _send_authorized_pdf(surgery_request, filename, download_name, *, as_attachment):
+def _send_authorized_pdf(surgery_request, document_type, download_name, *, as_attachment):
     access_error = ensure_surgery_access(surgery_request)
     if access_error:
         return access_error
 
-    if not filename:
-        flash('O arquivo PDF não foi encontrado.', 'danger')
-        return redirect(url_for('patients.view_patient', id=surgery_request.patient_id))
-
-    pdf_path = get_protected_pdf_path(filename)
-    if not pdf_path.exists():
-        flash('O arquivo PDF não foi encontrado.', 'danger')
-        return redirect(url_for('patients.view_patient', id=surgery_request.patient_id))
+    try:
+        snapshot = ensure_legacy_snapshot(surgery_request, document_type, current_user)
+        if snapshot is None:
+            flash('Este documento não se aplica à solicitação.', 'warning')
+            return _confirmation_redirect(surgery_request)
+        pdf_bytes = render_snapshot(snapshot)
+    except Exception:
+        logger.exception(
+            'Falha ao regenerar PDF surgery_id=%s documento=%s',
+            surgery_request.id,
+            document_type,
+        )
+        flash('Não foi possível regenerar o PDF solicitado.', 'danger')
+        return _confirmation_redirect(surgery_request)
 
     response = send_file(
-        pdf_path,
+        BytesIO(pdf_bytes),
         mimetype='application/pdf',
         as_attachment=as_attachment,
         download_name=download_name,
@@ -177,21 +171,18 @@ def _send_authorized_pdf(surgery_request, filename, download_name, *, as_attachm
         max_age=0,
     )
     response.headers['Cache-Control'] = 'no-store'
-    response.headers['Content-Length'] = str(pdf_path.stat().st_size)
+    response.headers['Content-Length'] = str(len(pdf_bytes))
     if not as_attachment:
-        # This response is embedded only by the authenticated same-origin
-        # confirmation page. All HTML pages keep the global DENY policy.
         frame_policy = "frame-ancestors 'self'; object-src 'self'"
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Content-Security-Policy'] = frame_policy
         response.headers['Content-Security-Policy-Report-Only'] = frame_policy
     return response
 
-
 @surgery.route('/patient/<int:patient_id>/surgery/request', methods=['GET', 'POST'])
 @login_required
 def request_surgery(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
+    patient = Patient.query.filter_by(id=patient_id, sync_deleted=False).first_or_404()
     access_error = ensure_patient_access(patient)
     if access_error:
         return access_error
@@ -226,40 +217,14 @@ def request_surgery(patient_id):
             db.session.refresh(surgery_request)
             surgery_request_id = surgery_request.id  # Guarda o ID
 
-            # Gerar o PDF com os dados da solicitação
-            try:
-                # Passa o objeto surgery_request com ID para gerar o nome
-                pdf_path = preencher_formulario_internacao(
-                    patient, surgery_request)
-
-                # Gerar PDF de requisição de hemocomponente se sangue for reservado
-                pdf_hemocomponente = None
-                if surgery_request.reserva_sangue:
-                    pdf_hemocomponente = preencher_requisicao_hemocomponente(
-                        patient, surgery_request)
-                    if pdf_hemocomponente:
-                        hemo_filename = os.path.basename(pdf_hemocomponente)
-                        surgery_request.pdf_hemocomponente = hemo_filename
-
-                if pdf_path:
-                    pdf_filename = os.path.basename(pdf_path)
-                    # Salva o nome do arquivo no banco de dados
-                    surgery_request.pdf_filename = pdf_filename
-                    db.session.commit()  # Commit final com o nome do arquivo
-
-                    # Redirecionar para a página de confirmação
-                    return redirect(url_for('surgery.confirmation',
-                                            surgery_id=surgery_request_id))
-                else:
-                    db.session.commit()  # Commita mesmo se o PDF falhar
-                    flash('PDF gerado mas o caminho não foi retornado.', 'warning')
-                    return redirect(url_for('patients.view_patient', id=patient.id))
-            except Exception as e:
-                db.session.rollback()  # Rollback se a geração do PDF falhar *após* o flush
-                flash('Solicitação registrada, mas houve um erro ao gerar o PDF.', 'warning')
-                logger.exception("Erro ao gerar PDF")
-                return redirect(url_for('patients.view_patient', id=patient.id))
-
+            # Persiste somente os dados versionados; os bytes são descartados após validação.
+            create_request_snapshots(
+                patient, surgery_request, surgery_request.created_by_user or current_user
+            )
+            db.session.commit()
+            return redirect(url_for(
+                'surgery.confirmation', surgery_id=surgery_request_id
+            ))
         except Exception as e:
             db.session.rollback()  # Rollback se o salvamento inicial falhar
             flash('Erro ao registrar solicitação.', 'danger')
@@ -279,11 +244,11 @@ def request_surgery(patient_id):
 @surgery.route('/surgery/<int:surgery_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_surgery_request(surgery_id):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     access_error = ensure_surgery_access(surgery_request)
     if access_error:
         return access_error
-    patient = Patient.query.get_or_404(surgery_request.patient_id)
+    patient = Patient.query.filter_by(id=surgery_request.patient_id, sync_deleted=False).first_or_404()
 
     form = SurgeryRequestForm(obj=surgery_request)
 
@@ -303,41 +268,16 @@ def edit_surgery_request(surgery_id):
         opme_value = _build_opme_value(form)
 
         try:
-            old_pdf_filename = surgery_request.pdf_filename
-            old_hemo_filename = surgery_request.pdf_hemocomponente
-
             _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value)
             db.session.flush()
-
-            # Regenerar PDF principal para a mesma solicitação (substituição)
-            pdf_path = preencher_formulario_internacao(patient, surgery_request)
-            if pdf_path:
-                new_pdf_filename = os.path.basename(pdf_path)
-                surgery_request.pdf_filename = new_pdf_filename
-                if old_pdf_filename and old_pdf_filename != new_pdf_filename:
-                    _safe_remove_generated_file(old_pdf_filename)
-
-            # Regenerar PDF de hemocomponente, quando aplicável
-            if surgery_request.reserva_sangue:
-                pdf_hemocomponente = preencher_requisicao_hemocomponente(patient, surgery_request)
-                surgery_request.pdf_hemocomponente = (
-                    os.path.basename(pdf_hemocomponente) if pdf_hemocomponente else None
-                )
-                if (
-                    old_hemo_filename
-                    and surgery_request.pdf_hemocomponente
-                    and old_hemo_filename != surgery_request.pdf_hemocomponente
-                ):
-                    _safe_remove_generated_file(old_hemo_filename)
-            else:
-                surgery_request.pdf_hemocomponente = None
-                _safe_remove_generated_file(old_hemo_filename)
-
+            create_request_snapshots(
+                patient,
+                surgery_request,
+                surgery_request.created_by_user or current_user,
+            )
             db.session.commit()
-            flash('Solicitação atualizada com sucesso. PDF de internação substituído.', 'success')
-            if surgery_request.pdf_filename:
-                return _confirmation_redirect(surgery_request)
-            return redirect(url_for('patients.view_patient', id=patient.id))
+            flash('Solicitação atualizada. Uma nova revisão dos documentos foi registrada.', 'success')
+            return _confirmation_redirect(surgery_request)
         except Exception as e:
             db.session.rollback()
             flash('Erro ao atualizar solicitação.', 'danger')
@@ -359,11 +299,11 @@ def edit_surgery_request(surgery_id):
 @surgery.route('/surgery/<int:surgery_id>/confirmation')
 @login_required
 def confirmation(surgery_id):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     access_error = ensure_surgery_access(surgery_request)
     if access_error:
         return access_error
-    patient = Patient.query.get_or_404(surgery_request.patient_id)
+    patient = Patient.query.filter_by(id=surgery_request.patient_id, sync_deleted=False).first_or_404()
 
     # Usar a especialidade gravada na própria solicitação para evitar inconsistências
     sp = surgery_request.specialty or get_active_specialty()
@@ -406,14 +346,13 @@ def debug_pdf_generation():
         if not patient or not surgery_request:
             return "Nenhum paciente ou solicitação de cirurgia encontrado para teste", 404
         
-        # Tentar gerar o PDF
-        from src.utils.pdf_utils import preencher_formulario_internacao
-        pdf_path = preencher_formulario_internacao(patient, surgery_request)
-        
+        snapshot = ensure_legacy_snapshot(surgery_request, 'internacao')
+        pdf_bytes = render_snapshot(snapshot)
+
         return f"""
         <h2>Teste de Geração de PDF</h2>
-        <p><strong>Status:</strong> PDF gerado com sucesso!</p>
-        <p><strong>Caminho:</strong> {pdf_path}</p>
+        <p><strong>Status:</strong> PDF regenerado em memória com sucesso.</p>
+        <p><strong>Tamanho:</strong> {len(pdf_bytes)} bytes</p>
         <p><a href="{url_for('surgery.view_pdf', surgery_id=surgery_request.id)}" target="_blank">Clique aqui para visualizar o PDF</a></p>
         <p><a href="javascript:history.back()">Voltar</a></p>
         """
@@ -432,10 +371,10 @@ def debug_pdf_generation():
 @login_required
 @limiter.limit('30 per hour')
 def download_pdf(surgery_id):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     return _send_authorized_pdf(
         surgery_request,
-        surgery_request.pdf_filename,
+        'internacao',
         f"Internacao_{surgery_request.patient_id}.pdf",
         as_attachment=True,
     )
@@ -443,7 +382,7 @@ def download_pdf(surgery_id):
 @surgery.route('/surgery/<int:surgery_id>/pdf/<path:pdf_name>')
 @login_required
 def download_pdf_legacy(surgery_id, pdf_name):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     if surgery_request.pdf_filename != os.path.basename(pdf_name):
         flash('O arquivo PDF solicitado não corresponde à solicitação.', 'danger')
         return redirect(url_for('patients.view_patient', id=surgery_request.patient_id))
@@ -454,10 +393,10 @@ def download_pdf_legacy(surgery_id, pdf_name):
 @login_required
 @limiter.limit('30 per hour')
 def view_pdf(surgery_id):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     return _send_authorized_pdf(
         surgery_request,
-        surgery_request.pdf_filename,
+        'internacao',
         f"Internacao_{surgery_request.patient_id}.pdf",
         as_attachment=False,
     )
@@ -468,7 +407,7 @@ def view_pdf(surgery_id):
 @limiter.limit('20 per hour')
 def download_pdf_hemocomponente(surgery_id):
     """Rota para download do PDF de requisição de hemocomponente"""
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     access_error = ensure_surgery_access(surgery_request)
     if access_error:
         return access_error
@@ -479,7 +418,7 @@ def download_pdf_hemocomponente(surgery_id):
 
     return _send_authorized_pdf(
         surgery_request,
-        surgery_request.pdf_hemocomponente,
+        'hemocomponente',
         f"Requisicao_Hemocomponente_{surgery_request.patient_id}.pdf",
         as_attachment=True,
     )
@@ -488,7 +427,7 @@ def download_pdf_hemocomponente(surgery_id):
 @surgery.route('/surgery/<int:surgery_id>/pdf-hemocomponente/<path:pdf_name>')
 @login_required
 def download_pdf_hemocomponente_legacy(surgery_id, pdf_name):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     if surgery_request.pdf_hemocomponente != os.path.basename(pdf_name):
         flash('O arquivo PDF solicitado não corresponde à solicitação.', 'danger')
         return _confirmation_redirect(surgery_request)
@@ -499,13 +438,13 @@ def download_pdf_hemocomponente_legacy(surgery_id, pdf_name):
 @login_required
 @limiter.limit('20 per hour')
 def view_pdf_hemocomponente(surgery_id):
-    surgery_request = SurgeryRequest.query.get_or_404(surgery_id)
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
     if not surgery_request.reserva_sangue:
         flash('Nenhuma reserva de sangue foi solicitada para esta cirurgia.', 'warning')
         return _confirmation_redirect(surgery_request)
     return _send_authorized_pdf(
         surgery_request,
-        surgery_request.pdf_hemocomponente,
+        'hemocomponente',
         f"Requisicao_Hemocomponente_{surgery_request.patient_id}.pdf",
         as_attachment=False,
     )
@@ -524,11 +463,11 @@ def schedule_preview(id):
     
     try:
         # Buscar solicitação e paciente
-        surgery_request = SurgeryRequest.query.get_or_404(id)
+        surgery_request = SurgeryRequest.query.filter_by(id=id, sync_deleted=False).first_or_404()
         access_error = ensure_surgery_access(surgery_request)
         if access_error:
             return access_error
-        patient = Patient.query.get_or_404(surgery_request.patient_id)
+        patient = Patient.query.filter_by(id=surgery_request.patient_id, sync_deleted=False).first_or_404()
         
         # Verificar se já foi agendado
         already_scheduled = surgery_request.calendar_status == 'agendado'
@@ -594,12 +533,35 @@ def schedule_confirm(id):
     
     try:
         # Buscar solicitação e paciente
-        surgery_request = SurgeryRequest.query.get_or_404(id)
+        surgery_request = SurgeryRequest.query.filter_by(id=id, sync_deleted=False).first_or_404()
         access_error = ensure_surgery_access(surgery_request)
         if access_error:
             return access_error
-        patient = Patient.query.get_or_404(surgery_request.patient_id)
-        
+        patient = Patient.query.filter_by(id=surgery_request.patient_id, sync_deleted=False).first_or_404()
+        request_payload = request.get_json(silent=True) or {}
+
+        from src.sync import sync_service
+        runtime = sync_service.runtime
+        if runtime and runtime.ready:
+            try:
+                sync_service.sync_once()
+                db.session.refresh(surgery_request)
+            except Exception:
+                logger.warning(
+                    'Sincronização prévia indisponível para surgery_id=%s', id
+                )
+
+        if surgery_request.scheduled_result_uncertain:
+            return jsonify({
+                'ok': False,
+                'code': 'EXTERNAL_RESULT_UNCERTAIN',
+                'message': (
+                    'Uma tentativa anterior ficou com resultado incerto. '
+                    'Verifique o Google Forms antes de tentar novamente.'
+                ),
+                'attempt_id': surgery_request.scheduled_attempt_id,
+            }), 409
+
         # Verificar se já foi agendado
         if surgery_request.calendar_status == 'agendado':
             return jsonify({
@@ -625,8 +587,8 @@ def schedule_confirm(id):
         # Montar payload
         try:
             defaults = build_forms_payload(surgery_request, patient)
-            payload = validate_schedule_payload(request.get_json(silent=True) or {}, defaults)
-            reference = f'[SOLICITACAO:{surgery_request.id}]'
+            payload = validate_schedule_payload(request_payload, defaults)
+            reference = f'[SOLICITACAO:{surgery_request.sync_uuid}]'
             if reference not in payload['full_description']:
                 referenced_description = (
                     payload['full_description'].rstrip() + '\n\n' + reference
@@ -653,8 +615,44 @@ def schedule_confirm(id):
             if m:
                 form_public_id = m.group(1)
 
-        # Submeter ao Google Forms
-        success, message, status_code = submit_form(form_public_id, payload, timeout)
+        coordination = None
+        attempt_id = str(uuid.uuid4())
+        if runtime and runtime.enabled:
+            from src.services.external_coordination import acquire_forms_lock
+            coordination = acquire_forms_lock(surgery_request.sync_uuid)
+            attempt_id = coordination.attempt_uuid
+            if not coordination.available and not request_payload.get(
+                'allow_offline_duplicate_risk', False
+            ):
+                return jsonify({
+                    'ok': False,
+                    'code': 'SYNC_OFFLINE_CONFIRMATION_REQUIRED',
+                    'requires_offline_confirmation': True,
+                    'message': (
+                        'A pasta de sincronização está indisponível. O envio '
+                        'pode ser duplicado por outra estação. Confirme para continuar.'
+                    ),
+                }), 409
+            if coordination.available and not coordination.acquired:
+                return jsonify({
+                    'ok': False,
+                    'code': 'EXTERNAL_ATTEMPT_IN_PROGRESS',
+                    'message': coordination.message,
+                }), 409
+
+        surgery_request.scheduled_attempt_id = attempt_id
+        surgery_request.scheduled_result_uncertain = True
+        surgery_request.calendar_status = 'enviando'
+        db.session.commit()
+        sync_service.wake()
+
+        try:
+            success, message, status_code = submit_form(
+                form_public_id, payload, timeout
+            )
+        finally:
+            if coordination is not None:
+                coordination.release()
 
         if success:
             # Atualizar registro com dados do agendamento
@@ -664,6 +662,7 @@ def schedule_confirm(id):
             # Não temos event_id/link direto (será criado pelo Apps Script da planilha)
             # Mas podemos adicionar link para o Forms ou deixar None
             surgery_request.scheduled_event_link = None  # Será criado pelo Apps Script
+            surgery_request.scheduled_result_uncertain = False
             
             db.session.commit()
             
@@ -672,11 +671,15 @@ def schedule_confirm(id):
             return jsonify({
                 'ok': True,
                 'message': 'Agendamento enviado com sucesso! O evento será criado automaticamente no Google Calendar.',
-                'scheduledAt': surgery_request.scheduled_at.isoformat()
+                'scheduledAt': surgery_request.scheduled_at.isoformat(),
+                'attempt_id': attempt_id
             })
         else:
             # Salvar status de erro
-            surgery_request.calendar_status = 'erro'
+            surgery_request.scheduled_result_uncertain = status_code in (500, 502, 504)
+            surgery_request.calendar_status = (
+                'incerto' if surgery_request.scheduled_result_uncertain else 'erro'
+            )
             db.session.commit()
             logger.error(f"Falha ao enviar cirurgia {id} ao Forms: {message} (status {status_code})")
 

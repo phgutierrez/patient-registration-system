@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import hashlib
+import json
 import os
 import struct
 import subprocess
@@ -24,6 +25,9 @@ BASELINE_FILES = 920
 BASELINE_BYTES = 81_126_589
 GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
 GREENLET_WHEEL_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
+CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
+CRYPTO_WHEEL_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
+BUILD_VERSION = '2.1.0-sync1'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 
 DATA_FILES = (
@@ -42,6 +46,10 @@ HIDDEN_IMPORTS = (
     'greenlet._greenlet',
     'pymupdf',
     'pyodbc',
+    'Crypto',
+    'Crypto.Cipher.AES',
+    'Crypto.Cipher._mode_gcm',
+    'Crypto.Hash.BLAKE2s',
 )
 
 EXCLUDES = (
@@ -62,17 +70,24 @@ def assert_within_project(path: Path) -> Path:
 def assert_prerequisites() -> None:
     if sys.version_info[:2] != (3, 11) or struct.calcsize('P') * 8 != 32 or sysconfig.get_platform() != 'win32':
         raise RuntimeError('O build exige exatamente CPython 3.11 para Windows 32-bit (win32).')
-    required = [ENTRYPOINT, ROOT / 'requirements.txt', GREENLET_WHEEL, *(source for source, _ in DATA_FILES)]
+    required = [ENTRYPOINT, ROOT / 'requirements.txt', GREENLET_WHEEL, CRYPTO_WHEEL, *(source for source, _ in DATA_FILES)]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError('Arquivos obrigatórios ausentes:\n- ' + '\n- '.join(missing))
-    wheel_hash = hashlib.sha256(GREENLET_WHEEL.read_bytes()).hexdigest()
-    if wheel_hash != GREENLET_WHEEL_SHA256:
-        raise RuntimeError('O wheel local do greenlet falhou na verificação SHA-256.')
+    wheels = ((GREENLET_WHEEL, GREENLET_WHEEL_SHA256, 'greenlet'),
+              (CRYPTO_WHEEL, CRYPTO_WHEEL_SHA256, 'PyCryptodome'))
+    for wheel, expected_hash, label in wheels:
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        if wheel_hash != expected_hash:
+            raise RuntimeError(f'O wheel local do {label} falhou na verificação SHA-256.')
+    from Crypto.Cipher import AES
+    import Crypto
     import greenlet
     import pyodbc
     import sqlalchemy
     import pymupdf
+    if Crypto.__version__ != '3.23.0' or AES.MODE_GCM != 11:
+        raise RuntimeError('PyCryptodome/AES-GCM incompatível com o build.')
     if greenlet.__version__ != '2.0.2':
         raise RuntimeError(f'greenlet incompatível: esperado 2.0.2, encontrado {greenlet.__version__}.')
     if not str(greenlet._greenlet.__file__).lower().endswith('.pyd'):
@@ -130,10 +145,13 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
     executable = app_dir / f'{APP_NAME}.exe'
     required = (
         executable,
+        app_dir / 'build_manifest.json',
         app_dir / '_internal' / 'src' / 'templates',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'lifecycle.js',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'app-shell.js',
         app_dir / '_internal' / 'src' / 'static' / 'css' / 'app-shell.css',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'sync-status.js',
+        app_dir / '_internal' / 'src' / 'static' / 'css' / 'sync-status.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.min.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.bundle.min.js',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'fontawesome' / 'css' / 'all.min.css',
@@ -176,6 +194,23 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
     return len(files), sum(path.stat().st_size for path in files)
 
 
+def write_build_manifest(app_dir: Path) -> Path:
+    executable = app_dir / f'{APP_NAME}.exe'
+    payload = {
+        'application': APP_NAME,
+        'version': BUILD_VERSION,
+        'architecture': 'win32',
+        'python': '.'.join(map(str, sys.version_info[:3])),
+        'executable_sha256': hashlib.sha256(executable.read_bytes()).hexdigest(),
+        'generated_at': datetime.utcnow().isoformat() + 'Z',
+    }
+    path = app_dir / 'build_manifest.json'
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n',
+        encoding='utf-8',
+    )
+    return path
+
 def main() -> int:
     assert_prerequisites()
     run_stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -195,6 +230,7 @@ def main() -> int:
 
     print(f'Build {APP_NAME}: Python {sys.version.split()[0]} ({struct.calcsize("P") * 8}-bit)')
     PyInstaller.__main__.run(build_arguments(dist_root, run_root))
+    write_build_manifest(output)
     files, size = validate_distribution(output)
     LAST_BUILD_FILE.parent.mkdir(parents=True, exist_ok=True)
     LAST_BUILD_FILE.write_text(str(output / (APP_NAME + '.exe')) + '\n', encoding='utf-8')

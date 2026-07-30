@@ -130,20 +130,23 @@ ADMIN_BOOTSTRAP_USERNAME=
 ADMIN_BOOTSTRAP_PASSWORD=
 ADMIN_BOOTSTRAP_FULL_NAME=Administrador do Sistema
 ADMIN_BOOTSTRAP_SPECIALTY=ortopedia
+SYNC_ENABLED={os.getenv('SYNC_ENABLED', 'false')}
+SYNC_ROOT={os.getenv('SYNC_ROOT', '')}
+SYNC_INTERVAL_SECONDS=5
 """
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(content)
     logger.info(f"Arquivo .env criado automaticamente em: {env_path}")
 
 def get_base_dir():
-    """Retorna o diretório base correto, mesmo quando empacotado com PyInstaller"""
+    """Retorna o diretório local de dados, nunca a pasta compartilhada."""
+    local_data_root = (os.getenv('PRS_LOCAL_DATA_ROOT') or '').strip()
+    if local_data_root:
+        return os.path.abspath(local_data_root)
     if getattr(sys, 'frozen', False):
-        # Se executado como executável PyInstaller
-        # Usa o diretório onde o .exe está localizado, não o temporário
         return os.path.dirname(sys.executable)
-    else:
-        # Se executado como script Python normal
-        return os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(os.path.abspath(__file__))
+
 
 def signal_handler(signum, frame):
     """Handler para sinais de término"""
@@ -266,6 +269,7 @@ def initialize_app(base_dir=None):
         os.environ['INSTANCE_PATH'] = instance_path
         
         from src.app import app
+        from src.sync import sync_service
         
         logger.info(f'Diretório base: {base_dir}')
         logger.info(f'Diretório de instance: {instance_path}')
@@ -288,13 +292,35 @@ def initialize_app(base_dir=None):
                 logger.error(f'Erro ao inicializar banco de dados: {e}')
                 raise
         
-        # Criar dados iniciais se necessário
+        # Uma estação ainda não pareada deve reconstruir os dados compartilhados,
+        # nunca semear um catálogo paralelo antes de consumir os eventos.
         try:
-            create_initial_data(app)
+            runtime = sync_service.runtime
+            if runtime and runtime.enabled and runtime.pairing_required:
+                logger.info('Seed local adiado até o pareamento da estação.')
+            else:
+                create_initial_data(app)
         except Exception as e:
             logger.error(f'Erro ao criar dados iniciais: {e}')
             raise
         
+        with app.app_context():
+            from src.pdf.snapshots import migrate_legacy_document_snapshots
+            runtime = sync_service.runtime
+            if runtime and runtime.enabled and runtime.pairing_required:
+                logger.info(
+                    'Migração de documentos adiada até restaurar o checkpoint compartilhado.'
+                )
+            else:
+                migrated_documents = migrate_legacy_document_snapshots()
+                if migrated_documents:
+                    logger.info('Snapshots históricos criados: %s', migrated_documents)
+            if sync_service.runtime and sync_service.runtime.ready:
+                sync_service.enqueue_baseline()
+
+        if sync_service.runtime and sync_service.runtime.ready:
+            sync_service.start()
+            sync_service.wake()
         return app
     except Exception as e:
         logger.error(f'Erro ao inicializar aplicação: {e}', exc_info=True)
@@ -337,6 +363,9 @@ def _apply_mode(mode: str) -> tuple[str, int]:
 def main():
     """Inicia o servidor com Waitress"""
     try:
+        from src.services.local_runtime import maybe_relaunch_frozen_from_share
+        if maybe_relaunch_frozen_from_share():
+            return 0
         args = _parse_args()
         host, port = _apply_mode(args.mode)
         if args.check or args.self_check:
@@ -361,13 +390,25 @@ def main():
         logger.info(f'Iniciando servidor em http://{host}:{port}')
         logger.info(f"Desktop Mode: {os.getenv('DESKTOP_MODE', 'false')}")
         logger.info('Pressione CTRL+C para parar o servidor')
-        logger.info('Ou use o botão "Sair do Sistema" na interface')
+        logger.info('Ou use o botão "Encerrar sistema" na interface')
         logger.info('=' * 60)
         
         # Inicializar aplicação
         app = initialize_app(base_dir)
 
         if args.check or args.self_check:
+            from src.sync.crypto import (
+                decrypt_json, encrypt_json, generate_master_key,
+            )
+            crypto_key = generate_master_key()
+            crypto_header = {'kind': 'self-check', 'format': 1}
+            encrypted = encrypt_json(
+                crypto_key, {'status': 'ok'}, crypto_header
+            )
+            if decrypt_json(crypto_key, encrypted, crypto_header) != {
+                'status': 'ok'
+            }:
+                raise RuntimeError('Autoverificação AES-GCM falhou.')
             with app.test_client() as client:
                 response = client.get('/health')
                 if response.status_code != 200:
@@ -404,6 +445,8 @@ def main():
             url_scheme='http'
         )
         def cleanup_services():
+            from src.sync import sync_service
+            sync_service.stop()
             access_patient_service.invalidate()
             with app.app_context():
                 db.session.remove()

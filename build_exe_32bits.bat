@@ -16,10 +16,13 @@ set "VENV_DIR=.venv32"
 set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
 set "GREENLET_WHEEL=build_support\greenlet-2.0.2-cp311-cp311-win32.whl"
 set "GREENLET_SHA256=E3C43E42F4BDF29CC18E569B4097F948C0547B0A81C78A291E29169315A3B941"
+set "CRYPTO_WHEEL=build_support\pycryptodome-3.23.0-cp37-abi3-win32.whl"
+set "CRYPTO_SHA256=507DBEAD45474B62B2BBE318EB1C4C8EE641077532067FEC9C1AA82C31F84886"
 set "PIP_LOG=build\pip32.log"
 set "LAST_BUILD_FILE=build\last_build_32bits.txt"
 
 if not exist "%GREENLET_WHEEL%" goto :wheel_missing
+if not exist "%CRYPTO_WHEEL%" goto :wheel_missing
 if not exist "build" mkdir "build"
 
 if exist "%VENV_DIR%" (
@@ -60,12 +63,16 @@ if not exist "%VENV_PYTHON%" goto :venv_failed
 "%VENV_PYTHON%" -c "import struct,sys,sysconfig; print('Python', sys.version.split()[0], '-', struct.calcsize('P')*8, 'bits -', sysconfig.get_platform()); raise SystemExit(0 if sys.version_info[:2] == (3,11) and struct.calcsize('P')*8 == 32 and sysconfig.get_platform() == 'win32' else 1)"
 if errorlevel 1 goto :wrong_architecture
 
-echo [3/6] Verificando integridade do wheel win32 do greenlet...
+echo [3/6] Verificando integridade dos wheels win32 locais...
 "%VENV_PYTHON%" -c "import hashlib,pathlib,sys; p=pathlib.Path(r'%GREENLET_WHEEL%'); actual=hashlib.sha256(p.read_bytes()).hexdigest().upper(); print('SHA-256:', actual); raise SystemExit(0 if actual == r'%GREENLET_SHA256%' else 1)"
+if errorlevel 1 goto :wheel_invalid
+"%VENV_PYTHON%" -c "import hashlib,pathlib,sys; p=pathlib.Path(r'%CRYPTO_WHEEL%'); actual=hashlib.sha256(p.read_bytes()).hexdigest().upper(); print('SHA-256:', actual); raise SystemExit(0 if actual == r'%CRYPTO_SHA256%' else 1)"
 if errorlevel 1 goto :wheel_invalid
 
 echo [4/6] Instalando somente pacotes binarios, sem compilacao C...
 "%VENV_PYTHON%" -m pip install --disable-pip-version-check --no-deps --force-reinstall "%GREENLET_WHEEL%" --log "%PIP_LOG%"
+if errorlevel 1 goto :wheel_install_failed
+"%VENV_PYTHON%" -m pip install --disable-pip-version-check --no-deps --force-reinstall "%CRYPTO_WHEEL%" --log "%PIP_LOG%"
 if errorlevel 1 goto :wheel_install_failed
 "%VENV_PYTHON%" -m pip install --disable-pip-version-check --only-binary=:all: -r requirements.txt --log "%PIP_LOG%"
 if errorlevel 1 goto :dependency_failed
@@ -73,7 +80,7 @@ if errorlevel 1 goto :dependency_failed
 echo [5/6] Validando dependencias binarias...
 "%VENV_PYTHON%" -m pip check
 if errorlevel 1 goto :dependency_failed
-"%VENV_PYTHON%" -c "import struct,sys,sysconfig,PyInstaller,pymupdf,pyodbc,sqlalchemy; import greenlet; import greenlet._greenlet as gb; assert sys.version_info[:2] == (3,11); assert struct.calcsize('P')*8 == 32; assert sysconfig.get_platform() == 'win32'; assert greenlet.__version__ == '2.0.2'; assert gb.__file__.lower().endswith('.pyd'); assert pyodbc.__file__.lower().endswith('.pyd'); assert hasattr(pymupdf.Document, 'bake'); print('Binarios win32 validados:', gb.__file__, pyodbc.__file__)"
+"%VENV_PYTHON%" -c "import struct,sys,sysconfig,PyInstaller,pymupdf,pyodbc,sqlalchemy; from Crypto.Cipher import AES; import Crypto,greenlet; import greenlet._greenlet as gb; assert sys.version_info[:2] == (3,11); assert struct.calcsize('P')*8 == 32; assert sysconfig.get_platform() == 'win32'; assert greenlet.__version__ == '2.0.2'; assert Crypto.__version__ == '3.23.0' and AES.MODE_GCM == 11; assert gb.__file__.lower().endswith('.pyd'); assert pyodbc.__file__.lower().endswith('.pyd'); assert hasattr(pymupdf.Document, 'bake'); print('Binarios win32 validados:', gb.__file__, pyodbc.__file__)"
 if errorlevel 1 goto :binary_validation_failed
 
 echo [6/6] Gerando e validando o executavel onedir...
@@ -102,12 +109,12 @@ echo [ERRO] Execute este batch dentro da pasta completa do projeto.
 goto :failed
 
 :wheel_missing
-echo [ERRO] Wheel win32 local nao encontrado: %GREENLET_WHEEL%
+echo [ERRO] Wheel win32 local obrigatorio nao encontrado ^(greenlet ou PyCryptodome^).
 echo Copie novamente a pasta build_support junto com o projeto.
 goto :failed
 
 :wheel_invalid
-echo [ERRO] O wheel local do greenlet esta corrompido ou foi alterado.
+echo [ERRO] Um wheel local ^(greenlet ou PyCryptodome^) esta corrompido ou foi alterado.
 echo Baixe novamente a pasta completa do projeto.
 goto :failed
 
@@ -138,7 +145,7 @@ echo [ERRO] O ambiente precisa usar exatamente CPython 3.11 32-bit win32.
 goto :failed
 
 :wheel_install_failed
-echo [ERRO] O wheel greenlet incluido nao e compativel com este Python.
+echo [ERRO] Um wheel incluido nao e compativel com este Python.
 echo Confirme que esta usando CPython 3.11 32-bit. Detalhes: %PIP_LOG%
 goto :failed
 

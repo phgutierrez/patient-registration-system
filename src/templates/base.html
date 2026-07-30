@@ -15,6 +15,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app-shell.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sync-status.css') }}">
     {% block page_styles %}{% endblock %}
     <title>{% block title %}Sistema de Registro de Pacientes{% endblock %}</title>
 </head>
@@ -60,6 +61,12 @@
                 </li>
                 {% if current_user.is_authenticated %}
                 <li class="nav-item">
+                    <a href="{{ url_for('profile.profile') }}" class="nav-link{{ ' active' if request.endpoint == 'profile.profile' else '' }}" title="Meu perfil"{% if request.endpoint == 'profile.profile' %} aria-current="page"{% endif %}>
+                        <i class="fas fa-id-card"></i>
+                        <span class="nav-text">Meu Perfil</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ url_for('patients.new_patient') }}" class="nav-link{{ ' active' if request.endpoint == 'patients.new_patient' else '' }}" title="Cadastrar paciente"{% if request.endpoint == 'patients.new_patient' %} aria-current="page"{% endif %}>
                         <i class="fas fa-user-plus"></i>
                         <span class="nav-text">Cadastrar Paciente</span>
@@ -90,6 +97,12 @@
                         <span class="nav-text">Configurações</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('sync.history') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint == 'sync.history' else '' }}" title="Histórico de sincronização">
+                        <i class="fas fa-history"></i>
+                        <span class="nav-text">Histórico Sync</span>
+                    </a>
+                </li>
                 {% endif %}
                 {% else %}
                 <li class="nav-item">
@@ -104,7 +117,14 @@
         
         <!-- No modo rede, sair encerra apenas a sessão do usuário. -->
         <div class="sidebar-bottom">
-            {% if desktop_mode %}
+            {% if current_user.is_authenticated %}
+            <button type="button" id="syncStatusIndicator" class="sync-status-indicator"
+                    data-status-url="{{ url_for('sync.status') }}"
+                    data-sync-url="{{ url_for('sync.sync_now') }}" title="Sincronização">
+                <span class="sync-status-dot"></span>
+                <span class="sync-status-label">Verificando…</span>
+            </button>
+            {% endif %}            {% if desktop_mode %}
             <button onclick="shutdownServer(this)" class="btn btn-danger sidebar-logout-btn">
                 <i class="fas fa-power-off"></i>
                 <span class="sidebar-logout-text">Encerrar sistema</span>
@@ -151,7 +171,7 @@
     </footer>
 
     <script defer src="{{ url_for('static', filename='js/app-shell.js') }}"></script>
-    {% block page_scripts %}{% endblock %}
+    {% if current_user.is_authenticated %}<script defer src="{{ url_for('static', filename='js/sync-status.js') }}"></script>{% endif %}    {% block page_scripts %}{% endblock %}
     <script defer src="{{ url_for('static', filename='js/lifecycle.js') }}"></script>
 </body>
 

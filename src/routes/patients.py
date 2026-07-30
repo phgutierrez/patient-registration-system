@@ -102,7 +102,7 @@ def list_patients():
 @patients.route('/patient/<int:id>')
 @login_required
 def view_patient(id):
-    patient = Patient.query.get_or_404(id)
+    patient = Patient.query.filter_by(id=id, sync_deleted=False).first_or_404()
     access_error = ensure_patient_access(patient)
     if access_error:
         return access_error
@@ -112,7 +112,7 @@ def view_patient(id):
 @patients.route('/patient/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_patient(id):
-    patient = Patient.query.get_or_404(id)
+    patient = Patient.query.filter_by(id=id, sync_deleted=False).first_or_404()
     access_error = ensure_patient_access(patient)
     if access_error:
         return access_error
@@ -280,7 +280,7 @@ def check_patient_exists():
 @login_required
 def delete_patient(id):
     """Rota para excluir um paciente."""
-    patient = Patient.query.get_or_404(id)
+    patient = Patient.query.filter_by(id=id, sync_deleted=False).first_or_404()
     access_error = ensure_patient_access(patient)
     if access_error:
         return access_error

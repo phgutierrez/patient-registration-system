@@ -13,7 +13,7 @@ O fluxo central fica em `src/pdf/`:
 - `mappings.py`: aliases existentes e origem dos dados clínicos;
 - `renderer.py`: widgets, radio buttons, coordenadas e overflow;
 - `validators.py`: reabertura, páginas, conteúdo e ausência de widgets;
-- `storage.py`: escrita temporária única e substituição atômica;
+- `snapshots.py`: payloads versionados e regeneração histórica sob demanda;
 - `generator.py`: interface `generate_pdf(tipo, dados, app_root) -> bytes`.
 
 As funções públicas antigas em `src/utils/pdf_utils.py` permanecem disponíveis para
@@ -62,10 +62,16 @@ imagem.
 
 ## Validação e entrega HTTP
 
-Antes da gravação, campos essenciais são conferidos e suas regiões são renderizadas
-para provar que a aparência mudou. Depois do bake, os bytes são reabertos e são
-verificados: assinatura PDF, tamanho, páginas, conteúdo não vazio e zero widgets.
-Somente então ocorre a gravação atômica no diretório protegido.
+Campos essenciais são conferidos e suas regiões são renderizadas para provar que
+a aparência mudou. Depois do bake, os bytes são reabertos e são verificados:
+assinatura PDF, tamanho, páginas, conteúdo não vazio e zero widgets.
+
+O banco persiste somente snapshots versionados: payload, tipo, nome de download,
+usuário emissor, hash/versão do modelo e versão do renderer. Os bytes finais são
+regenerados em memória ao visualizar ou baixar e não são gravados em nenhuma
+estação. Cada versão de modelo é arquivada uma vez; na implantação multiestação,
+ela viaja dentro dos envelopes criptografados para preservar a reprodução de
+documentos históricos.
 
 As rotas entregam `application/pdf`, `Content-Disposition` inline ou attachment,
 `Content-Length` e `Cache-Control: no-store`. O frontend apenas usa links ou iframe;
@@ -86,7 +92,7 @@ Os artefatos fictícios ficam em `test_artifacts/pdf/`. Abra os mesmos arquivos 
 - Adobe Acrobat Reader ou visualizador nativo.
 
 Confira nomes, acentos, campos multilinha, radio buttons, páginas e fundo original.
-Os bytes não devem ser regenerados ou modificados entre os leitores.
+Os bytes recebidos não devem ser modificados pelos leitores.
 
 ## Motivo da migração
 

@@ -228,48 +228,44 @@ class ConcurrencyTests(unittest.TestCase):
 
 
 class HttpDeliveryTests(unittest.TestCase):
-    def test_pdf_response_is_binary_no_store_and_has_length(self):
+    PDF_BYTES = b'%PDF-1.4\n%%EOF\n'
+
+    def _response(self, *, as_attachment):
         from src.routes.surgery import _send_authorized_pdf
 
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'documento.pdf'
-            path.write_bytes(b'%PDF-1.4\n%%EOF\n')
-            app = Flask(__name__)
-            surgery = SimpleNamespace(patient_id=10)
-            with app.test_request_context('/surgery/1/pdf/view'):
-                with patch('src.routes.surgery.ensure_surgery_access', return_value=None), \
-                     patch('src.routes.surgery.get_protected_pdf_path', return_value=path):
-                    response = _send_authorized_pdf(
-                        surgery, path.name, 'Internacao_10.pdf', as_attachment=False
-                    )
-            self.assertEqual('application/pdf', response.mimetype)
-            self.assertEqual('no-store', response.headers['Cache-Control'])
-            self.assertEqual(str(path.stat().st_size), response.headers['Content-Length'])
-            self.assertIn('inline', response.headers['Content-Disposition'])
-            self.assertEqual('SAMEORIGIN', response.headers['X-Frame-Options'])
-            self.assertIn("frame-ancestors 'self'", response.headers['Content-Security-Policy'])
-            self.assertIn("frame-ancestors 'self'", response.headers['Content-Security-Policy-Report-Only'])
-            response.close()
+        app = Flask(__name__)
+        surgery = SimpleNamespace(patient_id=10)
+        snapshot = SimpleNamespace(document_type='internacao')
+        with app.test_request_context('/surgery/1/pdf/view'):
+            with patch('src.routes.surgery.ensure_surgery_access', return_value=None), \
+                 patch('src.routes.surgery.ensure_legacy_snapshot', return_value=snapshot), \
+                 patch('src.routes.surgery.render_snapshot', return_value=self.PDF_BYTES):
+                return _send_authorized_pdf(
+                    surgery, 'internacao', 'Internacao_10.pdf',
+                    as_attachment=as_attachment,
+                )
+
+    def test_pdf_response_is_binary_no_store_and_has_length(self):
+        response = self._response(as_attachment=False)
+        self.assertEqual('application/pdf', response.mimetype)
+        self.assertEqual('no-store', response.headers['Cache-Control'])
+        self.assertEqual(str(len(self.PDF_BYTES)), response.headers['Content-Length'])
+        self.assertIn('inline', response.headers['Content-Disposition'])
+        self.assertEqual('SAMEORIGIN', response.headers['X-Frame-Options'])
+        self.assertIn("frame-ancestors 'self'", response.headers['Content-Security-Policy'])
+        self.assertIn("frame-ancestors 'self'", response.headers['Content-Security-Policy-Report-Only'])
+        response.direct_passthrough = False
+        self.assertEqual(self.PDF_BYTES, response.get_data())
+        response.close()
 
     def test_download_does_not_receive_inline_frame_permission(self):
-        from src.routes.surgery import _send_authorized_pdf
-
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'documento.pdf'
-            path.write_bytes(b'%PDF-1.4\n%%EOF\n')
-            app = Flask(__name__)
-            surgery = SimpleNamespace(patient_id=10)
-            with app.test_request_context('/surgery/1/pdf'):
-                with patch('src.routes.surgery.ensure_surgery_access', return_value=None), \
-                     patch('src.routes.surgery.get_protected_pdf_path', return_value=path):
-                    response = _send_authorized_pdf(
-                        surgery, path.name, 'Internacao_10.pdf', as_attachment=True
-                    )
-            self.assertIn('attachment', response.headers['Content-Disposition'])
-            self.assertNotEqual('SAMEORIGIN', response.headers.get('X-Frame-Options'))
-            self.assertNotIn("frame-ancestors 'self'", response.headers.get('Content-Security-Policy', ''))
-            response.close()
-
+        response = self._response(as_attachment=True)
+        self.assertIn('attachment', response.headers['Content-Disposition'])
+        self.assertNotEqual('SAMEORIGIN', response.headers.get('X-Frame-Options'))
+        self.assertNotIn("frame-ancestors 'self'", response.headers.get('Content-Security-Policy', ''))
+        response.direct_passthrough = False
+        self.assertEqual(self.PDF_BYTES, response.get_data())
+        response.close()
 
 if __name__ == '__main__':
     unittest.main()

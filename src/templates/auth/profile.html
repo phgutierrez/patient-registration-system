@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Meu perfil{% endblock %}
+{% block content %}
+<section class="container py-4" style="max-width:920px">
+  <header class="page-heading mb-4">
+    <div>
+      <span class="page-eyebrow">Conta</span>
+      <h1 class="page-title">Meu perfil</h1>
+      <p class="page-subtitle">Atualize seus dados profissionais e seu PIN.</p>
+    </div>
+  </header>
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <form method="post" class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="update_profile">
+          <h2 class="h5 mb-3">Dados pessoais</h2>
+          <div class="mb-3">
+            <label class="form-label" for="fullName">Nome completo</label>
+            <input class="form-control" id="fullName" name="full_name" maxlength="100" required value="{{ current_user.full_name }}">
+          </div>
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="cns">CNS</label>
+              <input class="form-control" id="cns" name="cns" inputmode="numeric" maxlength="15" pattern="[0-9]{15}" value="{{ current_user.cns or '' }}">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="crm">CRM</label>
+              <input class="form-control" id="crm" name="crm" maxlength="20" value="{{ current_user.crm or '' }}">
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label" for="profilePin">PIN atual para confirmar</label>
+            <input class="form-control" id="profilePin" name="current_pin" type="password" required autocomplete="current-password">
+          </div>
+        </div>
+        <div class="card-footer bg-white border-0 px-4 pb-4">
+          <button class="btn btn-primary" type="submit">Salvar meus dados</button>
+        </div>
+      </form>
+    </div>
+    <div class="col-lg-5">
+      <form method="post" class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="change_pin">
+          <h2 class="h5 mb-3">Alterar PIN</h2>
+          <label class="form-label" for="pinCurrent">PIN atual</label>
+          <input class="form-control mb-3" id="pinCurrent" name="current_pin" type="password" required autocomplete="current-password">
+          <label class="form-label" for="pinNew">Novo PIN</label>
+          <input class="form-control mb-3" id="pinNew" name="new_pin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+          <label class="form-label" for="pinConfirm">Confirmar novo PIN</label>
+          <input class="form-control" id="pinConfirm" name="confirm_pin" type="password" inputmode="numeric" minlength="6" maxlength="6" pattern="[0-9]{6}" required autocomplete="new-password">
+        </div>
+        <div class="card-footer bg-white border-0 px-4 pb-4">
+          <button class="btn btn-outline-primary" type="submit">Alterar PIN</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

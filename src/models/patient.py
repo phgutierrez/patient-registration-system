@@ -1,8 +1,9 @@
 from datetime import datetime
 from src.extensions import db
+from src.models.sync import SyncMixin
 
 
-class Patient(db.Model):
+class Patient(SyncMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     # Prontuário com índice para otimizar buscas LAN
@@ -21,6 +22,7 @@ class Patient(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    superseded_by_uuid = db.Column(db.String(36), nullable=True, index=True)
     specialty = db.relationship('Specialty', foreign_keys=[specialty_id])
 
     # Adiciona o relacionamento reverso com cascade

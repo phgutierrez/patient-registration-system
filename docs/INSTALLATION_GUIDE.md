@@ -4,6 +4,8 @@
 
 *Guia completo de implantação para ambientes hospitalares/clínicas Windows*
 
+> Para executar o mesmo EXE em várias estações sem servidor dedicado, siga [MULTISTATION_SYNC.md](MULTISTATION_SYNC.md).
+
 ---
 
 ## Sumário
@@ -235,7 +237,7 @@ FLASK_DEBUG=0
 # Configuração do Servidor para LAN
 SERVER_HOST=0.0.0.0          # Ouvir em todas as interfaces
 SERVER_PORT=5000             # Porta padrão, mude se necessário
-DESKTOP_MODE=false           # Desabilitar auto-desligamento para LAN
+DESKTOP_MODE=false           # true habilita encerramento manual no localhost
 
 # Bootstrap do primeiro administrador
 ADMIN_BOOTSTRAP_USERNAME=admin.local
@@ -287,9 +289,7 @@ GOOGLE_FORMS_TIMEOUT=10
 
 ### 4.4 Configuração Avançada (Opcional)
 ```properties
-# Gerenciamento de Ciclo de Vida (Apenas Modo Desktop)
-LIFECYCLE_TIMEOUT_SECONDS=30      # Timeout de auto-desligamento
-LIFECYCLE_HEARTBEAT_SECONDS=5     # Intervalo de heartbeat
+# Encerramento do desktop é exclusivamente manual pelo botão da interface.
 
 # Timeout de Conexão do Banco de Dados
 # SQLALCHEMY_ENGINE_OPTIONS={"pool_timeout": 20, "pool_recycle": -1}
@@ -1157,7 +1157,7 @@ FLASK_DEBUG=0
 # Configuração do Servidor
 SERVER_HOST=0.0.0.0                    # 0.0.0.0 para acesso LAN, 127.0.0.1 apenas local
 SERVER_PORT=5000                       # Mudar se houver conflitos de porta
-DESKTOP_MODE=false                     # false para LAN/multi-usuário, true para auto-desligamento desktop
+DESKTOP_MODE=false                     # true habilita encerramento manual no localhost
 
 # Configuração do Banco de Dados (Opcional - padrão SQLite)
 # SQLALCHEMY_DATABASE_URI=sqlite:///instance/prontuario.db
@@ -1177,9 +1177,7 @@ GOOGLE_FORMS_PUBLIC_ID=
 GOOGLE_FORMS_VIEWFORM_URL=https://docs.google.com/forms/d/e/ID_PUBLICO/viewform
 GOOGLE_FORMS_TIMEOUT=10                # Timeout em segundos para envio do formulário
 
-# Gerenciamento de Ciclo de Vida (Apenas Modo Desktop)
-LIFECYCLE_TIMEOUT_SECONDS=30           # Timeout de auto-desligamento (modo desktop)
-LIFECYCLE_HEARTBEAT_SECONDS=5          # Intervalo de verificação de heartbeat (modo desktop)
+# Encerramento do desktop é exclusivamente manual pelo botão da interface.
 
 # Limites de Upload de Arquivo (Opcional)
 # MAX_CONTENT_LENGTH=16777216          # Tamanho máximo de arquivo 16MB
@@ -1205,10 +1203,9 @@ run_network.bat
 
 # Check server status
 netstat -an | findstr :5000
-curl http://localhost:5000/api/heartbeat
+curl http://localhost:5000/health
 
-# Stop server (Ctrl+C in terminal, or kill process)
-taskkill /IM python.exe /F
+# Stop server: use "Encerrar sistema" no desktop ou Ctrl+C no terminal.
 ```
 
 **Database Operations:**

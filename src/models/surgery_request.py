@@ -1,8 +1,9 @@
 from datetime import datetime
 from src.extensions import db
+from src.models.sync import SyncMixin
 
 
-class SurgeryRequest(db.Model):
+class SurgeryRequest(SyncMixin, db.Model):
     __tablename__ = 'surgery_requests'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -49,6 +50,13 @@ class SurgeryRequest(db.Model):
         back_populates='surgery_request',
         foreign_keys='CalendarEventStatus.surgery_request_id',
     )
+    document_snapshots = db.relationship(
+        'GeneratedDocumentSnapshot',
+        back_populates='surgery_request',
+        foreign_keys='GeneratedDocumentSnapshot.surgery_request_id',
+        cascade='all, delete-orphan',
+        order_by='GeneratedDocumentSnapshot.revision',
+    )
 
     # Metadados
     status = db.Column(db.String(20), default='Pendente')
@@ -60,6 +68,8 @@ class SurgeryRequest(db.Model):
     scheduled_event_id = db.Column(db.String(500), nullable=True)  # UID do evento no Google Calendar
     scheduled_event_link = db.Column(db.String(500), nullable=True)  # Link direto para o evento
     calendar_status = db.Column(db.String(20), nullable=True)  # 'agendado', 'erro', etc.
+    scheduled_attempt_id = db.Column(db.String(36), nullable=True, index=True)
+    scheduled_result_uncertain = db.Column(db.Boolean, nullable=False, default=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(

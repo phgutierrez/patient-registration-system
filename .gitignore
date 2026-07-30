@@ -109,3 +109,11 @@ update_templates.py
 *.accdb
 *.mdb
 src/static/*.accdb
+
+# Dados locais da sincronização multiestação
+_shared_data/
+deployment.local.json
+device.json
+sync.key
+recovery.confirmed
+migration_backup/

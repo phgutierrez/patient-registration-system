@@ -30,7 +30,7 @@ def _get_selected_specialty():
 def _get_specialty_users(specialty):
     return (
         User.query
-        .filter_by(specialty_id=specialty.id)
+        .filter_by(specialty_id=specialty.id, sync_deleted=False)
         .order_by(User.full_name.asc(), User.username.asc())
         .all()
     )
@@ -70,7 +70,7 @@ def select_user():
         return render_template('select_user.html', step='specialty', specialties=specialties)
 
     users = _get_specialty_users(specialty)
-    if User.query.count() == 0:
+    if User.query.filter_by(sync_deleted=False).count() == 0:
         if request_is_loopback():
             return redirect(url_for('auth.first_admin'))
         return render_template(
@@ -80,7 +80,7 @@ def select_user():
     pending_user = None
     pending_user_id = session.get('pending_user_id')
     if pending_user_id:
-        pending_user = User.query.get(pending_user_id)
+        pending_user = User.query.filter_by(id=pending_user_id, sync_deleted=False).first()
         if not pending_user or pending_user.specialty_id != specialty.id:
             session.pop('pending_user_id', None)
             pending_user = None
@@ -90,7 +90,7 @@ def select_user():
 
         if action == 'select_user':
             username = (request.form.get('username') or '').strip()
-            user = User.query.filter_by(username=username, specialty_id=specialty.id).first()
+            user = User.query.filter_by(username=username, specialty_id=specialty.id, sync_deleted=False).first()
             if not user:
                 flash('Solicitante não encontrado para a especialidade selecionada.', 'error')
             else:
@@ -142,11 +142,21 @@ def select_user():
 @limiter.limit('5 per minute', methods=['POST'])
 def first_admin():
     """Assistente único e local para destravar uma instalação vazia."""
-    if User.query.count() != 0:
+    if User.query.filter_by(sync_deleted=False).count() != 0:
         flash('O primeiro acesso já foi concluído.', 'info')
         return redirect(url_for('auth.select_user'))
-    if not request_is_loopback():
+    from src.sync import sync_service
+    runtime = sync_service.runtime
+    if runtime and runtime.enabled and not runtime.initial_device:
         return render_template(
+            'error.html', title='Configuração na estação inicial necessária',
+            message=(
+                'Somente a primeira estação pareada pode criar o primeiro '
+                'administrador. Sincronize esta estação ou conclua o cadastro '
+                'no computador que iniciou a implantação.'
+            ),
+        ), 403
+    if not request_is_loopback():        return render_template(
             'error.html', title='Configuração local necessária',
             message='Crie o primeiro administrador acessando o sistema no próprio servidor.'
         ), 403
@@ -162,7 +172,7 @@ def first_admin():
             # SQLite: serializa tentativas concorrentes antes da contagem definitiva.
             db.session.rollback()
             db.session.execute(text('BEGIN IMMEDIATE'))
-            if User.query.count() != 0:
+            if User.query.filter_by(sync_deleted=False).count() != 0:
                 db.session.rollback()
                 flash('Outro administrador concluiu o primeiro acesso.', 'warning')
                 return redirect(url_for('auth.select_user'))
@@ -276,7 +286,7 @@ def register_user():
 
     if request.method == 'POST' and request.form.get('action') == 'edit_user':
         user_id = request.form.get('user_id')
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id=user_id, sync_deleted=False).first()
 
         if user:
             try:
@@ -299,7 +309,7 @@ def register_user():
 
     if request.method == 'POST' and request.form.get('action') == 'reset_password':
         user_id = request.form.get('user_id')
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id=user_id, sync_deleted=False).first()
         if not user:
             flash('Usuário não encontrado.', 'error')
         else:
@@ -315,7 +325,7 @@ def register_user():
 
     if request.method == 'POST' and request.form.get('action') == 'delete_user':
         user_id = request.form.get('user_id')
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id=user_id, sync_deleted=False).first()
 
         if user:
             if user.id == current_user.id:
@@ -334,6 +344,6 @@ def register_user():
 
         return redirect(url_for('auth.register_user'))
 
-    users = User.query.order_by(User.role.desc(), User.full_name.asc()).all()
+    users = User.query.filter_by(sync_deleted=False).order_by(User.role.desc(), User.full_name.asc()).all()
     specialties = Specialty.query.filter_by(slug='ortopedia', is_active=True).all()
     return render_template('user_registration.html', users=users, specialties=specialties)

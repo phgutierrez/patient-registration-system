@@ -33,14 +33,14 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🏥 **Fluxo Hospitalar** - Gerenciamento completo de registro de pacientes e solicitações de cirurgia
 - 📅 **Integração Google Calendar** - Sincronização em tempo real com atualização de 60 segundos
 - 📄 **Geração Automática de PDFs** - Documentos finalizados no backend com PyMuPDF
-- 🌐 **Pronto para LAN** - Pronto para produção com servidor WSGI Waitress
+- 🌐 **Multiestação offline-first** - SQLite privado por computador e sincronização criptografada pela pasta compartilhada
 - ⚡ **Cache Rápido** - Cache de calendário TTL de 60 segundos com GET condicional
 - 🎯 **Agendamento Inteligente** - Integração Google Forms para eventos de calendário automatizados
 - 📊 **Rastreamento de Eventos** - Gerenciamento de status de cirurgia (realizada/suspensa)
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
-- 💾 **Armazenamento Confiável** - Banco de dados SQLite com gerenciamento automático de esquema
+- 💾 **Armazenamento Confiável** - SQLite local, outbox transacional, checkpoints e histórico restaurável
 
-### 🆕 Atualizações Recentes (Março/2026)
+### 🆕 Atualizações Recentes (Julho/2026)
 
 - ✅ Seed do executável alinhado ao setup completo (especialidades + usuários + procedimentos)
 - ✅ Usuários iniciais do EXE vinculados à especialidade (evita ortopedista sem especialidade)
@@ -152,12 +152,13 @@ src/
 ### Gerenciamento de Usuários
 - ✅ Cadastro de médicos/solicitantes
 - ✅ Campos CNS e CRM
-- ✅ Autenticação com senha, troca obrigatória na primeira entrada e escopo por especialidade
+- ✅ Autenticação com PIN, troca obrigatória na primeira entrada e escopo por especialidade
+- ✅ Autogestão de nome, CNS, CRM e PIN em **Meu Perfil**
 
 ### Recursos de Produção
 - ✅ **Servidor WSGI Waitress** (pronto para produção Windows)
 - ✅ **Implantação LAN** com binding 0.0.0.0
-- ✅ **Modo desktop** com auto-desligamento (apenas localhost)
+- ✅ **Modo desktop** com encerramento manual protegido (apenas localhost)
 - ✅ **Operações thread-safe** para acesso multi-usuário
 - ✅ **Proteção CSRF** e logging
 
@@ -177,7 +178,7 @@ src/
 # Configuração local rápida
 run_local.bat
 # Acesso: http://localhost:5000
-# Auto-desligamento quando o navegador fechar
+# O processo permanece ativo até clicar em "Encerrar sistema"
 ```
 
 ### 🌐 Implantação em Rede (LAN)
@@ -257,56 +258,31 @@ python run.py
 
 > 📖 **Guia Detalhado**: Veja [INSTALLATION_GUIDE.md](docs/INSTALLATION_GUIDE.md) para instruções completas de implantação hospitalar.
 
-## 🌐 Implantação em Rede (LAN)
+## 🌐 Implantação multiestação pela pasta compartilhada
 
-Para **implantação hospitalar multi-usuário**:
+O modo recomendado quando não existe um servidor disponível é manter a pasta
+`onedir` completa no compartilhamento e abrir o mesmo EXE em cada computador.
+O launcher copia automaticamente a versão para `%LOCALAPPDATA%`, cria um SQLite
+privado por estação e sincroniza alterações criptografadas em até cinco
+segundos. **Nunca coloque ou abra um SQLite compartilhado diretamente pela
+rede.**
 
-```bash
-# Opção 1: Script automatizado (recomendado)
-run_network.bat
+Na primeira estação, guarde a chave de recuperação exibida. Nas demais,
+informe essa chave para restaurar o checkpoint e parear o computador. O sistema
+continua funcionando offline e publica a outbox quando a rede retorna.
 
-# Opção 2: Configuração manual
-set SERVER_HOST=0.0.0.0
-set SERVER_PORT=5000
-set DESKTOP_MODE=false
-set FLASK_ENV=production
-waitress-serve --listen=0.0.0.0:5000 wsgi:application
-```
+> Leia o procedimento completo em [MULTISTATION_SYNC.md](docs/MULTISTATION_SYNC.md)
+> antes de migrar uma instalação com dados existentes.
 
-**Acesso na Rede:**
-- **Servidor local**: http://localhost:5000
-- **Outros computadores**: http://SEU_IP:5000 (ex: http://192.168.1.100:5000)
+O `run_network.bat` permanece disponível somente para instalações que possuam
+um computador servidor continuamente ligado e acesso de firewall. Ele não é
+necessário para a implantação offline-first pelo EXE compartilhado.
 
-> ⚠️ **Firewall**: Permita a porta 5000 no Windows Firewall para redes privadas
+### 🖥️ Implantação local (uma estação)
 
-### 🖥️ Implantação Local (Usuário Único)
-
-Para **desktop de usuário único** com auto-desligamento:
-
-```bash
-# Opção 1: Script automatizado
-run_local.bat
-
-# Opção 2: Configuração manual  
-set DESKTOP_MODE=true
-set SERVER_HOST=127.0.0.1
-waitress-serve --listen=127.0.0.1:5000 wsgi:application
-```
-
-### 🔧 Configuração do Windows Firewall (Modo Rede)
-
-Para permitir acesso de outros computadores:
-
-**Windows Firewall:**
-```bash
-# Permitir porta 5000 - Rede Privada
-netsh advfirewall firewall add rule name="Patient Registration System" dir=in action=allow protocol=TCP localport=5000 profile=private
-```
-
-**Configuração Manual:**
-1. Painel de Controle → Sistema e Segurança → Windows Firewall
-2. Configurações Avançadas → Regras de Entrada
-3. Nova Regra → Porta → TCP → Porta 5000 → Permitir → Perfil: Privado
+Use `run_local.bat` ou abra o executável. Fechar o navegador não encerra o
+servidor; use o botão **Encerrar sistema**. O endpoint de encerramento funciona
+somente no modo desktop e por conexão direta de `localhost`.
 
 ---
 
@@ -328,7 +304,7 @@ SESSION_IDLE_TIMEOUT_MINUTES=30
 # Configuração do Servidor
 SERVER_HOST=0.0.0.0        # 127.0.0.1 para local, 0.0.0.0 para LAN
 SERVER_PORT=5000
-DESKTOP_MODE=false         # true para auto-desligamento, false para LAN
+DESKTOP_MODE=false         # true habilita o botão de encerramento local
 
 # Bootstrap do primeiro administrador
 ADMIN_BOOTSTRAP_USERNAME=admin.local
@@ -465,15 +441,14 @@ taskkill /PID <process_id> /F
 # - Verificar se URL ICS está acessível
 ```
 
-**8. Erros de banco de dados bloqueado**
-```bash
-# Problema: Múltiplos processos acessando SQLite
-# Solução:
-# 1. Parar todas as instâncias do servidor
-# 2. Reiniciar uma vez com servidor WSGI correto
-# 3. Usar apenas um processo de servidor para SQLite
+**8. Sincronização indisponível ou alterações pendentes**
+```text
+# O atendimento continua no SQLite local.
+# 1. Verifique acesso de leitura/escrita à pasta compartilhada.
+# 2. Clique no indicador global para forçar a sincronização.
+# 3. Não mova o SQLite local para a rede e não edite _shared_data.
+# 4. Consulte docs/MULTISTATION_SYNC.md para pareamento e recuperação.
 ```
-
 ---
 
 ## 📊 Status Atual & Roadmap
@@ -484,14 +459,14 @@ taskkill /PID <process_id> /F
 - Integração Google Calendar com cache de 60 segundos
 - Agendamento automatizado via Google Forms
 - Rastreamento de status de eventos (realizada/suspensa)
-- Implantação LAN com Waitress
-- Suporte multi-usuário com autenticação básica
+- Implantação multiestação offline-first com envelopes AES-256-GCM
+- Perfil autogerenciável e autenticação com PIN
 
 ### ⚠️ Limitações Conhecidas
 - **Sem autenticação avançada** - Sistema simples de seleção de usuário
-- **Sem logs de auditoria** - Rastreamento limitado de atividades
-- **Banco único** - Apenas SQLite (sem PostgreSQL/MySQL)
-- **Sem permissões de usuário** - Todos os usuários têm acesso completo
+- **Consistência eventual** - alterações remotas podem levar até cinco segundos
+- **Sem servidor transacional central** - conflitos simultâneos usam última alteração por campo
+- **Pareamento obrigatório** - novas estações exigem a chave de recuperação
 - **Sem backup automatizado** - Backup manual necessário
 - **Viés para português brasileiro** - Alguns formulários/validações para o Brasil
 
@@ -507,12 +482,12 @@ taskkill /PID <process_id> /F
 
 ### 🏥 Status de Implantação Hospitalar
 - ✅ **Windows Server pronto** - Testado no Windows 10/11/Server
-- ✅ **Otimizado para LAN** - Binding 0.0.0.0 com instruções de firewall
+- ✅ **Otimizado para multiestação** - cópia local versionada e funcionamento offline
 - ✅ **Servidor de produção** - Waitress WSGI (sem servidor de desenvolvimento)
 - ✅ **Eficiente em recursos** - <50MB RAM, uso mínimo de CPU
-- ✅ **Persistência de dados** - SQLite com segurança de transação
+- ✅ **Persistência de dados** - SQLite local com outbox na mesma transação
 - ⚠️ **Backup obrigatório** - Backup manual do banco necessário
-- ⚠️ **Servidor único** - Sem clustering/alta disponibilidade
+- ⚠️ **Consistência eventual** - sem transação distribuída entre computadores
 
 ---
 
@@ -524,6 +499,7 @@ taskkill /PID <process_id> /F
 - **[.env.example](.env.example)** - Modelo de configuração com todas as variáveis
 - **[Requirements](requirements.txt)** - Dependências Python com versões
 - **[Geração de PDFs](docs/PDF_GENERATION.md)** - Inventário, mapeamentos, validação e testes PyMuPDF
+- **[Multiestação](docs/MULTISTATION_SYNC.md)** - Pareamento, criptografia, conflitos, recuperação e atualização
 
 ---
 

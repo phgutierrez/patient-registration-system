@@ -12,6 +12,7 @@ if not exist "requirements.txt" goto :bad_folder
 if not exist ".env.example" goto :bad_folder
 if not exist "scripts\install_windows_dependencies.py" goto :bad_folder
 if not exist "build_support\greenlet-2.0.2-cp311-cp311-win32.whl" goto :wheel_missing
+if not exist "build_support\pycryptodome-3.23.0-cp37-abi3-win32.whl" goto :wheel_missing
 
 set "VENV_DIR=.venv"
 set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
@@ -79,7 +80,7 @@ pause
 exit /b 0
 
 :wheel_missing
-echo [ERRO] O wheel binario local do greenlet nao foi encontrado.
+echo [ERRO] Um wheel binario local obrigatorio ^(greenlet ou PyCryptodome^) nao foi encontrado.
 echo Restaure a pasta build_support da distribuicao completa.
 goto :failure_exit
 

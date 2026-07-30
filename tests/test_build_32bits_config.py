@@ -19,6 +19,18 @@ class Build32BitsConfigurationTests(unittest.TestCase):
         checksum = wheel.with_suffix(wheel.suffix + '.sha256').read_text(encoding='utf-8')
         self.assertIn(build_exe_32bits.GREENLET_WHEEL_SHA256, checksum.lower())
 
+    def test_vendored_crypto_wheel_matches_declared_hash(self):
+        wheel = build_exe_32bits.CRYPTO_WHEEL
+        self.assertTrue(wheel.is_file())
+        self.assertEqual(
+            build_exe_32bits.CRYPTO_WHEEL_SHA256,
+            hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        )
+        checksum = wheel.with_suffix(wheel.suffix + '.sha256').read_text(
+            encoding='utf-8'
+        )
+        self.assertIn(build_exe_32bits.CRYPTO_WHEEL_SHA256, checksum.lower())
+
     def test_batch_requires_python_311_win32_and_binary_packages(self):
         source = (ROOT / 'build_exe_32bits.bat').read_text(encoding='utf-8')
         self.assertIn('py -3.11-32', source)
@@ -26,6 +38,7 @@ class Build32BitsConfigurationTests(unittest.TestCase):
         self.assertNotIn('py -3.12-32', source)
         self.assertIn('--only-binary=:all:', source)
         self.assertIn('--no-deps --force-reinstall "%GREENLET_WHEEL%"', source)
+        self.assertIn('--no-deps --force-reinstall "%CRYPTO_WHEEL%"', source)
         self.assertNotIn('--upgrade pip setuptools wheel', source)
         self.assertIn('GREENLET_SHA256=', source)
 

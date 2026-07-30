@@ -5,6 +5,7 @@ import os
 import secrets
 import shutil
 import sqlite3
+import uuid
 from functools import wraps
 from pathlib import Path
 
@@ -110,6 +111,9 @@ def ensure_security_schema(app) -> None:
                 """
             )
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_surgery_requests_created_by_user_id ON surgery_requests(created_by_user_id)')
+            add_column_if_missing('surgery_requests', 'scheduled_attempt_id', 'VARCHAR(36)')
+            add_column_if_missing('surgery_requests', 'scheduled_result_uncertain', 'BOOLEAN NOT NULL DEFAULT 0')
+            cursor.execute('CREATE INDEX IF NOT EXISTS ix_surgery_requests_scheduled_attempt_id ON surgery_requests(scheduled_attempt_id)')
 
         if 'calendar_event_status' in tables:
             add_column_if_missing('calendar_event_status', 'surgery_request_id', 'INTEGER')
@@ -126,6 +130,42 @@ def ensure_security_schema(app) -> None:
             add_column_if_missing('specialty_settings', 'access_source', "VARCHAR(20) NOT NULL DEFAULT 'network'")
             add_column_if_missing('specialty_settings', 'access_local_path', 'TEXT')
 
+        sync_tables = (
+            'users', 'patient', 'surgery_requests', 'specialties',
+            'specialty_settings', 'specialty_procedures', 'calendar_event_status',
+        )
+        for table_name in sync_tables:
+            if table_name not in tables:
+                continue
+            add_column_if_missing(table_name, 'sync_uuid', 'VARCHAR(36)')
+            add_column_if_missing(
+                table_name, 'sync_field_versions', "TEXT NOT NULL DEFAULT '{}'"
+            )
+            add_column_if_missing(
+                table_name, 'sync_deleted', 'BOOLEAN NOT NULL DEFAULT 0'
+            )
+            add_column_if_missing(table_name, 'sync_updated_at', 'DATETIME')
+            missing_ids = cursor.execute(
+                f'SELECT id FROM {table_name} WHERE sync_uuid IS NULL OR trim(sync_uuid) = ""'
+            ).fetchall()
+            for (row_id,) in missing_ids:
+                cursor.execute(
+                    f'UPDATE {table_name} SET sync_uuid = ?, '
+                    'sync_updated_at = coalesce(sync_updated_at, CURRENT_TIMESTAMP) '
+                    'WHERE id = ?',
+                    (str(uuid.uuid4()), row_id),
+                )
+            cursor.execute(
+                f'CREATE UNIQUE INDEX IF NOT EXISTS uq_{table_name}_sync_uuid '
+                f'ON {table_name}(sync_uuid)'
+            )
+
+        if 'patient' in tables:
+            add_column_if_missing('patient', 'superseded_by_uuid', 'VARCHAR(36)')
+            cursor.execute(
+                'CREATE INDEX IF NOT EXISTS ix_patient_superseded_by_uuid '
+                'ON patient(superseded_by_uuid)'
+            )
         conn.commit()
     finally:
         conn.close()
@@ -239,6 +279,8 @@ def ensure_surgery_access(surgery_request):
 
 
 def scoped_patients_query(query):
+    from src.models.patient import Patient
+    query = query.filter(Patient.sync_deleted.is_(False))
     if user_is_admin():
         return query
     user_specialty_id = getattr(current_user, 'specialty_id', None)
@@ -249,12 +291,13 @@ def scoped_patients_query(query):
 
 def scoped_surgery_requests_query(query):
     """Apply the same specialty boundary used by surgery detail routes."""
+    from src.models.surgery_request import SurgeryRequest
+    query = query.filter(SurgeryRequest.sync_deleted.is_(False))
     if user_is_admin():
         return query
     user_specialty_id = getattr(current_user, 'specialty_id', None)
     if not user_specialty_id:
         return query.filter(False)
-    from src.models.surgery_request import SurgeryRequest
     from src.models.patient import Patient
     return query.outerjoin(Patient, SurgeryRequest.patient_id == Patient.id).filter(
         (SurgeryRequest.specialty_id == user_specialty_id)

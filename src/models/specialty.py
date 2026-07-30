@@ -4,9 +4,10 @@ Cada especialidade possui configurações e catálogo de procedimentos próprios
 """
 from datetime import datetime
 from src.extensions import db
+from src.models.sync import SyncMixin
 
 
-class Specialty(db.Model):
+class Specialty(SyncMixin, db.Model):
     __tablename__ = 'specialties'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -29,7 +30,7 @@ class Specialty(db.Model):
         return f'<Specialty {self.slug}>'
 
 
-class SpecialtySettings(db.Model):
+class SpecialtySettings(SyncMixin, db.Model):
     __tablename__ = 'specialty_settings'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -51,7 +52,7 @@ class SpecialtySettings(db.Model):
         return f'<SpecialtySettings specialty_id={self.specialty_id}>'
 
 
-class SpecialtyProcedure(db.Model):
+class SpecialtyProcedure(SyncMixin, db.Model):
     __tablename__ = 'specialty_procedures'
 
     id = db.Column(db.Integer, primary_key=True)

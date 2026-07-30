@@ -3,9 +3,10 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.extensions import db
+from src.models.sync import SyncMixin
 
 
-class User(UserMixin, db.Model):
+class User(SyncMixin, UserMixin, db.Model):
     __tablename__ = 'users'  # Explicitly set table name
 
     id = db.Column(db.Integer, primary_key=True)

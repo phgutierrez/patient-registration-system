@@ -110,21 +110,28 @@ def _set_widget_value(widget: pymupdf.Widget, value: str) -> None:
 
 
 def render_acroform(
-    template_path: Path,
+    template_path: Path | bytes,
     values: Mapping[str, object],
     *,
     expected_template_pages: int,
     output_pages: int,
     required_fields: Iterable[str],
 ) -> RenderResult:
-    if not template_path.is_file():
-        raise PdfGenerationError(f'Modelo PDF não encontrado: {template_path.name}')
-
-    document = pymupdf.open(template_path)
+    if isinstance(template_path, bytes):
+        template_name = 'modelo-versionado.pdf'
+        document = pymupdf.open(stream=template_path, filetype='pdf')
+    else:
+        template_path = Path(template_path)
+        template_name = template_path.name
+        if not template_path.is_file():
+            raise PdfGenerationError(
+                f'Modelo PDF não encontrado: {template_name}'
+            )
+        document = pymupdf.open(template_path)
     try:
         if document.page_count != expected_template_pages:
             raise PdfGenerationError(
-                f'O modelo {template_path.name} possui {document.page_count} páginas; '
+                f'O modelo {template_name} possui {document.page_count} páginas; '
                 f'eram esperadas {expected_template_pages}.'
             )
         if output_pages < 1 or output_pages > document.page_count:
@@ -167,14 +174,14 @@ def render_acroform(
                 except Exception as exc:
                     logger.exception(
                         'Falha ao preencher PDF modelo=%s pagina=%s campo=%s',
-                        template_path.name, page_number + 1, widget.field_name,
+                        template_name, page_number + 1, widget.field_name,
                     )
                     raise PdfGenerationError(
                         f'Não foi possível preencher o campo {widget.field_name!r} na página {page_number + 1}.'
                     ) from exc
 
         if widget_count == 0:
-            raise PdfGenerationError(f'O modelo {template_path.name} não possui campos AcroForm.')
+            raise PdfGenerationError(f'O modelo {template_name} não possui campos AcroForm.')
 
         missing = [name for name in required if name not in resolved or not str(values.get(name, '')).strip()]
         if missing:

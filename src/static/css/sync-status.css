@@ -1,0 +1,51 @@
+.sync-status-indicator {
+  align-items: center;
+  background: rgba(255, 255, 255, .08);
+  border: 0;
+  border-radius: .75rem;
+  color: #dbe7ff;
+  cursor: pointer;
+  display: flex;
+  font-size: .78rem;
+  gap: .55rem;
+  margin-bottom: .65rem;
+  min-height: 2.25rem;
+  padding: .55rem .7rem;
+  text-align: left;
+  width: 100%;
+}
+
+.sync-status-indicator:hover,
+.sync-status-indicator:focus-visible {
+  background: rgba(255, 255, 255, .14);
+  outline: 2px solid rgba(117, 170, 255, .6);
+}
+
+.sync-status-dot {
+  background: #94a3b8;
+  border-radius: 50%;
+  box-shadow: 0 0 0 .2rem rgba(148, 163, 184, .14);
+  flex: 0 0 .55rem;
+  height: .55rem;
+  width: .55rem;
+}
+
+.sync-status-indicator.is-ok .sync-status-dot {
+  background: #22c55e;
+}
+
+.sync-status-indicator.is-pending .sync-status-dot {
+  background: #f59e0b;
+}
+
+.sync-status-indicator.is-error .sync-status-dot {
+  background: #ef4444;
+}
+
+body.sidebar-collapsed .sync-status-label {
+  display: none;
+}
+
+body.sidebar-collapsed .sync-status-indicator {
+  justify-content: center;
+}

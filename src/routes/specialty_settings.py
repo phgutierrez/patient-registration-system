@@ -158,7 +158,7 @@ def add_procedure(specialty_id):
         with _procedure_order_lock:
             greatest_order = (
                 db.session.query(db.func.max(SpecialtyProcedure.sort_order))
-                .filter(SpecialtyProcedure.specialty_id == specialty_id)
+                .filter(SpecialtyProcedure.specialty_id == specialty_id, SpecialtyProcedure.sync_deleted.is_(False))
                 .scalar()
             )
             proc = SpecialtyProcedure(
@@ -185,7 +185,7 @@ def add_procedure(specialty_id):
 @require_admin
 def edit_procedure(proc_id):
     proc = (SpecialtyProcedure.query.join(Specialty)
-            .filter(SpecialtyProcedure.id == proc_id, Specialty.slug == 'ortopedia')
+            .filter(SpecialtyProcedure.id == proc_id, SpecialtyProcedure.sync_deleted.is_(False), Specialty.slug == 'ortopedia')
             .first_or_404())
     proc.descricao = request.form.get('descricao', proc.descricao).strip()
     proc.codigo_sus = request.form.get('codigo_sus', '').strip() or None
@@ -208,7 +208,7 @@ def edit_procedure(proc_id):
 @require_admin
 def toggle_procedure(proc_id):
     proc = (SpecialtyProcedure.query.join(Specialty)
-            .filter(SpecialtyProcedure.id == proc_id, Specialty.slug == 'ortopedia')
+            .filter(SpecialtyProcedure.id == proc_id, SpecialtyProcedure.sync_deleted.is_(False), Specialty.slug == 'ortopedia')
             .first_or_404())
     proc.is_active = not proc.is_active
     try:
@@ -230,7 +230,7 @@ def toggle_procedure(proc_id):
 @require_admin
 def delete_procedure(proc_id):
     proc = (SpecialtyProcedure.query.join(Specialty)
-            .filter(SpecialtyProcedure.id == proc_id, Specialty.slug == 'ortopedia')
+            .filter(SpecialtyProcedure.id == proc_id, SpecialtyProcedure.sync_deleted.is_(False), Specialty.slug == 'ortopedia')
             .first_or_404())
     specialty_id = proc.specialty_id
     try:

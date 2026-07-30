@@ -2,9 +2,10 @@
 
 from datetime import datetime
 from src.extensions import db
+from src.models.sync import SyncMixin
 
 
-class CalendarEventStatus(db.Model):
+class CalendarEventStatus(SyncMixin, db.Model):
     """Persisted outcome and optional surgery link for a calendar event."""
     __tablename__ = 'calendar_event_status'
     
