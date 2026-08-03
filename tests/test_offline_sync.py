@@ -136,6 +136,9 @@ class TwoStationSyncTests(unittest.TestCase):
             sync_service.sync_once()
             user_b = User.query.filter_by(username='medico').one()
             self.assertEqual('Médico Inicial', user_b.full_name)
+            (sync_service.runtime.local_root / 'recovery.confirmed').write_text(
+                'paired\n', encoding='utf-8'
+            )
 
         # A altera o nome sem tocar no CRM.
         sync_service.configure(app_a)

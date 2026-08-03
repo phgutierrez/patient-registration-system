@@ -259,7 +259,7 @@ class SyncService:
         if not self.runtime or not self.runtime.ready:
             return 0
         checkpoint_dir = self.runtime.shared_root / 'checkpoints'
-        if not checkpoint_dir.is_dir() or SyncAppliedEvent.query.count():
+        if not checkpoint_dir.is_dir():
             return 0
         candidates = sorted(checkpoint_dir.glob('*.checkpoint'), reverse=True)
         if not candidates:
@@ -379,16 +379,27 @@ class SyncService:
         if not events_root.exists():
             return
         made_progress = True
-        rounds = 0
-        while made_progress and rounds < 4:
+        consumed = 0
+        max_events = max(
+            100,
+            int(self.app.config.get('SYNC_MAX_EVENTS_PER_CYCLE', 5000)),
+        )
+        while made_progress and consumed < max_events:
             made_progress = False
-            rounds += 1
             for source_dir in sorted(
                 (path for path in events_root.iterdir() if path.is_dir()),
                 key=lambda path: path.name,
             ):
                 if self._consume_source(source_dir.name, source_dir):
                     made_progress = True
+                    consumed += 1
+                    if consumed >= max_events:
+                        break
+        if consumed >= max_events:
+            logger.info(
+                'Limite de %s eventos atingido; o restante seguirá no próximo ciclo.',
+                max_events,
+            )
 
     def _consume_source(self, source_uuid: str, source_dir: Path) -> bool:
         state = self._device_state(source_uuid)
@@ -535,8 +546,14 @@ class SyncService:
             db.session.flush()
         except IntegrityError as exc:
             db.session.rollback()
+            constraint = str(getattr(exc, 'orig', exc)).split('[SQL:', 1)[0][:240]
+            logger.warning(
+                'Restrição local ao aplicar sync: entidade=%s motivo=%s',
+                adapter.entity_type,
+                constraint,
+            )
             raise RuntimeError(
-                f'Evento {event_uuid} violou uma restrição local.'
+                f'Não foi possível restaurar {adapter.entity_type}: {constraint}'
             ) from exc
         finally:
             db.session.info.pop('sync_applying', None)

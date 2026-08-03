@@ -15,6 +15,44 @@ from src.sync.crypto import SyncCryptoError
 sync_bp = Blueprint('sync', __name__, url_prefix='/sincronizacao')
 
 
+def _complete_station_sync(runtime) -> None:
+    """Conclui um pareamento já validado; pode ser repetido com segurança."""
+    if runtime is None or not runtime.master_key:
+        raise RuntimeError(
+            'A chave ainda não está disponível nesta estação. Informe-a novamente.'
+        )
+
+    # Um erro anterior torna runtime.ready falso. Limpe-o somente durante esta
+    # tentativa; qualquer nova falha volta a bloquear o uso e mantém o botão de
+    # recuperação visível.
+    runtime.error = None
+    try:
+        sync_service.restore_latest_checkpoint()
+        sync_service.sync_once()
+        sync_service.enqueue_baseline()
+        sync_service.start()
+        sync_service.wake()
+        (runtime.local_root / 'recovery.confirmed').write_text(
+            'paired\n', encoding='utf-8'
+        )
+    except Exception as exc:
+        runtime.error = str(exc)[:500]
+        raise
+
+
+def _flash_sync_failure(runtime, exc: Exception) -> None:
+    runtime.error = str(exc)[:500]
+    current_app.logger.warning(
+        'Falha ao concluir pareamento da estação: etapa=restauracao tipo=%s',
+        type(exc).__name__,
+    )
+    flash(
+        'A chave está salva, mas a sincronização não terminou. '
+        'Verifique o acesso à pasta compartilhada e tente novamente.',
+        'error',
+    )
+
+
 @sync_bp.route('/configurar', methods=['GET', 'POST'])
 def setup():
     runtime = sync_service.runtime
@@ -33,22 +71,47 @@ def setup():
         if action == 'pair':
             try:
                 sync_service.pair(request.form.get('recovery_key') or '')
-                with current_app.app_context():
-                    sync_service.restore_latest_checkpoint()
-                sync_service.sync_once()
-                sync_service.enqueue_baseline()
-                sync_service.start()
-                sync_service.wake()
-                (runtime.local_root / 'recovery.confirmed').write_text(
-                    'paired\n', encoding='utf-8'
-                )
+                runtime = sync_service.runtime
+                _complete_station_sync(runtime)
                 flash('Estação pareada. A sincronização foi iniciada.', 'success')
                 return redirect(url_for('auth.select_user'))
-            except (SyncCryptoError, OSError) as exc:
+            except SyncCryptoError as exc:
                 flash(str(exc), 'error')
-            except RuntimeError as exc:
-                runtime.error = str(exc)
-                flash('A chave é válida, mas os dados compartilhados falharam na validação.', 'error')
+            except (OSError, RuntimeError) as exc:
+                _flash_sync_failure(runtime, exc)
+        elif action == 'retry_sync':
+            try:
+                _complete_station_sync(runtime)
+                flash('Sincronização concluída. Esta estação está pronta.', 'success')
+                return redirect(url_for('auth.select_user'))
+            except (OSError, RuntimeError, SyncCryptoError) as exc:
+                _flash_sync_failure(runtime, exc)
+        elif action == 'reload_runtime':
+            try:
+                sync_service.stop()
+                runtime = sync_service.configure(
+                    current_app._get_current_object()
+                )
+                if runtime.ready:
+                    _complete_station_sync(runtime)
+                    flash(
+                        'A pasta compartilhada voltou a responder e a '
+                        'sincronização foi concluída.',
+                        'success',
+                    )
+                    return redirect(url_for('auth.select_user'))
+                if runtime.pairing_required:
+                    flash('Informe novamente a chave de recuperação.', 'info')
+                elif runtime.recovery_key_once:
+                    flash('Confirme que a chave inicial foi guardada.', 'info')
+                else:
+                    raise RuntimeError(
+                        runtime.error
+                        or 'A pasta compartilhada continua indisponível.'
+                    )
+            except (OSError, RuntimeError, SyncCryptoError) as exc:
+                runtime = sync_service.runtime or runtime
+                _flash_sync_failure(runtime, exc)
         elif action == 'confirm_recovery' and runtime.recovery_key_once:
             if request.form.get('saved_recovery') != 'yes':
                 flash('Confirme que a chave foi guardada em local seguro.', 'error')
@@ -59,9 +122,10 @@ def setup():
                 runtime.recovery_key_once = None
                 flash('Chave confirmada. A implantação está pronta.', 'success')
                 return redirect(url_for('auth.select_user'))
+        else:
+            flash('Ação de sincronização inválida.', 'error')
 
     return render_template('sync/setup.html', runtime=runtime)
-
 
 @sync_bp.get('/status')
 @login_required

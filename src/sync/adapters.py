@@ -134,13 +134,21 @@ class SyncAdapter:
             setattr(obj, reference.local_fk, None)
             return
         target_adapter = adapters_by_name()[reference.target_type]
-        target = target_adapter.model.query.filter_by(sync_uuid=str(value)).first()
+        # O objeto atual ainda pode não ter sua FK obrigatória. Uma query normal
+        # faria autoflush e tentaria inseri-lo incompleto antes de encontrarmos o
+        # alvo, causando NOT NULL em specialty_id/patient_id.
+        with db.session.no_autoflush:
+            target = target_adapter.model.query.filter_by(
+                sync_uuid=str(value)
+            ).first()
         if target is None:
             raise DeferredDependency(
                 f'{reference.target_type} {value} ainda não foi sincronizado.'
             )
         if target.id is None:
-            db.session.flush()
+            raise DeferredDependency(
+                f'{reference.target_type} {value} ainda não foi persistido.'
+            )
         setattr(obj, reference.local_fk, target.id)
 
 

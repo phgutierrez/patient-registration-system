@@ -53,6 +53,15 @@ Uma chave incorreta não é gravada no computador. Se o compartilhamento estiver
 temporariamente indisponível, uma estação já pareada continua funcionando; uma
 estação nova precisa aguardar a rede para concluir o pareamento.
 
+Se a chave for aceita, mas a restauração for interrompida, a tela permanece no
+modo de recuperação e oferece **Tentar sincronizar novamente**. Essa ação
+reutiliza com segurança a chave protegida pelo DPAPI e continua o checkpoint a
+partir das entidades já aplicadas; não é necessário apagar o banco local nem
+reiniciar o pareamento. Também ficam disponíveis **Recarregar acesso à pasta**
+e a opção de informar novamente a chave. O detalhe técnico pode ser expandido
+na própria tela para distinguir indisponibilidade do compartilhamento de uma
+falha de restauração.
+
 ## O que é sincronizado
 
 São sincronizados, por UUID:
@@ -150,6 +159,11 @@ Não mova somente o `.exe`: publique sempre a pasta `onedir` completa.
 ## Diagnóstico e recuperação
 
 - Clique no indicador de sincronização para forçar um ciclo.
+- Durante o primeiro pareamento, use **Tentar sincronizar novamente** quando a
+  restauração tiver sido interrompida. O processo é idempotente e preserva o
+  que já foi recebido.
+- Use **Recarregar acesso à pasta** quando a unidade ou o compartilhamento tiver
+  sido reconectado depois da abertura do aplicativo.
 - `Sincronizado`: sem eventos locais pendentes e último ciclo bem-sucedido.
 - `N pendentes`: dados estão seguros localmente, aguardando publicação.
 - `Sincronização indisponível`: verifique acesso e permissão de escrita na

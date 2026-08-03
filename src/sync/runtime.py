@@ -226,13 +226,22 @@ def initialize_runtime(config) -> SyncRuntime:
                 )
 
     _atomic_json(local_manifest_path, manifest)
+    device_uuid = _device_uuid(local_root)
+    initial_device = manifest.get('key_owner_device_uuid') == device_uuid
     key_store = LocalKeyStore(local_root / 'sync.key')
     recovery_once = None
+    runtime_error = None
     if key_store.exists():
         key = key_store.load()
         pairing_required = False
         if not (local_root / 'recovery.confirmed').exists():
-            recovery_once = format_recovery_key(key)
+            if initial_device:
+                recovery_once = format_recovery_key(key)
+            else:
+                runtime_error = (
+                    'O pareamento anterior não foi concluído. '
+                    'Tente sincronizar novamente.'
+                )
     elif created:
         key = generate_master_key()
         key_store.save(key)
@@ -241,7 +250,6 @@ def initialize_runtime(config) -> SyncRuntime:
     else:
         key = None
         pairing_required = True
-
     verifier_path = shared_root / 'key-verifier.json'
     try:
         verifier_missing = not verifier_path.exists()
@@ -269,9 +277,10 @@ def initialize_runtime(config) -> SyncRuntime:
         local_root,
         shared_root,
         str(manifest['deployment_id']),
-        _device_uuid(local_root),
+        device_uuid,
         key,
         pairing_required=pairing_required,
         recovery_key_once=recovery_once,
-        initial_device=(manifest.get('key_owner_device_uuid') == _device_uuid(local_root)),
+        error=runtime_error,
+        initial_device=initial_device,
     )
