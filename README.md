@@ -87,6 +87,8 @@ CalendarEventStatus
 
 - A página inicial usa somente o SQLite local para contadores e próximos procedimentos.
 - A lista de pacientes mantém busca e paginação no servidor, priorizando prontuário exato.
+- O detalhe do paciente reúne os dados clínicos e o histórico cirúrgico; cada solicitação abre diretamente sua confirmação para revisão, edição, PDFs e eventual envio à agenda.
+- Todos os médicos da Ortopedia podem consultar, acrescentar e corrigir procedimentos e códigos SUS. Integrações, ativação e exclusão permanecem administrativas.
 - A solicitação permanece em uma única página e os modelos locais contêm apenas dados clínicos reutilizáveis.
 - A agenda guarda uma cópia por especialidade. Dados expirados são exibidos imediatamente enquanto uma única atualização ocorre em segundo plano.
 - O modal da agenda registra `Pendente`, `Realizada` ou `Suspensa` sem recarregar a página. Quando o evento contém uma referência segura, o status da solicitação é atualizado na mesma transação.

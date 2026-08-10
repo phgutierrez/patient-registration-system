@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Procedimentos · {{ specialty.name }}{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/procedures.css') }}">{% endblock %}
+
+{% block content %}
+<div class="procedures-shell">
+  <header class="app-page-header procedures-heading">
+    <div>
+      <span class="eyebrow">Catálogo clínico · {{ specialty.name }}</span>
+      <h1>Procedimentos e códigos</h1>
+      <p>Consulte, corrija ou acrescente opções usadas nas solicitações cirúrgicas.</p>
+    </div>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('specialty_settings.index') }}" class="btn btn-outline-secondary"><i class="fas fa-sliders me-1"></i>Configurações administrativas</a>
+    {% endif %}
+  </header>
+
+  <section class="procedure-add-panel">
+    <div class="procedure-add-copy">
+      <span><i class="fas fa-plus"></i></span>
+      <div><h2>Novo procedimento</h2><p>O novo item será incluído no final da lista.</p></div>
+    </div>
+    <form method="post" action="{{ url_for('specialty_settings.add_procedure', specialty_id=specialty.id) }}" class="procedure-add-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="return_to" value="catalog">
+      <div><label for="newProcedureDescription">Descrição</label><input id="newProcedureDescription" class="form-control" name="descricao" maxlength="300" required placeholder="Ex.: Artroplastia total do quadril"></div>
+      <div><label for="newProcedureCode">Código SUS</label><input id="newProcedureCode" class="form-control" name="codigo_sus" maxlength="20" placeholder="Ex.: 0408040085"></div>
+      <button class="btn btn-primary" type="submit"><i class="fas fa-plus me-1"></i>Adicionar</button>
+    </form>
+  </section>
+
+  <section class="procedures-surface">
+    <div class="procedures-toolbar">
+      <div class="procedure-search"><i class="fas fa-search"></i><input id="procedureCatalogSearch" type="search" placeholder="Buscar por procedimento ou código" autocomplete="off"></div>
+      <span id="procedureCatalogCount">{{ procedures|length }} procedimento(s)</span>
+    </div>
+    {% if procedures %}
+    <div class="table-responsive">
+      <table class="table procedures-catalog-table mb-0">
+        <thead><tr><th>Procedimento</th><th>Código SUS</th><th>Status</th><th><span class="visually-hidden">Ações</span></th></tr></thead>
+        <tbody>
+        {% for proc in procedures %}
+          <tr data-procedure-row data-search="{{ (proc.descricao ~ ' ' ~ (proc.codigo_sus or ''))|lower }}" class="{{ 'is-inactive' if not proc.is_active else '' }}">
+            <td data-label="Procedimento"><strong>{{ proc.descricao }}</strong><small>Posição {{ loop.index }}</small></td>
+            <td data-label="Código SUS"><code>{{ proc.codigo_sus or 'Não informado' }}</code></td>
+            <td data-label="Status"><span class="procedure-state {{ 'is-active' if proc.is_active else '' }}">{{ 'Ativo' if proc.is_active else 'Inativo' }}</span></td>
+            <td class="procedure-actions-cell" data-label="Ações">
+              <div class="procedure-actions">
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editProcedure{{ proc.id }}"><i class="fas fa-pen me-1"></i>Editar</button>
+                {% if current_user.is_admin %}
+                <form method="post" action="{{ url_for('specialty_settings.toggle_procedure', proc_id=proc.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}" type="submit" title="{{ 'Desativar' if proc.is_active else 'Ativar' }}"><i class="fas {{ 'fa-eye-slash' if proc.is_active else 'fa-eye' }}"></i></button>
+                </form>
+                <form method="post" action="{{ url_for('specialty_settings.delete_procedure', proc_id=proc.id) }}" data-confirm-delete="{{ proc.descricao }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remover"><i class="fas fa-trash"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id="procedureCatalogEmpty" class="procedure-empty d-none"><i class="fas fa-search"></i><strong>Nenhum procedimento encontrado</strong><span>Revise o texto pesquisado ou acrescente uma nova opção.</span></div>
+    {% else %}
+    <div class="procedure-empty"><i class="fas fa-list-check"></i><strong>Catálogo vazio</strong><span>Use o formulário acima para cadastrar o primeiro procedimento.</span></div>
+    {% endif %}
+  </section>
+
+  {% if not current_user.is_admin %}<p class="procedure-permission-note"><i class="fas fa-circle-info"></i> Médicos podem acrescentar e corrigir descrições e códigos. Ativação e exclusão permanecem sob responsabilidade administrativa.</p>{% endif %}
+</div>
+
+{% for proc in procedures %}
+<div class="modal fade" id="editProcedure{{ proc.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" action="{{ url_for('specialty_settings.edit_procedure', proc_id=proc.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="return_to" value="catalog">
+      <div class="modal-header"><div><span class="eyebrow">Editar catálogo</span><h2 class="modal-title h5 mb-0">Procedimento</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label fw-semibold" for="procedureDescription{{ proc.id }}">Descrição</label><input id="procedureDescription{{ proc.id }}" class="form-control" name="descricao" maxlength="300" required value="{{ proc.descricao }}"></div>
+        <div><label class="form-label fw-semibold" for="procedureCode{{ proc.id }}">Código SUS</label><input id="procedureCode{{ proc.id }}" class="form-control" name="codigo_sus" maxlength="20" value="{{ proc.codigo_sus or '' }}"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar alteração</button></div>
+    </form>
+  </div></div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/procedures.js') }}"></script>{% endblock %}

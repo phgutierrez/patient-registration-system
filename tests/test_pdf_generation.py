@@ -90,9 +90,17 @@ class MappingTests(unittest.TestCase):
         match = resolve_mapping('Diagn�stico e Indica��o Cl�nica', values)
         self.assertIsNotNone(match)
         self.assertEqual('Reserva para cirurgia', match[1])
-        self.assertEqual('', values['DATA'])
+        self.assertEqual('19/07/2026', values['DATA'])
         self.assertEqual('X', values['PROGRAMADA Para determinada data e horaml de Concentrado de Hemácias'])
 
+    def test_hemocomponent_date_follows_admission_choice(self):
+        patient, surgery, requester = fake_records()
+        for internar_antes, expected in ((True, '19/07/2026'), (False, '20/07/2026')):
+            with self.subTest(internar_antes=internar_antes):
+                surgery.internar_antes = internar_antes
+                values = build_hemocomponente_mapping(patient, surgery, requester)
+                self.assertEqual(expected, values['DATA'])
+                self.assertEqual(expected, values['Data da Solicitação'])
     def test_hemocomponent_weight_calculation(self):
         patient, surgery, requester = fake_records()
         for weight, expected_weight, expected_calculation in (
@@ -140,6 +148,7 @@ class RendererTests(unittest.TestCase):
             self.assertIn('Reserva para cirurgia', text)
             self.assertIn('720', text)
             self.assertIn('29/02/1984', text)
+            self.assertIn('19/07/2026', text)
             self.assertNotIn('24/12/2031', text)
         finally:
             document.close()

@@ -249,6 +249,8 @@
                       <form method="POST"
                             action="{{ url_for('specialty_settings.toggle_procedure', proc_id=proc.id) }}"
                             class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="return_to" value="settings">
                         <button type="submit"
                                 class="btn btn-sm btn-icon {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}"
                                 title="{{ 'Desativar' if proc.is_active else 'Ativar' }}">
@@ -260,6 +262,8 @@
                             action="{{ url_for('specialty_settings.delete_procedure', proc_id=proc.id) }}"
                             class="d-inline"
                             onsubmit="return confirm('Remover este procedimento?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="return_to" value="settings">
                         <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="Remover">
                           <i class="fas fa-trash"></i>
                         </button>
@@ -278,6 +282,8 @@
                       </div>
                       <form method="POST"
                             action="{{ url_for('specialty_settings.edit_procedure', proc_id=proc.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="return_to" value="settings">
                         <div class="modal-body">
                           <div class="mb-3">
                             <label class="form-label fw-semibold">Descrição *</label>
@@ -310,6 +316,8 @@
           <h6 class="mb-2"><i class="fas fa-plus-circle me-1 text-primary"></i>Adicionar Procedimento</h6>
           <form method="POST"
                 action="{{ url_for('specialty_settings.add_procedure', specialty_id=esp.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="return_to" value="settings">
             <div class="row g-2 align-items-end">
               <div class="col-md-7">
                 <label class="form-label form-label-sm">Descrição *</label>

@@ -159,6 +159,10 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'agenda.js',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'patient-new.js',
         app_dir / '_internal' / 'src' / 'static' / 'css' / 'pages' / 'patient-new.css',
+        app_dir / '_internal' / 'src' / 'static' / 'css' / 'pages' / 'patient-view.css',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'patient-view.js',
+        app_dir / '_internal' / 'src' / 'static' / 'css' / 'pages' / 'procedures.css',
+        app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'procedures.js',
         app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
         app_dir / '_internal' / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
     )

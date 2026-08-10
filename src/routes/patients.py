@@ -2,9 +2,12 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from src.models.patient import Patient
+from src.models.surgery_request import SurgeryRequest
 from src.extensions import db, limiter
 from src.forms.patient_form import PatientForm
-from src.runtime_security import ensure_patient_access, scoped_patients_query
+from src.runtime_security import (
+    ensure_patient_access, scoped_patients_query, scoped_surgery_requests_query,
+)
 from src.services.specialty_service import get_active_specialty
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
@@ -106,7 +109,17 @@ def view_patient(id):
     access_error = ensure_patient_access(patient)
     if access_error:
         return access_error
-    return render_template('patient/view.html', patient=patient)
+    surgery_requests = (
+        scoped_surgery_requests_query(SurgeryRequest.query)
+        .filter(SurgeryRequest.patient_id == patient.id)
+        .order_by(SurgeryRequest.created_at.desc(), SurgeryRequest.id.desc())
+        .all()
+    )
+    return render_template(
+        'patient/view.html',
+        patient=patient,
+        surgery_requests=surgery_requests,
+    )
 
 
 @patients.route('/patient/<int:id>/edit', methods=['GET', 'POST'])

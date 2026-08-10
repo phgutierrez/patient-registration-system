@@ -29,6 +29,10 @@ que rotas e integrações não precisem conhecer detalhes do PyMuPDF.
 Os retângulos, fontes, tamanhos, alinhamentos e estados dos botões continuam vindo
 dos widgets dos próprios modelos. As páginas não são rasterizadas.
 
+Na requisição de hemocomponentes, o campo `DATA` representa a data efetiva de
+internação: véspera quando `internar_antes` estiver marcado e a própria data da
+cirurgia nos demais casos. A mesma regra alimenta o documento de internação.
+
 ## Mapeamentos e novos campos
 
 Para adicionar um alias, inclua-o no builder correspondente em `mappings.py`, sem

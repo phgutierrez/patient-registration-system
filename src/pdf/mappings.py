@@ -32,13 +32,26 @@ def _hemocomponent_weight_values(value: object) -> tuple[str, str]:
     return clean(decimal_value), clean(decimal_value * Decimal('10'))
 
 
+def _surgery_date_values(surgery) -> tuple[str, str]:
+    """Retorna datas de cirurgia e internação usando uma única regra."""
+    surgery_date = getattr(surgery, 'data_cirurgia', None)
+    if not surgery_date:
+        return '', ''
+    admission_date = getattr(surgery, 'data_internacao', None)
+    if admission_date is None:
+        admission_date = (
+            surgery_date - timedelta(days=1)
+            if getattr(surgery, 'internar_antes', False)
+            else surgery_date
+        )
+    return (
+        surgery_date.strftime('%d/%m/%Y'),
+        admission_date.strftime('%d/%m/%Y'),
+    )
+
 def build_internacao_mapping(patient, surgery, requester, now: datetime = None) -> Dict[str, object]:
     now = now or datetime.now()
-    data_cirurgia = surgery.data_cirurgia.strftime('%d/%m/%Y')
-    data_internacao = (
-        (surgery.data_cirurgia - timedelta(days=1)).strftime('%d/%m/%Y')
-        if surgery.internar_antes else data_cirurgia
-    )
+    data_cirurgia, data_internacao = _surgery_date_values(surgery)
     telefone = ''.join(filter(str.isdigit, patient.contato or ''))
     opme_raw = (surgery.opme or '').strip()
     opme = '' if not opme_raw or normalize_text(opme_raw) == 'nao se aplica' else opme_raw
@@ -102,6 +115,7 @@ def build_internacao_mapping(patient, surgery, requester, now: datetime = None) 
 def build_hemocomponente_mapping(patient, surgery, requester, now: datetime = None) -> Dict[str, object]:
     now = now or datetime.now()
     values: Dict[str, object] = {}
+    _surgery_date, admission_date = _surgery_date_values(surgery)
     weight, weight_times_ten = _hemocomponent_weight_values(getattr(surgery, 'peso', None))
     _aliases(values, ['Paciente', 'NomePaciente', 'Nome', 'Nome Paciente', 'Nome do Paciente'], patient.nome)
     _aliases(values, ['Idade', 'Idade_af_age'], patient.idade)
@@ -116,7 +130,7 @@ def build_hemocomponente_mapping(patient, surgery, requester, now: datetime = No
                       'Procedimento_af_text'], surgery.procedimento_solicitado)
     _aliases(values, ['CRM', 'CRM_af_text'], getattr(requester, 'crm', '') or '')
     _aliases(values, ['CNS', 'CNS_af_text'], getattr(requester, 'cns', '') or '')
-    _aliases(values, ['Data da Solicitação', 'Data_Solicitacao', 'DATA'], '')
+    _aliases(values, ['Data da Solicitação', 'Data_Solicitacao', 'DATA'], admission_date)
     _aliases(values, ['Hora da Solicitação'], now.strftime('%H:%M'))
     _aliases(values, ['Observações', 'Observacoes', 'Notas'], '')
     values['Prontuário'] = patient.prontuario or ''

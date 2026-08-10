@@ -156,6 +156,22 @@ class OperationalUiAgendaTests(unittest.TestCase):
         self.assertIn(b'Localizar procedimento', response.data)
         self.assertNotIn(b'prompt(', response.data)
 
+    def test_patient_detail_is_modern_and_links_old_requests_to_confirmation(self):
+        response = self.client.get(f'/patients/patient/{self.patient_id}')
+        self.assertEqual(200, response.status_code)
+        self.assertIn(b'patient-view.css', response.data)
+        self.assertIn(b'patient-view.js', response.data)
+        self.assertIn('Solicitações cirúrgicas'.encode('utf-8'), response.data)
+        confirmation_url = f'/surgery/{self.surgery_id}/confirmation'.encode()
+        self.assertIn(confirmation_url, response.data)
+        self.assertIn(b'data-request-url=', response.data)
+
+        confirmation = self.client.get(f'/surgery/{self.surgery_id}/confirmation')
+        self.assertEqual(200, confirmation.status_code)
+        self.assertIn(
+            f'/surgery/{self.surgery_id}/edit'.encode(), confirmation.data
+        )
+        self.assertIn('Editar dados'.encode('utf-8'), confirmation.data)
     def test_shared_shell_uses_modern_headers_and_single_sidebar_controller(self):
         response = self.client.get('/index')
         self.assertEqual(200, response.status_code)

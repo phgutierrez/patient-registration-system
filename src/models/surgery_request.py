@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.extensions import db
 from src.models.sync import SyncMixin
 
@@ -78,3 +78,11 @@ class SurgeryRequest(SyncMixin, db.Model):
     # Relacionamentos
     # A linha abaixo foi removida pois o backref em Patient.surgery_requests já cria este link.
     # patient = db.relationship('Patient')
+    @property
+    def data_internacao(self):
+        """Data efetiva de internação conforme a opção escolhida."""
+        if not self.data_cirurgia:
+            return None
+        if self.internar_antes:
+            return self.data_cirurgia - timedelta(days=1)
+        return self.data_cirurgia

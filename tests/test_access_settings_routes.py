@@ -100,6 +100,64 @@ class AccessSettingsRouteTests(unittest.TestCase):
         self.assertIn('Arquivo em rede'.encode('utf-8'), response.data)
         self.assertIn('Arquivo local'.encode('utf-8'), response.data)
 
+    def test_doctor_can_list_add_and_edit_but_not_administer_procedures(self):
+        with self.app.app_context():
+            doctor = User(
+                username='medico', password='123456', full_name='Médico',
+                role='user', specialty_id=self.specialty_id,
+            )
+            procedure = SpecialtyProcedure(
+                specialty_id=self.specialty_id,
+                descricao='Procedimento original', codigo_sus='100', sort_order=1,
+            )
+            db.session.add_all([doctor, procedure])
+            db.session.commit()
+            doctor_id = doctor.id
+            procedure_id = procedure.id
+
+        with self.client.session_transaction() as session:
+            session['_user_id'] = str(doctor_id)
+            session['_fresh'] = True
+
+        catalog = self.client.get('/configuracoes/procedimentos')
+        self.assertEqual(200, catalog.status_code)
+        self.assertIn('Procedimentos e códigos'.encode('utf-8'), catalog.data)
+        self.assertIn(b'procedureCatalogSearch', catalog.data)
+        self.assertEqual(403, self.client.get('/configuracoes/').status_code)
+
+        created = self.client.post(
+            f'/configuracoes/especialidade/{self.specialty_id}/procedimentos/add',
+            data={
+                'descricao': 'Procedimento do médico',
+                'codigo_sus': '200',
+                'return_to': 'catalog',
+            },
+        )
+        self.assertEqual(302, created.status_code)
+        edited = self.client.post(
+            f'/configuracoes/procedimentos/{procedure_id}/edit',
+            data={
+                'descricao': 'Procedimento corrigido',
+                'codigo_sus': '101',
+                'return_to': 'catalog',
+            },
+        )
+        self.assertEqual(302, edited.status_code)
+        self.assertEqual(
+            403,
+            self.client.post(
+                f'/configuracoes/procedimentos/{procedure_id}/toggle'
+            ).status_code,
+        )
+        with self.app.app_context():
+            updated = db.session.get(SpecialtyProcedure, procedure_id)
+            self.assertEqual('Procedimento corrigido', updated.descricao)
+            self.assertEqual('101', updated.codigo_sus)
+            self.assertIsNotNone(
+                SpecialtyProcedure.query.filter_by(
+                    descricao='Procedimento do médico', codigo_sus='200'
+                ).first()
+            )
     def test_new_procedure_is_appended_and_client_order_is_ignored(self):
         with self.app.app_context():
             db.session.add_all([

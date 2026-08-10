@@ -84,7 +84,12 @@
                         <span class="nav-text">Agenda Cirúrgica</span>
                     </a>
                 </li>
-                {% if current_user.is_admin %}
+                <li class="nav-item">
+                    <a href="{{ url_for('specialty_settings.procedures') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint in ['specialty_settings.procedures', 'specialty_settings.add_procedure', 'specialty_settings.edit_procedure'] else '' }}" title="Procedimentos"{% if request.endpoint == 'specialty_settings.procedures' %} aria-current="page"{% endif %}>
+                        <i class="fas fa-list-check"></i>
+                        <span class="nav-text">Procedimentos</span>
+                    </a>
+                </li>                {% if current_user.is_admin %}
                 <li class="nav-item">
                     <a href="{{ url_for('auth.register_user') }}" class="nav-link{{ ' active' if request.endpoint == 'auth.register_user' else '' }}" title="Cadastro de usuário"{% if request.endpoint == 'auth.register_user' %} aria-current="page"{% endif %}>
                         <i class="fas fa-user-cog"></i>

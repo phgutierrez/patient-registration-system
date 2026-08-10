@@ -2,10 +2,12 @@
 import threading
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
 from src.extensions import db, limiter
 from src.models.specialty import Specialty, SpecialtySettings, SpecialtyProcedure
-from src.runtime_security import require_admin, request_is_loopback
+from src.runtime_security import (
+    enforce_specialty_access, require_admin, request_is_loopback,
+)
 from src.services.access_patient_service import (
     AccessConfig, AccessLookupError, access_patient_service, validate_access_config,
 )
@@ -38,6 +40,47 @@ def _access_config_from_form(settings, *, enabled=None):
 def index():
     specialties = Specialty.query.filter_by(slug='ortopedia').all()
     return render_template('specialty_settings/index.html', specialties=specialties)
+
+
+@specialty_settings_bp.route('/procedimentos', methods=['GET'])
+@login_required
+def procedures():
+    specialty = Specialty.query.filter_by(slug='ortopedia', is_active=True).first_or_404()
+    access_error = enforce_specialty_access(
+        specialty.id,
+        'Você não pode alterar procedimentos de outra especialidade.',
+    )
+    if access_error:
+        return access_error
+    catalog = (
+        SpecialtyProcedure.query
+        .filter_by(specialty_id=specialty.id, sync_deleted=False)
+        .order_by(SpecialtyProcedure.sort_order, SpecialtyProcedure.id)
+        .all()
+    )
+    return render_template(
+        'specialty_settings/procedures.html',
+        specialty=specialty,
+        procedures=catalog,
+    )
+
+
+def _procedure_redirect(specialty_id):
+    if request.form.get('return_to') == 'settings' and current_user.is_admin:
+        return redirect(
+            url_for('specialty_settings.index') + f'#esp-{specialty_id}'
+        )
+    return redirect(url_for('specialty_settings.procedures'))
+
+
+def _validate_procedure_values(description, code):
+    if not description:
+        return 'Descrição é obrigatória.'
+    if len(description) > 300:
+        return 'A descrição deve ter no máximo 300 caracteres.'
+    if len(code) > 20:
+        return 'O código deve ter no máximo 20 caracteres.'
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -135,22 +178,32 @@ def select_local_access_file():
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/especialidade/<int:specialty_id>/procedimentos/add', methods=['POST'])
 @login_required
-@require_admin
 def add_procedure(specialty_id):
-    specialty = Specialty.query.filter_by(id=specialty_id, slug='ortopedia').first_or_404()
+    specialty = Specialty.query.filter_by(
+        id=specialty_id, slug='ortopedia', is_active=True
+    ).first_or_404()
+    access_error = enforce_specialty_access(
+        specialty.id,
+        'Você não pode alterar procedimentos de outra especialidade.',
+    )
+    if access_error:
+        return access_error
+
     descricao = request.form.get('descricao', '').strip()
     codigo_sus = request.form.get('codigo_sus', '').strip()
+    validation_error = _validate_procedure_values(descricao, codigo_sus)
+    if validation_error:
+        flash(validation_error, 'error')
+        return _procedure_redirect(specialty_id)
 
-    if not descricao:
-        flash('Descrição é obrigatória.', 'error')
-        return redirect(url_for('specialty_settings.index') + f'#esp-{specialty_id}')
-
-    existing = SpecialtyProcedure.query.filter_by(
-        specialty_id=specialty_id, descricao=descricao
+    existing = SpecialtyProcedure.query.filter(
+        SpecialtyProcedure.specialty_id == specialty_id,
+        SpecialtyProcedure.sync_deleted.is_(False),
+        db.func.lower(SpecialtyProcedure.descricao) == descricao.lower(),
     ).first()
     if existing:
         flash(f'Procedimento "{descricao}" já existe nessa especialidade.', 'warning')
-        return redirect(url_for('specialty_settings.index') + f'#esp-{specialty_id}')
+        return _procedure_redirect(specialty_id)
 
     try:
         # O executável usa um único processo Waitress. O lock mantém max + insert
@@ -158,7 +211,10 @@ def add_procedure(specialty_id):
         with _procedure_order_lock:
             greatest_order = (
                 db.session.query(db.func.max(SpecialtyProcedure.sort_order))
-                .filter(SpecialtyProcedure.specialty_id == specialty_id, SpecialtyProcedure.sync_deleted.is_(False))
+                .filter(
+                    SpecialtyProcedure.specialty_id == specialty_id,
+                    SpecialtyProcedure.sync_deleted.is_(False),
+                )
                 .scalar()
             )
             proc = SpecialtyProcedure(
@@ -170,35 +226,61 @@ def add_procedure(specialty_id):
             db.session.add(proc)
             db.session.commit()
         flash(f'Procedimento "{descricao}" adicionado!', 'success')
-    except Exception as e:
+    except Exception as exc:
         db.session.rollback()
-        flash(f'Erro: {str(e)}', 'error')
+        flash(f'Não foi possível adicionar o procedimento: {exc}', 'error')
 
-    return redirect(url_for('specialty_settings.index') + f'#esp-{specialty_id}')
-
+    return _procedure_redirect(specialty_id)
 
 # ---------------------------------------------------------------------------
 # Editar procedimento
 # ---------------------------------------------------------------------------
 @specialty_settings_bp.route('/procedimentos/<int:proc_id>/edit', methods=['POST'])
 @login_required
-@require_admin
 def edit_procedure(proc_id):
-    proc = (SpecialtyProcedure.query.join(Specialty)
-            .filter(SpecialtyProcedure.id == proc_id, SpecialtyProcedure.sync_deleted.is_(False), Specialty.slug == 'ortopedia')
-            .first_or_404())
-    proc.descricao = request.form.get('descricao', proc.descricao).strip()
-    proc.codigo_sus = request.form.get('codigo_sus', '').strip() or None
+    proc = (
+        SpecialtyProcedure.query.join(Specialty)
+        .filter(
+            SpecialtyProcedure.id == proc_id,
+            SpecialtyProcedure.sync_deleted.is_(False),
+            Specialty.slug == 'ortopedia',
+        )
+        .first_or_404()
+    )
+    access_error = enforce_specialty_access(
+        proc.specialty_id,
+        'Você não pode alterar procedimentos de outra especialidade.',
+    )
+    if access_error:
+        return access_error
 
+    descricao = request.form.get('descricao', proc.descricao).strip()
+    codigo_sus = request.form.get('codigo_sus', '').strip()
+    validation_error = _validate_procedure_values(descricao, codigo_sus)
+    if validation_error:
+        flash(validation_error, 'error')
+        return _procedure_redirect(proc.specialty_id)
+
+    duplicate = SpecialtyProcedure.query.filter(
+        SpecialtyProcedure.specialty_id == proc.specialty_id,
+        SpecialtyProcedure.id != proc.id,
+        SpecialtyProcedure.sync_deleted.is_(False),
+        db.func.lower(SpecialtyProcedure.descricao) == descricao.lower(),
+    ).first()
+    if duplicate:
+        flash(f'Procedimento "{descricao}" já existe nessa especialidade.', 'warning')
+        return _procedure_redirect(proc.specialty_id)
+
+    proc.descricao = descricao
+    proc.codigo_sus = codigo_sus or None
     try:
         db.session.commit()
         flash('Procedimento atualizado!', 'success')
-    except Exception as e:
+    except Exception as exc:
         db.session.rollback()
-        flash(f'Erro: {str(e)}', 'error')
+        flash(f'Não foi possível atualizar o procedimento: {exc}', 'error')
 
-    return redirect(url_for('specialty_settings.index') + f'#esp-{proc.specialty_id}')
-
+    return _procedure_redirect(proc.specialty_id)
 
 # ---------------------------------------------------------------------------
 # Ativar / desativar procedimento
