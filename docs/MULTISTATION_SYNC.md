@@ -149,12 +149,14 @@ uma nova tentativa.
 
 ## Atualização da distribuição
 
-Uma compilação nova produz outro `build_manifest.json`. Ao abrir o EXE da rede,
-o launcher copia a versão para outro diretório local. Versões em execução não
+Uma compilação nova produz outro `build_manifest.json`. Ao abrir
+`Iniciar_Sistema_Rede.bat`, o launcher externo copia a versão para outro
+diretório local antes de carregar qualquer DLL Python. Versões em execução não
 são sobrescritas. Banco, identidade, chave e fila continuam no diretório de
 dados da implantação.
 
-Não mova somente o `.exe`: publique sempre a pasta `onedir` completa.
+Não abra nem mova somente o `.exe`: publique sempre a pasta `onedir` completa
+e use o BAT. Veja o passo a passo em `ACESSO_REDE_COPIA_LOCAL.md`.
 
 ## Diagnóstico e recuperação
 

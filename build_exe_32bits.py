@@ -29,6 +29,11 @@ CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl
 CRYPTO_WHEEL_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
 BUILD_VERSION = '2.1.0-sync1'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
+NETWORK_LAUNCHER_FILES = (
+    (ROOT / 'Iniciar_Sistema_Rede.bat', 'Iniciar_Sistema_Rede.bat'),
+    (ROOT / 'launcher_network.ps1', 'launcher_network.ps1'),
+    (ROOT / 'docs' / 'ACESSO_REDE_COPIA_LOCAL.md', 'LEIA-ME_ACESSO_REDE.txt'),
+)
 
 DATA_FILES = (
     (ROOT / 'src' / 'templates', 'src/templates'),
@@ -70,7 +75,11 @@ def assert_within_project(path: Path) -> Path:
 def assert_prerequisites() -> None:
     if sys.version_info[:2] != (3, 11) or struct.calcsize('P') * 8 != 32 or sysconfig.get_platform() != 'win32':
         raise RuntimeError('O build exige exatamente CPython 3.11 para Windows 32-bit (win32).')
-    required = [ENTRYPOINT, ROOT / 'requirements.txt', GREENLET_WHEEL, CRYPTO_WHEEL, *(source for source, _ in DATA_FILES)]
+    required = [
+        ENTRYPOINT, ROOT / 'requirements.txt', GREENLET_WHEEL, CRYPTO_WHEEL,
+        *(source for source, _ in DATA_FILES),
+        *(source for source, _ in NETWORK_LAUNCHER_FILES),
+    ]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError('Arquivos obrigatórios ausentes:\n- ' + '\n- '.join(missing))
@@ -121,6 +130,27 @@ def assert_prerequisites() -> None:
             if marker not in page_script.read_text(encoding='utf-8'):
                 raise RuntimeError(f'{name} falhou na validação estrutural.')
 
+    powershell = shutil.which('powershell') or shutil.which('powershell.exe')
+    if powershell:
+        launcher = ROOT / 'launcher_network.ps1'
+        launcher_arg = str(launcher).replace("'", "''")
+        syntax_command = (
+            '$errors=$null; '
+            '[System.Management.Automation.Language.Parser]::ParseFile('
+            f"'{launcher_arg}', [ref]$null, [ref]$errors) | Out-Null; "
+            'if($errors.Count){'
+            '$errors | ForEach-Object { Write-Error $_ }; exit 1}'
+        )
+        syntax_check = subprocess.run(
+            [
+                powershell, '-NoLogo', '-NoProfile', '-NonInteractive',
+                '-Command', syntax_command,
+            ],
+            check=False,
+        )
+        if syntax_check.returncode != 0:
+            raise RuntimeError('launcher_network.ps1 contém erro de sintaxe.')
+
 
 def build_arguments(dist_root: Path, run_root: Path) -> list[str]:
     args = [
@@ -146,6 +176,9 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
     required = (
         executable,
         app_dir / 'build_manifest.json',
+        app_dir / 'Iniciar_Sistema_Rede.bat',
+        app_dir / 'launcher_network.ps1',
+        app_dir / 'LEIA-ME_ACESSO_REDE.txt',
         app_dir / '_internal' / 'src' / 'templates',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'lifecycle.js',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'app-shell.js',
@@ -194,6 +227,29 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
             detail = log_path.read_text(encoding='utf-8', errors='replace') if log_path.exists() else 'sem log'
             raise RuntimeError(f'Autoverificação do executável falhou ({completed.returncode}):\n{detail[-4000:]}')
 
+    powershell = shutil.which('powershell') or shutil.which('powershell.exe')
+    if powershell:
+        with tempfile.TemporaryDirectory(prefix='patient-registration-launcher-') as launcher_dir:
+            launcher_root = Path(launcher_dir)
+            completed = subprocess.run(
+                [
+                    powershell, '-NoLogo', '-NoProfile', '-NonInteractive',
+                    '-ExecutionPolicy', 'Bypass', '-File',
+                    str(app_dir / 'launcher_network.ps1'),
+                    '-SourceRoot', str(app_dir),
+                    '-LocalProductRoot', str(launcher_root / 'local'),
+                    '-SharedDataRoot', str(launcher_root / 'shared'),
+                    '-PrepareOnly',
+                ],
+                timeout=90,
+                check=False,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    'Autoverificação do launcher de rede falhou '
+                    f'({completed.returncode}).'
+                )
+
     files = [path for path in app_dir.rglob('*') if path.is_file()]
     return len(files), sum(path.stat().st_size for path in files)
 
@@ -215,6 +271,11 @@ def write_build_manifest(app_dir: Path) -> Path:
     )
     return path
 
+
+def copy_network_launcher_files(app_dir: Path) -> None:
+    for source, destination in NETWORK_LAUNCHER_FILES:
+        shutil.copy2(source, app_dir / destination)
+
 def main() -> int:
     assert_prerequisites()
     run_stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -235,6 +296,7 @@ def main() -> int:
     print(f'Build {APP_NAME}: Python {sys.version.split()[0]} ({struct.calcsize("P") * 8}-bit)')
     PyInstaller.__main__.run(build_arguments(dist_root, run_root))
     write_build_manifest(output)
+    copy_network_launcher_files(output)
     files, size = validate_distribution(output)
     LAST_BUILD_FILE.parent.mkdir(parents=True, exist_ok=True)
     LAST_BUILD_FILE.write_text(str(output / (APP_NAME + '.exe')) + '\n', encoding='utf-8')

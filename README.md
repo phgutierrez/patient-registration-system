@@ -263,8 +263,10 @@ python run.py
 ## 🌐 Implantação multiestação pela pasta compartilhada
 
 O modo recomendado quando não existe um servidor disponível é manter a pasta
-`onedir` completa no compartilhamento e abrir o mesmo EXE em cada computador.
-O launcher copia automaticamente a versão para `%LOCALAPPDATA%`, cria um SQLite
+`onedir` completa no compartilhamento e abrir **`Iniciar_Sistema_Rede.bat`** em
+cada computador. Não abra o EXE diretamente pela rede: o Windows pode bloquear
+o carregamento de `_internal\python311.dll`. O launcher externo copia a versão
+para `%LOCALAPPDATA%` antes de iniciar o Python, cria um SQLite
 privado por estação e sincroniza alterações criptografadas em até cinco
 segundos. **Nunca coloque ou abra um SQLite compartilhado diretamente pela
 rede.**
@@ -275,6 +277,9 @@ continua funcionando offline e publica a outbox quando a rede retorna.
 
 > Leia o procedimento completo em [MULTISTATION_SYNC.md](docs/MULTISTATION_SYNC.md)
 > antes de migrar uma instalação com dados existentes.
+
+> O passo a passo de publicação, primeiro acesso, atualização e diagnóstico
+> está em [ACESSO_REDE_COPIA_LOCAL.md](docs/ACESSO_REDE_COPIA_LOCAL.md).
 
 O `run_network.bat` permanece disponível somente para instalações que possuam
 um computador servidor continuamente ligado e acesso de firewall. Ele não é
