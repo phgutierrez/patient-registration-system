@@ -23,6 +23,14 @@ function Write-Success([string]$Message) {
     Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
+function ConvertTo-NativeFileSystemPath([string]$Path) {
+    $providerPrefix = 'Microsoft.PowerShell.Core\FileSystem::'
+    if ($Path.StartsWith($providerPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return $Path.Substring($providerPrefix.Length)
+    }
+    return $Path
+}
+
 function Get-SafeVersion([string]$Value) {
     $safe = [regex]::Replace($Value, '[^A-Za-z0-9._-]', '_')
     if ([string]::IsNullOrWhiteSpace($safe)) {
@@ -32,6 +40,7 @@ function Get-SafeVersion([string]$Value) {
 }
 
 function Get-Sha256([string]$Path) {
+    $Path = ConvertTo-NativeFileSystemPath $Path
     $stream = [System.IO.File]::Open(
         $Path,
         [System.IO.FileMode]::Open,
@@ -59,6 +68,7 @@ function Read-JsonFile([string]$Path, [string]$Description) {
 }
 
 function Ensure-DeploymentManifest([string]$Root) {
+    $Root = ConvertTo-NativeFileSystemPath $Root
     [System.IO.Directory]::CreateDirectory($Root) | Out-Null
     $manifestPath = Join-Path $Root 'deployment.json'
 
@@ -87,6 +97,39 @@ function Ensure-DeploymentManifest([string]$Root) {
         throw "deployment.json nao contem um deployment_id valido: $manifestPath"
     }
     return $parsedGuid.ToString()
+}
+
+function Unblock-LocalDistribution([string]$Destination) {
+    $Destination = ConvertTo-NativeFileSystemPath $Destination
+    $marker = Join-Path $Destination '.launcher-unblocked-v1'
+    if (Test-Path -LiteralPath $marker -PathType Leaf) {
+        return
+    }
+    $files = @(Get-ChildItem -LiteralPath $Destination -Recurse -File -ErrorAction Stop)
+    $unblockCommand = Get-Command -Name Unblock-File -ErrorAction SilentlyContinue
+    $failures = 0
+
+    foreach ($file in $files) {
+        try {
+            if ($null -ne $unblockCommand) {
+                Unblock-File -LiteralPath $file.FullName -ErrorAction Stop
+            }
+            else {
+                Remove-Item -LiteralPath ($file.FullName + ':Zone.Identifier') -Force -ErrorAction SilentlyContinue
+            }
+        }
+        catch {
+            $failures += 1
+        }
+    }
+
+    if ($failures -gt 0) {
+        Write-Warning "$failures arquivo(s) locais nao puderam ser desbloqueados. O Windows pode exigir um EXE assinado ou uma regra da TI."
+    }
+    else {
+        Set-Content -LiteralPath $marker -Value 'ok' -Encoding ASCII
+        Write-Success 'Marcas de origem da Internet removidas da copia local.'
+    }
 }
 
 function Test-LocalDistribution(
@@ -162,6 +205,7 @@ function Copy-Distribution(
 
         foreach ($supportFile in @(
             'Iniciar_Sistema_Rede.bat',
+            'Iniciar_Sistema_Copia_Manual.bat',
             'launcher_network.ps1',
             'LEIA-ME_ACESSO_REDE.txt'
         )) {
@@ -189,7 +233,8 @@ function Copy-Distribution(
 }
 
 try {
-    $source = (Resolve-Path -LiteralPath $SourceRoot).Path.TrimEnd('\')
+    $resolvedSource = Resolve-Path -LiteralPath $SourceRoot -ErrorAction Stop
+    $source = (ConvertTo-NativeFileSystemPath $resolvedSource.ProviderPath).TrimEnd('\')
     $sourceExe = Join-Path $source 'PatientRegistration.exe'
     $sourcePython = Join-Path $source '_internal\python311.dll'
     $sourceManifestPath = Join-Path $source 'build_manifest.json'
@@ -216,6 +261,9 @@ try {
     if ([string]::IsNullOrWhiteSpace($SharedDataRoot)) {
         $SharedDataRoot = Join-Path $source '_shared_data'
     }
+    else {
+        $SharedDataRoot = ConvertTo-NativeFileSystemPath $SharedDataRoot
+    }
     $deploymentId = Ensure-DeploymentManifest $SharedDataRoot
 
     if ([string]::IsNullOrWhiteSpace($LocalProductRoot)) {
@@ -224,6 +272,7 @@ try {
         }
         $LocalProductRoot = Join-Path $env:LOCALAPPDATA 'PatientRegistrationSystem'
     }
+    $LocalProductRoot = ConvertTo-NativeFileSystemPath $LocalProductRoot
     $localProduct = [System.IO.Path]::GetFullPath($LocalProductRoot)
     $manifestHash = (Get-Sha256 $sourceManifestPath).Substring(0, 16)
     $safeVersion = Get-SafeVersion ([string]$buildManifest.version)
@@ -233,6 +282,11 @@ try {
     [System.IO.Directory]::CreateDirectory($localData) | Out-Null
 
     Copy-Distribution $source $localApplication $expectedHash
+    Unblock-LocalDistribution $localApplication
+
+    if (-not (Test-LocalDistribution $localApplication $expectedHash)) {
+        throw 'A copia local deixou de corresponder ao manifesto depois do desbloqueio.'
+    }
 
     Write-Host "Aplicacao local: $localApplication"
     Write-Host "Dados preservados: $localData"

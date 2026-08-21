@@ -31,6 +31,7 @@ BUILD_VERSION = '2.1.0-sync1'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 NETWORK_LAUNCHER_FILES = (
     (ROOT / 'Iniciar_Sistema_Rede.bat', 'Iniciar_Sistema_Rede.bat'),
+    (ROOT / 'Iniciar_Sistema_Copia_Manual.bat', 'Iniciar_Sistema_Copia_Manual.bat'),
     (ROOT / 'launcher_network.ps1', 'launcher_network.ps1'),
     (ROOT / 'docs' / 'ACESSO_REDE_COPIA_LOCAL.md', 'LEIA-ME_ACESSO_REDE.txt'),
 )
@@ -177,6 +178,7 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         executable,
         app_dir / 'build_manifest.json',
         app_dir / 'Iniciar_Sistema_Rede.bat',
+        app_dir / 'Iniciar_Sistema_Copia_Manual.bat',
         app_dir / 'launcher_network.ps1',
         app_dir / 'LEIA-ME_ACESSO_REDE.txt',
         app_dir / '_internal' / 'src' / 'templates',
