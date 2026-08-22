@@ -14,14 +14,22 @@ ROOT = Path(__file__).resolve().parents[1]
 class NetworkLauncherTests(unittest.TestCase):
     def test_launcher_files_and_build_integration_are_present(self):
         batch = (ROOT / 'Iniciar_Sistema_Rede.bat').read_text(encoding='utf-8')
+        manual_batch = (
+            ROOT / 'Iniciar_Sistema_Copia_Manual.bat'
+        ).read_text(encoding='utf-8')
         script = (ROOT / 'launcher_network.ps1').read_text(encoding='utf-8')
         build = (ROOT / 'build_exe_32bits.py').read_text(encoding='utf-8')
 
         self.assertIn('launcher_network.ps1', batch)
+        self.assertIn('-SourceRoot', manual_batch)
+        self.assertIn('network-source.txt', manual_batch)
         self.assertIn('PRS_LOCAL_DATA_ROOT', script)
         self.assertIn('$env:SYNC_ROOT', script)
         self.assertIn('Test-LocalDistribution', script)
+        self.assertIn('.ProviderPath', script)
+        self.assertIn('Unblock-LocalDistribution', script)
         self.assertIn('NETWORK_LAUNCHER_FILES', build)
+        self.assertIn('Iniciar_Sistema_Copia_Manual.bat', build)
 
     @unittest.skipUnless(
         os.name == 'nt' and shutil.which('powershell.exe'),
@@ -53,7 +61,7 @@ class NetworkLauncherTests(unittest.TestCase):
                 shutil.which('powershell.exe'), '-NoLogo', '-NoProfile',
                 '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
                 str(ROOT / 'launcher_network.ps1'),
-                '-SourceRoot', str(source),
+                '-SourceRoot', f'Microsoft.PowerShell.Core\\FileSystem::{source}',
                 '-LocalProductRoot', str(root / 'local'),
                 '-SharedDataRoot', str(root / 'shared'),
                 '-PrepareOnly',
@@ -74,6 +82,7 @@ class NetworkLauncherTests(unittest.TestCase):
             self.assertEqual(len(local_executables), 1)
             local_app = local_executables[0].parent
             self.assertTrue((local_app / '_internal' / 'python311.dll').is_file())
+            self.assertTrue((local_app / '.launcher-unblocked-v1').is_file())
             self.assertFalse((local_app / '.env').exists())
             self.assertFalse((local_app / 'instance').exists())
             self.assertTrue((root / 'shared' / 'deployment.json').is_file())

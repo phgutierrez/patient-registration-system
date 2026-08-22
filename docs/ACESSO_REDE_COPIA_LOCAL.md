@@ -25,6 +25,7 @@ criptografada na pasta compartilhada.
 ```text
 PatientRegistration\
 ├── Iniciar_Sistema_Rede.bat       <- arquivo que o usuário deve abrir
+├── Iniciar_Sistema_Copia_Manual.bat <- contingência: execute após copiar localmente
 ├── launcher_network.ps1           <- responsável pela cópia validada
 ├── LEIA-ME_ACESSO_REDE.txt
 ├── PatientRegistration.exe
@@ -53,6 +54,7 @@ Uma atualização cria outra pasta dentro de `applications`. O conteúdo de
    - `build_manifest.json`;
    - `_internal`;
    - `Iniciar_Sistema_Rede.bat`;
+   - `Iniciar_Sistema_Copia_Manual.bat`;
    - `launcher_network.ps1`;
    - `LEIA-ME_ACESSO_REDE.txt`.
 4. Copie a pasta completa para um compartilhamento no qual os usuários tenham:
@@ -78,6 +80,36 @@ do Windows. Não exige Python, Visual Build Tools nem privilégio administrativo
 
 Na primeira abertura a cópia pode demorar alguns segundos. Nas seguintes, o
 launcher valida o SHA-256 e reutiliza a cópia local da mesma versão.
+
+### Se o Windows não permitir executar o BAT pela rede
+
+Não copie o EXE manualmente e não abra uma cópia local sem as variáveis de
+sincronização. Use o modo de contingência:
+
+1. Na pasta compartilhada, copie somente estes dois arquivos para uma pasta
+   local, por exemplo a Área de Trabalho:
+   - `Iniciar_Sistema_Copia_Manual.bat`;
+   - `launcher_network.ps1`.
+2. Execute localmente `Iniciar_Sistema_Copia_Manual.bat`.
+3. Informe o caminho completo da pasta compartilhada, por exemplo:
+
+   ```text
+   \\192.168.1.252\compartilhamento\PatientRegistration
+   ```
+
+4. O caminho será validado e salvo somente no perfil daquele usuário em:
+
+   ```text
+   %LOCALAPPDATA%\PatientRegistrationSystem\network-source.txt
+   ```
+
+5. O helper copiará e validará a aplicação, configurará os diretórios corretos
+   de dados/sincronização e iniciará o EXE local.
+6. Nos acessos seguintes, execute o mesmo BAT local e pressione `Enter` para
+   reutilizar o caminho salvo.
+
+Esse modo existe para políticas que proíbem scripts iniciados por SMB. Ele não
+exige copiar manualmente a pasta `_internal` e não cria um banco na rede.
 
 ## 5. Acessos seguintes
 
@@ -106,6 +138,7 @@ o banco.
    - `PatientRegistration.exe`;
    - `_internal` completa;
    - `Iniciar_Sistema_Rede.bat`;
+   - `Iniciar_Sistema_Copia_Manual.bat`;
    - `launcher_network.ps1`;
    - `LEIA-ME_ACESSO_REDE.txt`;
    - `build_manifest.json` (copie por último).
@@ -143,6 +176,24 @@ O próprio launcher normalmente detecta e substitui uma cópia incompleta.
 
 Foi aberto o EXE da rede em vez do BAT. Confirme no atalho que o destino termina
 em `Iniciar_Sistema_Rede.bat`.
+
+### Erro `Não há suporte para o formato do caminho dado`
+
+Use a versão atual de `launcher_network.ps1`. Ela converte caminhos retornados
+como `Microsoft.PowerShell.Core\FileSystem::\\servidor\...` para um UNC nativo
+por meio de `ProviderPath` antes de chamar APIs do .NET.
+
+### Controle de Aplicativo Inteligente bloqueou o EXE
+
+Depois de validar o SHA-256, o launcher remove automaticamente a marca
+`Zone.Identifier` somente da cópia local. Ele não modifica os arquivos da rede
+e não desativa SmartScreen, Smart App Control, AppLocker ou antivírus.
+
+Se o Windows continuar bloqueando o EXE, a causa provável é uma política que
+exige assinatura digital ou uma regra de confiança institucional. Nesse caso,
+solicite à TI uma regra apropriada ou publique uma versão assinada. Não desative
+o Controle de Aplicativo Inteligente: em alguns computadores ele não pode ser
+reativado sem redefinir o Windows.
 
 ### PowerShell bloqueado
 

@@ -281,6 +281,11 @@ continua funcionando offline e publica a outbox quando a rede retorna.
 > O passo a passo de publicação, primeiro acesso, atualização e diagnóstico
 > está em [ACESSO_REDE_COPIA_LOCAL.md](docs/ACESSO_REDE_COPIA_LOCAL.md).
 
+Se a política do Windows impedir a execução do BAT diretamente por SMB, copie
+`Iniciar_Sistema_Copia_Manual.bat` e `launcher_network.ps1` para a estação,
+execute o BAT local e informe o caminho UNC solicitado. O caminho fica salvo no
+perfil do usuário e o banco continua fora da pasta da aplicação.
+
 O `run_network.bat` permanece disponível somente para instalações que possuam
 um computador servidor continuamente ligado e acesso de firewall. Ele não é
 necessário para a implantação offline-first pelo EXE compartilhado.
