@@ -127,7 +127,8 @@ Não copie manualmente apenas o EXE para `%LOCALAPPDATA%`.
 ## 6. Como publicar uma atualização
 
 Uma atualização do código não exige executar `setup_windows.bat` e não recria
-o banco.
+o banco. Passo a passo específico da versão atual: `docs/ATUALIZACAO_V2.7.md`
+(v2.7.0 não altera o banco nem exige novo pareamento).
 
 1. Gere e valide o novo build.
 2. Evite novos acessos durante os poucos minutos da publicação. As sessões já

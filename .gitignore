@@ -1,6 +1,8 @@
 # Builds e Distribuição
 build/
 dist/
+# Bundles do frontend (Vite) são versionados para builds sem Node.js
+!src/static/dist/
 *.exe
 *.zip
 *.tar.gz
@@ -31,6 +33,7 @@ develop-eggs/
 
 # Virtual Environments
 .venv/
+.venv-test/
 venv/
 ENV/
 env/
@@ -117,3 +120,6 @@ device.json
 sync.key
 recovery.confirmed
 migration_backup/
+
+# Frontend (Node/Vite)
+node_modules/

@@ -36,7 +36,7 @@
             <td class="text-end">
               {% if revision.previous_value_json %}
               <form method="post" action="{{ url_for('sync.restore_revision', revision_id=revision.id) }}"
-                    onsubmit="return confirm('Restaurar esta versão? A restauração será sincronizada como uma nova alteração.');">
+                    data-confirm="Restaurar esta versão? A restauração será sincronizada como uma nova alteração.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-primary">Restaurar</button>
               </form>

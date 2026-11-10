@@ -137,7 +137,8 @@ class Config:
         "default-src 'self'; frame-ancestors 'none'; object-src 'none'; "
         "base-uri 'self'; form-action 'self'; img-src 'self' data:; "
         "font-src 'self' https: data:; frame-src 'self' https://docs.google.com; "
-        "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https:; "
+        # Sem 'unsafe-inline' em script-src (v2.7): não há scripts inline nos templates.
+        "script-src 'self'; style-src 'self' 'unsafe-inline' https:; "
         "connect-src 'self' https://docs.google.com https://calendar.google.com",
     )
     SECURITY_HSTS_ENABLED = _env_bool('SECURITY_HSTS_ENABLED', False)

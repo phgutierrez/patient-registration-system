@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, FrozenSet, Optional
 
+from .overlays import draw_uti_banner
+
 
 @dataclass(frozen=True)
 class PdfDocumentSpec:
@@ -14,6 +16,8 @@ class PdfDocumentSpec:
     output_prefix: str
     page_selector: Optional[Callable[[Dict[str, str]], int]] = None
     conditional_required_fields: FrozenSet[str] = frozenset()
+    # Desenho aplicado após o achatamento dos campos (ex.: faixa de UTI).
+    overlay: Optional[Callable] = None
 
     def template_path(self, app_root: Path) -> Path:
         return app_root / 'static' / self.template_name
@@ -34,6 +38,7 @@ DOCUMENTS = {
         flow='solicitação e edição de cirurgia',
         output_prefix='Internacao',
         page_selector=lambda values: 7 if values.get('OPME', '').strip() else 5,
+        overlay=draw_uti_banner,
     ),
     'hemocomponente': PdfDocumentSpec(
         identifier='hemocomponente',

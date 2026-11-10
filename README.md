@@ -40,7 +40,16 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
 - 💾 **Armazenamento Confiável** - SQLite local, outbox transacional, checkpoints e histórico restaurável
 
-### 🆕 Atualizações Recentes (Julho/2026)
+### 🆕 Versão 2.7.0 (Novembro/2026)
+
+- ✅ PDF de internação: faixa verde **RESERVAR VAGA DE UTI** no Aviso de Cirurgia quando há reserva de UTI
+- ✅ Requisição de hemocomponente sempre com a **data de internação** (sem a data de exemplo 03/05/2024)
+- ✅ Pacientes e Agenda atualizam só a área necessária (HTMX), sem recarregar a página
+- ✅ Bundles locais com Vite, Alpine.js (CSP) e ícones Lucide; sem CDN e sem scripts inline
+- ✅ Botão de menu visível em telas pequenas; `Werkzeug 3.1.9` (CVE-2026-102598)
+- 📘 **Como atualizar (rede, EXE local, Python):** [docs/ATUALIZACAO_V2.7.md](docs/ATUALIZACAO_V2.7.md) · [Notas de versão](RELEASE_NOTES_2.7.md)
+
+### Atualizações anteriores (Julho/2026)
 
 - ✅ Seed do executável alinhado ao setup completo (especialidades + usuários + procedimentos)
 - ✅ Usuários iniciais do EXE vinculados à especialidade (evita ortopedista sem especialidade)
@@ -54,7 +63,7 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 
 ### Stack Tecnológico
 - **Backend**: Flask 3.1.3, SQLAlchemy, SQLite
-- **Frontend**: Templates Jinja2, Bootstrap 5, CSS/JS modernos
+- **Frontend**: Templates Jinja2, Bootstrap 5, HTMX + Alpine.js (build CSP) e ícones Lucide empacotados com Vite em `src/static/dist` — tudo local, sem CDN ([docs/FRONTEND.md](docs/FRONTEND.md))
 - **Servidor**: Servidor WSGI Waitress (pronto para produção)
 - **Integrações**: Google Calendar (ICS), Google Forms, parsing iCalendar
 - **PDF**: PyMuPDF para preenchimento e incorporação permanente de formulários
@@ -223,6 +232,12 @@ Execute `build_exe_32bits.bat` na raiz do projeto. O build exige CPython 3.11
 Build Tools nem privilégios administrativos. O wheel win32 do `greenlet` fica
 em `build_support/`, tem seu SHA-256 verificado e as demais dependências são
 instaladas somente quando existe pacote binário compatível.
+
+Os bundles do frontend (`src/static/dist`) são versionados no repositório, então o
+build **não precisa de Node.js**. O script valida os manifestos do Vite antes do
+build e confere os arquivos dentro de `_internal` depois. Quem alterar CSS/JS
+deve rodar `npm ci && npm run build` (Node.js 20+) e versionar `src/static/dist`
+(veja [docs/FRONTEND.md](docs/FRONTEND.md)).
 
 O caminho exato do executável gerado é exibido ao final. Se a distribuição
 anterior estiver aberta, o build cria uma nova pasta em `dist/` sem tentar
@@ -512,6 +527,8 @@ taskkill /PID <process_id> /F
 - **[Requirements](requirements.txt)** - Dependências Python com versões
 - **[Geração de PDFs](docs/PDF_GENERATION.md)** - Inventário, mapeamentos, validação e testes PyMuPDF
 - **[Multiestação](docs/MULTISTATION_SYNC.md)** - Pareamento, criptografia, conflitos, recuperação e atualização
+- **[Atualização para a v2.7](docs/ATUALIZACAO_V2.7.md)** - Passo a passo para rede, EXE local e instalação Python
+- **[Frontend](docs/FRONTEND.md)** - Vite, HTMX, Alpine.js, ícones Lucide e comandos `npm`
 
 ---
 

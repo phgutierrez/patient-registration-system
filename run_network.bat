@@ -1,5 +1,6 @@
 @echo off
 setlocal
+title Sistema de Ortopedia v2.7.0 - Servidor de rede
 cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (

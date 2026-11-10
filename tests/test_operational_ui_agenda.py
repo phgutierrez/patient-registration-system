@@ -17,6 +17,7 @@ from src.services.calendar_cache_service import (
     CalendarCacheService, CalendarData,
 )
 from src.services.calendar_service import CalendarService
+from tests.frontend_helpers import entry_asset_urls
 
 
 class OperationalUiAgendaTests(unittest.TestCase):
@@ -151,7 +152,8 @@ class OperationalUiAgendaTests(unittest.TestCase):
         self.assertIn(b'Solicitar', response.data)
         response = self.client.get(f'/patient/{self.patient_id}/surgery/request')
         self.assertEqual(200, response.status_code)
-        self.assertIn(b'surgery-request.css', response.data)
+        for url in entry_asset_urls('surgery-request'):
+            self.assertIn(url, response.data)
         self.assertIn(b'app-page-header request-heading', response.data)
         self.assertIn(b'Localizar procedimento', response.data)
         self.assertNotIn(b'prompt(', response.data)
@@ -175,8 +177,11 @@ class OperationalUiAgendaTests(unittest.TestCase):
     def test_shared_shell_uses_modern_headers_and_single_sidebar_controller(self):
         response = self.client.get('/index')
         self.assertEqual(200, response.status_code)
-        self.assertIn(b'css/app-shell.css', response.data)
-        self.assertIn(b'js/app-shell.js', response.data)
+        for url in entry_asset_urls('shell'):
+            self.assertIn(url, response.data)
+        # Bootstrap JS só nas páginas com componentes; o início não usa.
+        self.assertNotIn(b'bootstrap.bundle.min.js', response.data)
+        self.assertNotIn(b'onclick=', response.data)
         self.assertNotIn(b'css/styles.css', response.data)
         self.assertIn(b'app-page-header page-heading', response.data)
         self.assertIn(b'id="appSidebar"', response.data)
@@ -194,8 +199,8 @@ class OperationalUiAgendaTests(unittest.TestCase):
     def test_new_patient_uses_compact_assets_and_preserves_access_lookup(self):
         response = self.client.get('/patients/patient/new')
         self.assertEqual(200, response.status_code)
-        self.assertIn(b'css/pages/patient-new.css', response.data)
-        self.assertIn(b'js/pages/patient-new.js', response.data)
+        for url in entry_asset_urls('patient-new'):
+            self.assertIn(url, response.data)
         self.assertIn(b'id="formErrorSummary"', response.data)
         self.assertIn(b'id="btnBuscaAccess"', response.data)
         self.assertIn(b'/patients/api/search-patient-accdb', response.data)

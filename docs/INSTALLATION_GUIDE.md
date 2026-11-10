@@ -163,8 +163,12 @@ git stash pop               # Restaurar alterações locais
 copy .env.backup .env
 
 # 5. Atualizar dependências (se usando Python)
-pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+> Os bundles do frontend (`src/static/dist`) vêm prontos no repositório: não é
+> preciso Node.js para atualizar. Passo a passo da v2.7.0 para cada tipo de
+> instalação: [ATUALIZACAO_V2.7.md](ATUALIZACAO_V2.7.md).
 
 ---
 

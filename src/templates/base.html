@@ -10,12 +10,10 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icon.ico') }}">
     <!-- Bootstrap CSS -->
     <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
-    <!-- Bootstrap JS (bundle) -->
-    <script defer src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-shell.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/sync-status.css') }}">
+    <!-- Shell global (bundle Vite em static/dist; fallback: css/app-shell.css + css/sync-status.css) -->
+    {{ vite_css('shell') }}
     {% block page_styles %}{% endblock %}
     <title>{% block title %}Sistema de Registro de Pacientes{% endblock %}</title>
 </head>
@@ -32,7 +30,7 @@
                     title="Recolher menu"
                     aria-label="Recolher menu"
                     aria-pressed="false">
-                <i class="fas fa-angles-left"></i>
+                {{ icon('chevrons-left') }}{{ icon('chevrons-right') }}
             </button>
             <a href="{{ url_for('main.index') }}" class="sidebar-brand" aria-label="Ir para o início">
                 <img src="{{ url_for('static', filename='logo ortoped.png') }}" 
@@ -45,8 +43,8 @@
             <a href="{{ url_for('main.change_specialty') }}" class="sidebar-specialty-wrap d-block mt-2 text-decoration-none"
                title="Clique para trocar a especialidade">
                 <span class="badge text-bg-info sidebar-specialty-badge">
-                    <i class="fas fa-stethoscope me-1"></i>{{ active_specialty_name }}
-                    <i class="fas fa-exchange-alt ms-1" style="font-size:.65rem;"></i>
+                    {{ icon('stethoscope', extra_class='me-1') }}{{ active_specialty_name }}
+                    {{ icon('arrow-left-right', extra_class='ms-1 icon-xs') }}
                 </span>
             </a>
             {% endif %}
@@ -55,56 +53,57 @@
             <ul class="nav-menu">
                 <li class="nav-item">
                     <a href="{{ url_for('main.index') }}" class="nav-link{{ ' active' if request.endpoint == 'main.index' else '' }}" title="Início"{% if request.endpoint == 'main.index' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-home"></i>
+                        {{ icon('house') }}
                         <span class="nav-text">Início</span>
                     </a>
                 </li>
                 {% if current_user.is_authenticated %}
                 <li class="nav-item">
                     <a href="{{ url_for('profile.profile') }}" class="nav-link{{ ' active' if request.endpoint == 'profile.profile' else '' }}" title="Meu perfil"{% if request.endpoint == 'profile.profile' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-id-card"></i>
+                        {{ icon('id-card') }}
                         <span class="nav-text">Meu Perfil</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ url_for('patients.new_patient') }}" class="nav-link{{ ' active' if request.endpoint == 'patients.new_patient' else '' }}" title="Cadastrar paciente"{% if request.endpoint == 'patients.new_patient' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-user-plus"></i>
+                        {{ icon('user-plus') }}
                         <span class="nav-text">Cadastrar Paciente</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ url_for('patients.list_patients') }}" class="nav-link{{ ' active' if request.endpoint in ['patients.list_patients', 'patients.view_patient', 'patients.edit_patient'] else '' }}" title="Ver pacientes"{% if request.endpoint in ['patients.list_patients', 'patients.view_patient', 'patients.edit_patient'] %} aria-current="page"{% endif %}>
-                        <i class="fas fa-users"></i>
+                        {{ icon('users') }}
                         <span class="nav-text">Ver Pacientes</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ url_for('main.agenda') }}" class="nav-link{{ ' active' if request.endpoint == 'main.agenda' else '' }}" title="Agenda cirúrgica"{% if request.endpoint == 'main.agenda' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-calendar-alt"></i>
+                        {{ icon('calendar') }}
                         <span class="nav-text">Agenda Cirúrgica</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ url_for('specialty_settings.procedures') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint in ['specialty_settings.procedures', 'specialty_settings.add_procedure', 'specialty_settings.edit_procedure'] else '' }}" title="Procedimentos"{% if request.endpoint == 'specialty_settings.procedures' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-list-check"></i>
+                        {{ icon('list-checks') }}
                         <span class="nav-text">Procedimentos</span>
                     </a>
-                </li>                {% if current_user.is_admin %}
+                </li>
+                {% if current_user.is_admin %}
                 <li class="nav-item">
                     <a href="{{ url_for('auth.register_user') }}" class="nav-link{{ ' active' if request.endpoint == 'auth.register_user' else '' }}" title="Cadastro de usuário"{% if request.endpoint == 'auth.register_user' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-user-cog"></i>
+                        {{ icon('user-cog') }}
                         <span class="nav-text">Cadastro Usuário</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{{ url_for('specialty_settings.index') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint.startswith('specialty_settings.') else '' }}" title="Configurações"{% if request.endpoint and request.endpoint.startswith('specialty_settings.') %} aria-current="page"{% endif %}>
-                        <i class="fas fa-sliders-h"></i>
+                        {{ icon('sliders-horizontal') }}
                         <span class="nav-text">Configurações</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ url_for('sync.history') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint == 'sync.history' else '' }}" title="Histórico de sincronização">
-                        <i class="fas fa-history"></i>
+                    <a href="{{ url_for('sync.history') }}" class="nav-link{{ ' active' if request.endpoint and request.endpoint == 'sync.history' else '' }}" title="Histórico de sincronização"{% if request.endpoint == 'sync.history' %} aria-current="page"{% endif %}>
+                        {{ icon('history') }}
                         <span class="nav-text">Histórico Sync</span>
                     </a>
                 </li>
@@ -112,7 +111,7 @@
                 {% else %}
                 <li class="nav-item">
                     <a href="{{ url_for('auth.select_user') }}" class="nav-link{{ ' active' if request.endpoint == 'auth.select_user' else '' }}" title="Entrar"{% if request.endpoint == 'auth.select_user' %} aria-current="page"{% endif %}>
-                        <i class="fas fa-sign-in-alt"></i>
+                        {{ icon('log-in') }}
                         <span class="nav-text">Entrar</span>
                     </a>
                 </li>
@@ -129,14 +128,15 @@
                 <span class="sync-status-dot"></span>
                 <span class="sync-status-label">Verificando…</span>
             </button>
-            {% endif %}            {% if desktop_mode %}
-            <button onclick="shutdownServer(this)" class="btn btn-danger sidebar-logout-btn">
-                <i class="fas fa-power-off"></i>
+            {% endif %}
+            {% if desktop_mode %}
+            <button type="button" data-action="shutdown" class="btn btn-danger sidebar-logout-btn">
+                {{ icon('power') }}
                 <span class="sidebar-logout-text">Encerrar sistema</span>
             </button>
             {% else %}
             <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger sidebar-logout-btn">
-                <i class="fas fa-sign-out-alt"></i>
+                {{ icon('log-out') }}
                 <span class="sidebar-logout-text">Sair</span>
             </a>
             {% endif %}
@@ -148,17 +148,17 @@
     <main class="main-content">
         <!-- Menu Toggle Button -->
         <button type="button" class="menu-toggle" id="menuToggle" aria-controls="appSidebar" aria-expanded="false" aria-label="Abrir menu">
-            <i class="fas fa-bars"></i>
+            {{ icon('menu') }}
         </button>
 
         <!-- Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <ul class="messages">
+        <ul class="messages" role="status" aria-live="polite">
             {% for category, message in messages %}
+            {% set category = 'error' if category == 'danger' else category %}
             <li class="message {{ category }}">
-                <i
-                    class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                {{ icon('circle-check' if category == 'success' else 'circle-alert' if category == 'error' else 'info') }}
                 {{ message }}
             </li>
             {% endfor %}
@@ -175,9 +175,11 @@
         Desenvolvido por <strong>Dr. Pedro Henrique Freitas</strong> &reg; 2026 | Todos os direitos reservados
     </footer>
 
-    <script defer src="{{ url_for('static', filename='js/app-shell.js') }}"></script>
-    {% if current_user.is_authenticated %}<script defer src="{{ url_for('static', filename='js/sync-status.js') }}"></script>{% endif %}    {% block page_scripts %}{% endblock %}
-    <script defer src="{{ url_for('static', filename='js/lifecycle.js') }}"></script>
+    {# Bootstrap JS: somente nas páginas que usam componentes (partials/bootstrap_js.html). #}
+    {% block bootstrap_js %}{% endblock %}
+    {# Shell global: js/app-shell.js + js/sync-status.js + js/lifecycle.js (bundle ou fallback). #}
+    {{ vite_js('shell') }}
+    {% block page_scripts %}{% endblock %}
 </body>
 
 </html>

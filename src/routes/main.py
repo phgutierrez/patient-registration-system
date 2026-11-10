@@ -20,6 +20,7 @@ from src.models.surgery_request import SurgeryRequest
 from src.runtime_security import (
     require_admin, scoped_patients_query,
 )
+from src.htmx_utils import render_page_or_partial
 from src.services.specialty_service import (
     get_active_specialty, get_active_specialty_slug, get_specialty_settings,
     set_active_specialty_slug,
@@ -224,6 +225,41 @@ def _parse_agenda_range(view, today):
         return today, today + timedelta(days=6)
 
 
+def _period_urls(view, start_date, end_date, today, query_text, status_filter):
+    """URLs de navegação (anterior/hoje/próximo) calculadas no servidor.
+
+    Funcionam sem JavaScript e usam a data local do servidor, evitando o
+    deslocamento de fuso (UTC) do cálculo anterior feito no navegador.
+    """
+    common = {
+        'view': view,
+        'q': query_text or None,
+        'status': status_filter if status_filter != 'todos' else None,
+    }
+    if view == 'month':
+        previous_month = (start_date - timedelta(days=1)).replace(day=1)
+        next_month = end_date + timedelta(days=1)
+        return {
+            'previous': url_for('main.agenda', month=f'{previous_month:%Y-%m}', **common),
+            'today': url_for('main.agenda', month=f'{today:%Y-%m}', **common),
+            'next': url_for('main.agenda', month=f'{next_month:%Y-%m}', **common),
+        }
+
+    def week(start):
+        return url_for(
+            'main.agenda',
+            start=start.isoformat(),
+            end=(start + timedelta(days=6)).isoformat(),
+            **common,
+        )
+
+    return {
+        'previous': week(start_date - timedelta(days=7)),
+        'today': week(today),
+        'next': week(start_date + timedelta(days=7)),
+    }
+
+
 def _build_month_weeks(start_date, end_date, grouped, today):
     cells = []
     first_weekday = (start_date.weekday() + 1) % 7
@@ -254,8 +290,10 @@ def _build_month_weeks(start_date, end_date, grouped, today):
 def agenda():
     specialty, settings, cache_service = _calendar_context()
     if cache_service is None:
-        return render_template(
+        return render_page_or_partial(
             'agenda.html',
+            '_agenda_app.html',
+            status=400,
             error='Agenda não configurada. O administrador deve informar o link nas Configurações.',
             error_type='not_configured',
             specialty=specialty,
@@ -265,7 +303,7 @@ def agenda():
             total_events=0,
             meta_source='error',
             weeks=[],
-        ), 400
+        )
 
     preference_key = f'agenda_view_{current_user.id}_{specialty.id}'
     requested_view = request.args.get('view', '').strip().lower()
@@ -339,8 +377,12 @@ def agenda():
         if calendar_data.source_status == 'error'
         else None
     )
-    return render_template(
+    return render_page_or_partial(
         'agenda.html',
+        '_agenda_app.html',
+        nav_urls=_period_urls(
+            view, start_date, end_date, today, query_text, status_filter
+        ),
         view=view,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),

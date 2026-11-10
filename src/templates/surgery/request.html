@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Editar solicitação' if is_edit_mode else 'Solicitar cirurgia' }} - {{ patient.nome }}{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/surgery-request.css') }}">{% endblock %}
+{% block page_styles %}{{ vite_css('surgery-request') }}{% endblock %}
 {% macro field_errors(field) -%}{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join(', ') }}</div>{% endif %}{%- endmacro %}
 {% block content %}
 <div id="surgeryRequestApp" class="container-fluid request-shell"
@@ -122,4 +122,5 @@
   </div></div>
 </div>
 {% endblock %}
-{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/surgery-request.js') }}"></script>{% endblock %}
+{% block bootstrap_js %}{% include "partials/bootstrap_js.html" %}{% endblock %}
+{% block page_scripts %}{{ vite_js('surgery-request') }}{% endblock %}

@@ -4,6 +4,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Dict
 
 
+HOSPITAL_NAME = 'COMPLEXO DE PEDIATRIA ARLINDA MARQUES'
+
+
 def normalize_text(value: object) -> str:
     if not value:
         return ''
@@ -109,6 +112,8 @@ def build_internacao_mapping(patient, surgery, requester, now: datetime = None) 
         'ExamesPre': surgery.exames_preop or '',
         'CRM': getattr(requester, 'crm', '') or '',
     })
+    # Metadado de overlay (não é campo do AcroForm): faixa "RESERVAR VAGA DE UTI".
+    values['__ReservaUTI'] = 'SIM' if getattr(surgery, 'reserva_uti', False) else ''
     return values
 
 
@@ -133,6 +138,8 @@ def build_hemocomponente_mapping(patient, surgery, requester, now: datetime = No
     _aliases(values, ['Data da Solicitação', 'Data_Solicitacao', 'DATA'], admission_date)
     _aliases(values, ['Hora da Solicitação'], now.strftime('%H:%M'))
     _aliases(values, ['Observações', 'Observacoes', 'Notas'], '')
+    # Valor institucional fixo que antes vinha embutido no modelo.
+    values['Hospital'] = HOSPITAL_NAME
     values['Prontuário'] = patient.prontuario or ''
     values['Prontuario'] = patient.prontuario or ''
     values['Group4'] = 'Feminino' if patient.sexo == 'F' else 'Masculino'

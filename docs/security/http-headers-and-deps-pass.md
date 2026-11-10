@@ -60,7 +60,7 @@ connect-src 'self' https://docs.google.com https://calendar.google.com
 
 | Pacote | Antes | Alvo adotado | Fonte oficial | Observação |
 |---|---|---|---|---|
-| `Werkzeug` | `3.1.3` | `3.1.8` | PyPI oficial, release em **2 abr 2026** | Substitui o alvo `3.1.7` do plano por já haver release mais recente no dia da implementação |
+| `Werkzeug` | `3.1.3` → `3.1.8` | `3.1.9` | PyPI oficial | v2.7.0: corrige o alerta CVE-2026-102598 (Werkzeug < 3.1.9). Wheel puro Python, compatível com Flask 3.1.3 e com o build 32-bit `--only-binary` |
 | `requests` | `2.32.4` | `2.33.1` | PyPI oficial, release em **30 mar 2026** | Exige `Python >=3.10`, então scripts/docs precisam refletir esse piso |
 
 ## Impacto de compatibilidade

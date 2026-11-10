@@ -37,6 +37,9 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 - [REVERSAO_FORMS.md](REVERSAO_FORMS.md)
 
 ### Produto e histórico
+- [CHANGELOG_V2.7.md](CHANGELOG_V2.7.md)
+- [ATUALIZACAO_V2.7.md](ATUALIZACAO_V2.7.md) — passo a passo de atualização (rede, EXE local, Python)
+- [FRONTEND.md](FRONTEND.md) — Vite, HTMX, Alpine.js e ícones
 - [CHANGELOG_V2.6.md](CHANGELOG_V2.6.md)
 - [CHANGELOG_V2.5.md](CHANGELOG_V2.5.md)
 - [PRD.md](PRD.md)
@@ -77,7 +80,13 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 ---
 
-## ✅ Atualizações recentes (março/2026)
+## ✅ Versão 2.7.0 (novembro/2026)
+
+- Faixa "RESERVAR VAGA DE UTI" no Aviso de Cirurgia e data de internação na requisição de hemocomponente.
+- Pacientes e Agenda com atualização parcial (HTMX); bundles locais com Vite.
+- Werkzeug 3.1.9. Sem migração de banco: veja [ATUALIZACAO_V2.7.md](ATUALIZACAO_V2.7.md).
+
+## ✅ Atualizações anteriores (março/2026)
 
 - Seed do EXE alinhado ao setup completo.
 - Usuários iniciais com especialidade vinculada.
@@ -89,5 +98,5 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 ## 📌 Versão atual da documentação
 
-- Versão: **v2.6**
-- Última atualização: **julho/2026**
+- Versão: **v2.7.0**
+- Última atualização: **novembro/2026**

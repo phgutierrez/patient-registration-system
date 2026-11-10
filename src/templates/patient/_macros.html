@@ -1,0 +1,3 @@
+{% macro result_count(pagination, oob=False) -%}
+<span class="result-count" id="patientResultCount" aria-live="polite"{% if oob %} hx-swap-oob="true"{% endif %}>{{ pagination.total }} paciente{{ '' if pagination.total == 1 else 's' }}</span>
+{%- endmacro %}

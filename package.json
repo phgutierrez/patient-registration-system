@@ -1,0 +1,22 @@
+{
+  "name": "patient-registration-system-frontend",
+  "private": true,
+  "version": "2.7.0",
+  "description": "Bundles locais (Vite) do Sistema de Solicitação de Cirurgia. Sem CDN em tempo de execução.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node frontend/scripts/build-icons.mjs",
+    "dev": "vite build --watch --mode development",
+    "measure": "node frontend/scripts/measure-assets.mjs",
+    "check": "npm run build && git diff --exit-code -- src/static/dist"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@alpinejs/csp": "3.17.5",
+    "htmx.org": "2.0.11",
+    "lucide-static": "1.71.0",
+    "vite": "8.3.7"
+  }
+}

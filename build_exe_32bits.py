@@ -27,7 +27,7 @@ GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
 GREENLET_WHEEL_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
 CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
 CRYPTO_WHEEL_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
-BUILD_VERSION = '2.1.0-sync1'
+BUILD_VERSION = '2.7.0'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 NETWORK_LAUNCHER_FILES = (
     (ROOT / 'Iniciar_Sistema_Rede.bat', 'Iniciar_Sistema_Rede.bat'),
@@ -41,6 +41,9 @@ DATA_FILES = (
     (ROOT / 'src' / 'static' / 'css', 'src/static/css'),
     (ROOT / 'src' / 'static' / 'js', 'src/static/js'),
     (ROOT / 'src' / 'static' / 'vendor', 'src/static/vendor'),
+    # Bundles Vite (HTMX, Alpine, CSS/JS minificados) e sprite de ícones Lucide.
+    (ROOT / 'src' / 'static' / 'dist', 'src/static/dist'),
+    (ROOT / 'src' / 'static' / 'icon-map.json', 'src/static'),
     (ROOT / 'src' / 'static' / 'icon.ico', 'src/static'),
     (ROOT / 'src' / 'static' / 'logo ortoped.png', 'src/static'),
     (ROOT / 'src' / 'static' / 'Internacao.pdf', 'src/static'),
@@ -63,6 +66,42 @@ EXCLUDES = (
     'notebook', 'sphinx', 'tkinter', 'sqlalchemy.testing', 'mypy',
     'test', 'doctest', 'pydoc', 'lib2to3', 'greenlet.tests',
 )
+
+
+FRONTEND_DIST = ROOT / 'src' / 'static' / 'dist'
+FRONTEND_MANIFEST = Path('.vite') / 'manifest.json'
+FRONTEND_ICONS_MANIFEST = Path('icons-manifest.json')
+
+
+def frontend_bundle_files(dist_dir: Path = FRONTEND_DIST) -> list[Path]:
+    """Arquivos (relativos a dist/) exigidos pelos manifestos do Vite e dos ícones.
+
+    Falha com instrução clara quando os bundles não foram gerados.
+    """
+    manifest_path = dist_dir / FRONTEND_MANIFEST
+    icons_path = dist_dir / FRONTEND_ICONS_MANIFEST
+    if not manifest_path.is_file() or not icons_path.is_file():
+        raise FileNotFoundError(
+            'Bundles do frontend ausentes em src/static/dist. '
+            'Execute "npm ci" e "npm run build" (Node.js 20+) antes do build.'
+        )
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    icons = json.loads(icons_path.read_text(encoding='utf-8'))
+    files = {FRONTEND_MANIFEST, FRONTEND_ICONS_MANIFEST, Path(icons['file'])}
+    for chunk in manifest.values():
+        files.add(Path(chunk['file']))
+        files.update(Path(css) for css in chunk.get('css', ()))
+    entries = {key for key, chunk in manifest.items() if chunk.get('isEntry')}
+    expected = {f'frontend/entries/{path.stem}.js' for path in (ROOT / 'frontend' / 'entries').glob('*.js')}
+    if expected and not expected <= entries:
+        raise RuntimeError(
+            'Bundles do frontend desatualizados (entradas ausentes: '
+            + ', '.join(sorted(expected - entries)) + '). Execute "npm run build".'
+        )
+    missing = [str(path) for path in sorted(files) if not (dist_dir / path).is_file()]
+    if missing:
+        raise FileNotFoundError('Arquivos do frontend ausentes em dist:\n- ' + '\n- '.join(missing))
+    return sorted(files)
 
 
 def assert_within_project(path: Path) -> Path:
@@ -108,13 +147,18 @@ def assert_prerequisites() -> None:
         raise RuntimeError(f'SQLAlchemy incompatível com o build: {sqlalchemy.__version__}.')
     if not hasattr(pymupdf.Document, 'bake'):
         raise RuntimeError('A versão instalada do PyMuPDF não oferece Document.bake().')
+    frontend_bundle_files()
     lifecycle_js = ROOT / 'src' / 'static' / 'js' / 'lifecycle.js'
     source = lifecycle_js.read_text(encoding='utf-8')
     if 'window.shutdownServer' not in source:
         raise RuntimeError('lifecycle.js não exporta window.shutdownServer.')
     node = shutil.which('node')
     if node:
-        for script in sorted((ROOT / 'src' / 'static' / 'js').rglob('*.js')):
+        scripts = [
+            *(ROOT / 'src' / 'static' / 'js').rglob('*.js'),
+            *(FRONTEND_DIST / 'js').rglob('*.js'),
+        ]
+        for script in sorted(scripts):
             checked = subprocess.run([node, '--check', str(script)], check=False)
             if checked.returncode != 0:
                 raise RuntimeError(f'{script.name} contém erro de sintaxe.')
@@ -200,6 +244,8 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'procedures.js',
         app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
         app_dir / '_internal' / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
+        app_dir / '_internal' / 'src' / 'static' / 'icon-map.json',
+        *(app_dir / '_internal' / 'src' / 'static' / 'dist' / path for path in frontend_bundle_files()),
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:

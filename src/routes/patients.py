@@ -14,6 +14,7 @@ from sqlalchemy import or_
 import time
 import logging
 from pathlib import Path
+from src.htmx_utils import render_page_or_partial
 
 patients = Blueprint('patients', __name__, url_prefix='/patients')
 logger = logging.getLogger(__name__)
@@ -96,9 +97,9 @@ def list_patients():
     pagination = query.order_by(Patient.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
-    return render_template(
-        'patient/list.html', patients=pagination.items,
-        pagination=pagination, search=search,
+    return render_page_or_partial(
+        'patient/list.html', 'patient/_results.html',
+        patients=pagination.items, pagination=pagination, search=search,
     )
 
 

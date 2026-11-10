@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Cadastrar novo paciente{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/patient-new.css') }}">{% endblock %}
+{% block page_styles %}{{ vite_css('patient-new') }}{% endblock %}
 
 {% block content %}
 <div id="patientNewApp" class="container-fluid patient-form-shell"
@@ -154,4 +154,4 @@
 </div>
 {% endblock %}
 
-{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/patient-new.js') }}"></script>{% endblock %}
+{% block page_scripts %}{{ vite_js('patient-new') }}{% endblock %}

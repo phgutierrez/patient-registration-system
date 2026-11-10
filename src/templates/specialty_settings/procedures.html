@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Procedimentos · {{ specialty.name }}{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/procedures.css') }}">{% endblock %}
+{% block page_styles %}{{ vite_css('procedures') }}{% endblock %}
 
 {% block content %}
 <div class="procedures-shell">
@@ -91,4 +91,5 @@
 {% endfor %}
 {% endblock %}
 
-{% block page_scripts %}<script defer src="{{ url_for('static', filename='js/pages/procedures.js') }}"></script>{% endblock %}
+{% block bootstrap_js %}{% include "partials/bootstrap_js.html" %}{% endblock %}
+{% block page_scripts %}{{ vite_js('procedures') }}{% endblock %}

@@ -26,7 +26,9 @@ class SecurityHeaderTests(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", response.headers['Content-Security-Policy-Report-Only'])
 
     def test_base_template_references_local_bootstrap(self):
-        source = (Path(__file__).parents[1] / 'src' / 'templates' / 'base.html').read_text(encoding='utf-8')
+        templates = Path(__file__).parents[1] / 'src' / 'templates'
+        source = (templates / 'base.html').read_text(encoding='utf-8')
+        source += (templates / 'partials' / 'bootstrap_js.html').read_text(encoding='utf-8')
         self.assertIn("vendor/bootstrap/bootstrap.min.css", source)
         self.assertIn("vendor/bootstrap/bootstrap.bundle.min.js", source)
         self.assertNotIn('cdn.jsdelivr.net/npm/bootstrap', source)

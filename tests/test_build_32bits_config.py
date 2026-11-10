@@ -46,6 +46,25 @@ class Build32BitsConfigurationTests(unittest.TestCase):
         self.assertIn('greenlet.tests', build_exe_32bits.EXCLUDES)
         self.assertIn('greenlet._greenlet', build_exe_32bits.HIDDEN_IMPORTS)
 
+    def test_frontend_bundles_are_packaged_and_complete(self):
+        destinations = {destination for _, destination in build_exe_32bits.DATA_FILES}
+        self.assertIn('src/static/dist', destinations)
+        sources = {source for source, _ in build_exe_32bits.DATA_FILES}
+        self.assertIn(ROOT / 'src' / 'static' / 'icon-map.json', sources)
+        files = build_exe_32bits.frontend_bundle_files()
+        names = {path.as_posix() for path in files}
+        self.assertIn('.vite/manifest.json', names)
+        self.assertTrue(any(name.startswith('icons-') and name.endswith('.svg') for name in names))
+        self.assertTrue(any(name.startswith('js/shell-') for name in names))
+        # Caminhos relativos: funcionam em /static/dist e dentro do _internal do PyInstaller.
+        self.assertFalse(any(name.startswith('/') or ':' in name for name in names))
+
+    def test_missing_bundles_fail_with_clear_instruction(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as empty:
+            with self.assertRaisesRegex(FileNotFoundError, 'npm run build'):
+                build_exe_32bits.frontend_bundle_files(Path(empty))
+
 
 if __name__ == '__main__':
     unittest.main()

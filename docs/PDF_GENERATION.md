@@ -53,6 +53,28 @@ origem fica na parte inferior, use `convert_legacy_coordinates()`, que considera
 CropBox e a matriz de rotação da página. Não espalhe conversões pelas regras de
 negócio.
 
+## Overlays (elementos desenhados após o preenchimento)
+
+`PdfDocumentSpec.overlay` recebe o documento já achatado e os valores do
+snapshot, antes da serialização. Overlays não consultam o banco: tudo o que
+desenham precisa estar no payload, para que a regeneração seja fiel. Chaves
+iniciadas por `__` são metadados de overlay e nunca preenchem campos AcroForm.
+
+- **Faixa de UTI** (`src/pdf/overlays.py`, chave `__ReservaUTI = 'SIM'` quando
+  `reserva_uti`): retângulo verde-claro com "RESERVAR VAGA DE UTI" em
+  Helvetica-Bold 15,96 pt (o mesmo tamanho de "AVISO DE CIRURGIA").
+  - Fica logo abaixo de "DATA DA INTERNAÇÃO", na página localizada pelo texto
+    "AVISO DE CIRURGIA".
+  - Snapshots anteriores à v2.7 não têm a chave e continuam sem a faixa.
+
+## Campos de texto vazios e valores do modelo
+
+Campos sem valor são zerados de verdade (`/V` vazio e aparência regenerada).
+Antes da v2.7, o valor de exemplo `03/05/2024` do campo `DATA` da requisição de
+hemocomponente reaparecia quando a data ficava vazia. O campo recebe sempre a
+data de internação (`_surgery_date_values`). O nome do hospital, antes herdado
+do modelo, é preenchido explicitamente.
+
 ## Fontes, overflow e imagens
 
 Widgets mantêm as fontes e aparências incorporadas nos modelos. Conteúdo desenhado

@@ -3,6 +3,10 @@
 
   const app = document.getElementById('agendaApp');
   if (!app) return;
+  // #agendaApp é substituído pelo HTMX (outerHTML) ao filtrar/navegar; os
+  // dados estáveis (usuário, especialidade, endpoints) são lidos uma vez e a
+  // visualização atual é sempre lida do elemento vigente.
+  const currentApp = () => document.getElementById('agendaApp') || app;
 
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const modalElement = document.getElementById('eventModal');
@@ -20,6 +24,9 @@
     return;
   }
   localStorage.setItem(preferenceKey, app.dataset.view);
+  document.addEventListener('htmx:afterSettle', () => {
+    localStorage.setItem(preferenceKey, currentApp().dataset.view);
+  });
 
   function toast(message, type = 'success') {
     const region = document.getElementById('agendaToastRegion');
@@ -28,48 +35,6 @@
     alert.textContent = message;
     region.append(alert);
     setTimeout(() => alert.remove(), 5000);
-  }
-
-  function isoDate(value) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  function navigatePeriod(action) {
-    const query = new URLSearchParams(location.search);
-    query.set('view', app.dataset.view);
-    const today = new Date();
-
-    if (app.dataset.view === 'month') {
-      const value = query.get('month')
-        || document.getElementById('agendaMonth')?.value
-        || isoDate(today).slice(0, 7);
-      const [year, month] = value.split('-').map(Number);
-      const target = new Date(year, month - 1, 1);
-      if (action === 'previous') target.setMonth(target.getMonth() - 1);
-      if (action === 'next') target.setMonth(target.getMonth() + 1);
-      if (action === 'today') {
-        target.setFullYear(today.getFullYear(), today.getMonth(), 1);
-      }
-      query.set(
-        'month',
-        `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`,
-      );
-      query.delete('start');
-      query.delete('end');
-    } else {
-      let start = new Date(
-        (query.get('start') || isoDate(today)) + 'T12:00:00',
-      );
-      if (action === 'previous') start.setDate(start.getDate() - 7);
-      if (action === 'next') start.setDate(start.getDate() + 7);
-      if (action === 'today') start = today;
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      query.set('start', isoDate(start));
-      query.set('end', isoDate(end));
-      query.delete('month');
-    }
-    location.assign(`${location.pathname}?${query}`);
   }
 
   function toggleReason() {
@@ -191,10 +156,23 @@
     }
   }
 
+  function reloadAgendaContent() {
+    // Atualiza somente a grade/lista; sem HTMX, recarrega a página inteira.
+    if (window.htmx) {
+      window.htmx.ajax('GET', location.pathname + location.search, {
+        target: '#agendaApp',
+        swap: 'outerHTML',
+      });
+    } else {
+      location.reload();
+    }
+  }
+
   async function refreshAgenda() {
     const button = document.getElementById('refreshAgendaButton');
     if (!button || !app.dataset.refreshEndpoint) return;
     button.disabled = true;
+    button.classList.add('is-spinning');
     button.querySelector('i')?.classList.add('fa-spin');
     try {
       const response = await fetch(app.dataset.refreshEndpoint, {
@@ -206,11 +184,12 @@
         throw new Error(data.error || 'Falha ao atualizar.');
       }
       toast('Agenda atualizada.');
-      setTimeout(() => location.reload(), 400);
+      setTimeout(reloadAgendaContent, 400);
     } catch (error) {
       toast(error.message, 'danger');
     } finally {
       button.disabled = false;
+      button.classList.remove('is-spinning');
       button.querySelector('i')?.classList.remove('fa-spin');
     }
   }
@@ -218,14 +197,11 @@
   document.addEventListener('click', event => {
     const trigger = event.target.closest('[data-event-trigger]');
     if (trigger) fillModal(trigger);
-    const period = event.target.closest('[data-period-action]');
-    if (period) navigatePeriod(period.dataset.periodAction);
+    if (event.target.closest('#refreshAgendaButton')) refreshAgenda();
   });
   form.addEventListener('change', event => {
     if (event.target.name === 'eventStatus') toggleReason();
   });
   form.addEventListener('submit', saveStatus);
-  document.getElementById('refreshAgendaButton')
-    ?.addEventListener('click', refreshAgenda);
 })();
 

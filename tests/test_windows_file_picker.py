@@ -46,7 +46,13 @@ class AccessSettingsTemplateTests(unittest.TestCase):
         self.assertIn('data-access-source-section="network"', source)
         self.assertIn('data-access-source-section="local"', source)
         self.assertIn('select-local-access-btn', source)
-        self.assertIn('control.disabled = !active', source)
+        # A seção inativa fica oculta e desabilitada (estado inicial no servidor,
+        # alternância via Alpine) para não enviar campos da outra origem.
+        self.assertIn(':disabled="isLocal"', source)
+        self.assertIn(':disabled="isNetwork"', source)
+        self.assertIn("' hidden disabled' if access_source == 'local'", source)
+        script = (Path(__file__).resolve().parents[1] / 'src' / 'static' / 'js' / 'pages' / 'specialty-settings.js').read_text(encoding='utf-8')
+        self.assertIn("Alpine.data('accessSource'", script)
 
 
 if __name__ == '__main__':

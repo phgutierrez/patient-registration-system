@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = ROOT / 'src'
 
 
-def fake_records(*, opme='', reserva_sangue=True, nome='João da Conceição Silva'):
+def fake_records(*, opme='', reserva_sangue=True, nome='João da Conceição Silva', reserva_uti=False):
     patient = SimpleNamespace(
         id=10, nome=nome, prontuario='123456', nome_mae='Maria da Conceição',
         contato='(83) 99999-0000', cns='123456789012345',
@@ -45,6 +45,7 @@ def fake_records(*, opme='', reserva_sangue=True, nome='João da Conceição Sil
         quantidade_sangue='2 concentrados', raio_x=True, duracao_prevista='02:00',
         peso=72, evolucao_internacao='Evolução estável',
         prescricao_internacao='Jejum e analgesia', exames_preop='Hemograma',
+        reserva_uti=reserva_uti,
     )
     requester = SimpleNamespace(full_name='Dr. José Médico', cns='987654321098765', crm='CRM 1234')
     return patient, surgery, requester
@@ -278,3 +279,105 @@ class HttpDeliveryTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class UtiBannerTests(unittest.TestCase):
+    GREEN = (0.78, 0.95, 0.78)
+
+    def _render(self, reserva_uti, opme=''):
+        patient, surgery, requester = fake_records(reserva_uti=reserva_uti, opme=opme)
+        values = build_internacao_mapping(patient, surgery, requester)
+        return values, pymupdf.open(stream=generate_pdf('internacao', values, APP_ROOT), filetype='pdf')
+
+    def _green_rects(self, page):
+        return [
+            drawing['rect'] for drawing in page.get_drawings()
+            if drawing.get('fill') and all(
+                abs(a - b) < 0.02 for a, b in zip(drawing['fill'], self.GREEN)
+            )
+        ]
+
+    def test_mapping_flags_uti_only_when_requested(self):
+        self.assertEqual('SIM', self._render(True)[0]['__ReservaUTI'])
+        self.assertEqual('', self._render(False)[0]['__ReservaUTI'])
+
+    def test_banner_drawn_below_admission_date_on_notice_page(self):
+        for opme in ('', 'Placa bloqueada'):
+            with self.subTest(opme=opme):
+                _values, document = self._render(True, opme)
+                try:
+                    notice = document[1]
+                    self.assertTrue(notice.search_for('AVISO DE CIRURGIA'))
+                    banner_text = notice.search_for('RESERVAR VAGA DE UTI')
+                    self.assertEqual(1, len(banner_text))
+                    label = notice.search_for('DATA DA INTERNA')[0]
+                    self.assertGreater(banner_text[0].y0, label.y1)
+                    rects = self._green_rects(notice)
+                    self.assertEqual(1, len(rects))
+                    self.assertTrue(rects[0].contains(banner_text[0]))
+                    # Mesmo tamanho do título "AVISO DE CIRURGIA" (15,96 pt).
+                    sizes = {
+                        round(span['size'], 2)
+                        for block in notice.get_text('dict')['blocks']
+                        for line in block.get('lines', [])
+                        for span in line['spans']
+                        if 'UTI' in span['text']
+                    }
+                    self.assertEqual({15.96}, sizes)
+                    others = [
+                        page.number for page in document
+                        if page.number != 1 and page.search_for('RESERVAR VAGA DE UTI')
+                    ]
+                    self.assertEqual([], others)
+                finally:
+                    document.close()
+
+    def test_no_banner_without_uti_or_in_legacy_snapshot_payload(self):
+        values, document = self._render(False)
+        document.close()
+        legacy_payload = dict(values)
+        legacy_payload.pop('__ReservaUTI')
+        for payload in (values, legacy_payload):
+            with self.subTest(keys=len(payload)):
+                document = pymupdf.open(
+                    stream=generate_pdf('internacao', payload, APP_ROOT), filetype='pdf'
+                )
+                try:
+                    self.assertFalse(document[1].search_for('RESERVAR VAGA DE UTI'))
+                    self.assertEqual([], self._green_rects(document[1]))
+                finally:
+                    document.close()
+
+    def test_overlay_key_never_fills_acroform_fields(self):
+        self.assertIsNone(resolve_mapping('ReservaUTI', {'__ReservaUTI': 'SIM'}))
+
+
+class HemocomponentDateTests(unittest.TestCase):
+    TEMPLATE_SAMPLE_DATE = '03/05/2024'
+
+    def _text(self, surgery_changes):
+        patient, surgery, requester = fake_records()
+        for key, value in surgery_changes.items():
+            setattr(surgery, key, value)
+        values = build_hemocomponente_mapping(
+            patient, surgery, requester, datetime(2026, 7, 11, 9, 5)
+        )
+        document = pymupdf.open(
+            stream=generate_pdf('hemocomponente', values, APP_ROOT), filetype='pdf'
+        )
+        try:
+            return document[0].get_text()
+        finally:
+            document.close()
+
+    def test_template_sample_date_replaced_by_admission_date(self):
+        for internar_antes, expected in ((True, '19/07/2026'), (False, '20/07/2026')):
+            with self.subTest(internar_antes=internar_antes):
+                text = self._text({'internar_antes': internar_antes})
+                self.assertIn(expected, text)
+                self.assertNotIn(self.TEMPLATE_SAMPLE_DATE, text)
+                self.assertNotIn('11/07/2026', text)  # data da solicitação
+
+    def test_sample_date_cleared_when_admission_date_unknown(self):
+        text = self._text({'data_cirurgia': None})
+        self.assertNotIn(self.TEMPLATE_SAMPLE_DATE, text)

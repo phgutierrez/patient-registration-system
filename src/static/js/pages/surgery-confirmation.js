@@ -1,0 +1,23 @@
+(() => {
+  'use strict';
+  // Confirmação da solicitação: prévia do PDF e envio à agenda (Google Forms).
+  // Extraído do script inline de surgery/confirmation.html sem mudança de fluxo.
+  function init() {
+
+
+ const frame=document.getElementById('pdfFrame'),loading=document.getElementById('pdfLoading'); frame.addEventListener('load',()=>loading.classList.add('is-hidden')); document.getElementById('reloadPdf').addEventListener('click',()=>{loading.classList.remove('is-hidden');frame.src=frame.src.split('#')[0]+'#t='+Date.now()});
+ const trigger=document.getElementById('btnSchedulePreview'); if(!trigger)return; const modal=new bootstrap.Modal(document.getElementById('schedulePreviewModal')),form=document.getElementById('scheduleForm'),loader=document.getElementById('scheduleLoading'),alertBox=document.getElementById('scheduleAlert'),confirm=document.getElementById('btnConfirmSchedule'); let busy=false;
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const error=message=>{alertBox.innerHTML=`<div class="alert alert-danger">${esc(message)}</div>`};
+ trigger.addEventListener('click',async()=>{modal.show();form.classList.add('d-none');loader.classList.remove('d-none');alertBox.innerHTML='';confirm.disabled=true;try{const response=await fetch(trigger.dataset.previewUrl);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||'Não foi possível carregar os dados.');if(data.already_scheduled){loader.classList.add('d-none');error('Esta cirurgia já foi enviada à agenda.');return}fill(data.preview);loader.classList.add('d-none');form.classList.remove('d-none');confirm.disabled=false}catch(e){loader.classList.add('d-none');error(e.message)}});
+ function fill(p){document.getElementById('scheduleProcedure').value=p.procedure_title;document.getElementById('scheduleDate').value=p.date;document.getElementById('scheduleOrthopedist').value=p.orthopedist;document.getElementById('scheduleIcu').value=p.needs_icu;document.getElementById('scheduleDescription').value=p.full_description;document.getElementById('scheduleOpmeOther').value=p.opme_other||'';document.getElementById('orthopedists').innerHTML=p.orthopedist_choices.map(v=>`<option value="${esc(v)}">`).join('');document.getElementById('scheduleOpme').innerHTML=p.opme_choices.map((v,i)=>`<div class="col-md-6"><label class="form-check"><input class="form-check-input schedule-opme" type="checkbox" value="${esc(v)}" ${p.opme.includes(v)?'checked':''}><span class="form-check-label">${esc(v)}</span></label></div>`).join('')}
+ confirm.addEventListener('click',async()=>{if(busy||!form.reportValidity())return;busy=true;confirm.disabled=true;confirm.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Enviando…';alertBox.innerHTML='';const payload={procedure_title:document.getElementById('scheduleProcedure').value,date:document.getElementById('scheduleDate').value,orthopedist:document.getElementById('scheduleOrthopedist').value,needs_icu:document.getElementById('scheduleIcu').value,opme:[...document.querySelectorAll('.schedule-opme:checked')].map(e=>e.value),opme_other:document.getElementById('scheduleOpmeOther').value,full_description:document.getElementById('scheduleDescription').value};try{let response=await fetch(trigger.dataset.confirmUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name="csrf-token"]')?.content||''},body:JSON.stringify(payload)});let data=await response.json();if(response.status===409&&data.requires_offline_confirmation){if(!window.confirm(data.message+' Deseja enviar mesmo assim?'))throw new Error('Envio cancelado. Seus ajustes foram preservados.');payload.allow_offline_duplicate_risk=true;response=await fetch(trigger.dataset.confirmUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name="csrf-token"]')?.content||''},body:JSON.stringify(payload)});data=await response.json();}if(!response.ok||!data.ok)throw new Error(data.message||'Falha ao enviar.');form.classList.add('d-none');alertBox.innerHTML=`<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>${esc(data.message)}</div>`;trigger.disabled=true;trigger.innerHTML='<i class="fas fa-check-circle me-1"></i>Enviado à agenda';confirm.classList.add('d-none')}catch(e){error(e.message);confirm.disabled=false}finally{busy=false;confirm.innerHTML='<i class="fas fa-paper-plane me-1"></i>Enviar à agenda'}});
+
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();

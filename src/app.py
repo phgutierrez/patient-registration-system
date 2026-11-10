@@ -54,6 +54,16 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     bootstrap_admin_if_configured(app)
 
+    # Bundles do frontend (Vite): helpers Jinja e cache longo para arquivos com hash.
+    from src import frontend_assets
+    frontend_assets.init_app(app)
+    default_max_age = app.get_send_file_max_age
+
+    def get_send_file_max_age(filename):
+        return frontend_assets.static_max_age(filename) or default_max_age(filename)
+
+    app.get_send_file_max_age = get_send_file_max_age
+
     # Configuração do login_manager
     from src.models.user import User
 
@@ -126,6 +136,14 @@ def create_app(config_class=Config):
     @app.get('/health')
     def health():
         return {'status': 'ok'}, 200
+
+    @app.after_request
+    def mark_hashed_assets_immutable(response):
+        if request.endpoint == 'static' and frontend_assets.static_max_age(
+            (request.view_args or {}).get('filename')
+        ):
+            response.cache_control.immutable = True
+        return response
 
     @app.after_request
     def apply_security_headers(response):

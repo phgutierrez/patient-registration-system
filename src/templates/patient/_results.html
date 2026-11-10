@@ -1,0 +1,79 @@
+{# Resultados da lista de pacientes: renderizado na página completa e,
+   isoladamente, em respostas HTMX (cabeçalho HX-Request). #}
+{% from "patient/_macros.html" import result_count %}
+{% if htmx_partial %}{{ result_count(pagination, oob=True) }}{% endif %}
+    {% if patients %}
+    <div class="d-none d-lg-block table-responsive">
+      <table class="table patients-table align-middle mb-0">
+        <thead><tr><th>Paciente</th><th>Prontuário / CNS</th><th>Nascimento</th><th>Cidade</th><th>Diagnóstico</th><th class="text-end">Ações</th></tr></thead>
+        <tbody>
+        {% for patient in patients %}
+          <tr>
+            <td><a class="patient-name" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ patient.nome }}</a><span class="patient-subtitle">{{ patient.contato or 'Contato não informado' }}</span></td>
+            <td><strong>{{ patient.prontuario or '—' }}</strong><span class="patient-subtitle">CNS {{ patient.cns or '—' }}</span></td>
+            <td>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '—' }}<span class="patient-subtitle">{{ patient.idade }} anos</span></td>
+            <td>{{ patient.cidade or '—' }}{% if patient.estado %}/{{ patient.estado }}{% endif %}</td>
+            <td><span class="diagnosis-clamp" title="{{ patient.diagnostico or '' }}">{{ patient.diagnostico or '—' }}</span></td>
+            <td class="text-end">
+              <div class="patient-actions">
+                <a class="btn btn-sm btn-success" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}">{{ icon('clipboard-plus') }} Solicitar</a>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Mais ações">{{ icon('ellipsis-vertical') }}</button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ icon('eye') }} Ver cadastro</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('patients.edit_patient', id=patient.id) }}">{{ icon('pencil') }} Editar</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}">{{ icon('trash-2') }} Excluir</button></li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-lg-none patient-mobile-list">
+      {% for patient in patients %}
+      <article class="patient-mobile-row">
+        <a class="patient-mobile-main" href="{{ url_for('patients.view_patient', id=patient.id) }}">
+          <strong>{{ patient.nome }}</strong>
+          <span>Pront. {{ patient.prontuario or '—' }} · {{ patient.cidade or 'Cidade não informada' }}</span>
+          <small>{{ patient.diagnostico or 'Sem diagnóstico informado' }}</small>
+        </a>
+        <div class="patient-mobile-actions">
+          <a class="btn btn-sm btn-success" href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" aria-label="Solicitar cirurgia">{{ icon('clipboard-plus') }}</a>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Mais ações">{{ icon('ellipsis-vertical') }}</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('patients.edit_patient', id=patient.id) }}">Editar</a></li>
+              <li><button class="dropdown-item text-danger" type="button" data-delete-patient="{{ patient.id }}" data-patient-name="{{ patient.nome|e }}">Excluir</button></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="patients-empty">
+      {{ icon('user-x') }}
+      <h2>{% if search %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</h2>
+      <p>{% if search %}Revise o termo ou limpe a pesquisa para visualizar todos.{% else %}Cadastre o primeiro paciente para começar.{% endif %}</p>
+      {% if search %}<a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-primary">Limpar pesquisa</a>{% else %}<a href="{{ url_for('patients.new_patient') }}" class="btn btn-primary">Novo paciente</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if pagination.pages > 1 %}
+    <footer class="patients-footer">
+      <span>Página {{ pagination.page }} de {{ pagination.pages }}</span>
+      <nav aria-label="Paginação de pacientes" hx-target="#patient-results" hx-swap="innerHTML" hx-push-url="true"><ul class="pagination pagination-sm mb-0">
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">{% if pagination.has_prev %}{% set url = url_for('patients.list_patients', q=search or None, page=pagination.prev_num) %}<a class="page-link" href="{{ url }}" hx-get="{{ url }}">Anterior</a>{% else %}<span class="page-link">Anterior</span>{% endif %}</li>
+        {% for number in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if number %}<li class="page-item {{ 'active' if number == pagination.page }}">{% set url = url_for('patients.list_patients', q=search or None, page=number) %}<a class="page-link" href="{{ url }}" hx-get="{{ url }}"{% if number == pagination.page %} aria-current="page"{% endif %}>{{ number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">{% if pagination.has_next %}{% set url = url_for('patients.list_patients', q=search or None, page=pagination.next_num) %}<a class="page-link" href="{{ url }}" hx-get="{{ url }}">Próxima</a>{% else %}<span class="page-link">Próxima</span>{% endif %}</li>
+      </ul></nav>
+    </footer>
+    {% endif %}
+{% for patient in patients %}<form id="delete-form-{{ patient.id }}" action="{{ url_for('patients.delete_patient', id=patient.id) }}" method="post" hidden><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>{% endfor %}

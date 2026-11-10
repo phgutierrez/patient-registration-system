@@ -23,6 +23,7 @@ def generate_pdf(
         expected_template_pages=spec.expected_template_pages,
         output_pages=output_pages,
         required_fields=required_fields,
+        overlay=spec.overlay,
     )
     validate_generated_pdf(
         result.pdf_bytes,

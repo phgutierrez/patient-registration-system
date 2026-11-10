@@ -5,7 +5,7 @@ import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Dict, FrozenSet, Iterable, Mapping, Optional, Set, Tuple
+from typing import Callable, Dict, FrozenSet, Iterable, Mapping, Optional, Set, Tuple
 
 import pymupdf
 
@@ -34,6 +34,8 @@ def _normalized_name(value: str) -> str:
 
 def resolve_mapping(field_name: str, values: Mapping[str, object]) -> Optional[Tuple[str, str]]:
     """Resolve nomes exatos, sem acento e nomes legados mal codificados do AcroForm."""
+    # Chaves iniciadas por "__" são metadados de overlay, nunca campos AcroForm.
+    values = {key: value for key, value in values.items() if not str(key).startswith('__')}
     if field_name in values:
         return field_name, str(values[field_name] or '')
 
@@ -107,6 +109,23 @@ def _set_widget_value(widget: pymupdf.Widget, value: str) -> None:
     else:
         widget.field_value = value
     widget.update()
+    if widget.field_type == pymupdf.PDF_WIDGET_TYPE_TEXT and not value:
+        _clear_text_widget(widget)
+
+
+def _clear_text_widget(widget: pymupdf.Widget) -> None:
+    """Remove o valor de exemplo gravado no modelo.
+
+    O PyMuPDF ignora ``field_value = ''`` quando o modelo já possui ``/V``
+    (ex.: a data 03/05/2024 do modelo de hemocomponente), e o valor antigo
+    voltava a aparecer após o ``bake``. Zeramos ``/V`` diretamente e
+    regeneramos a aparência.
+    """
+    page = widget.parent
+    page.parent.xref_set_key(widget.xref, 'V', '()')
+    refreshed = page.load_widget(widget.xref)
+    refreshed.field_value = ''
+    refreshed.update()
 
 
 def render_acroform(
@@ -116,6 +135,7 @@ def render_acroform(
     expected_template_pages: int,
     output_pages: int,
     required_fields: Iterable[str],
+    overlay: Optional[Callable[[pymupdf.Document, Mapping[str, object]], None]] = None,
 ) -> RenderResult:
     if isinstance(template_path, bytes):
         template_name = 'modelo-versionado.pdf'
@@ -198,6 +218,12 @@ def render_acroform(
             raise PdfGenerationError(
                 'A aparência de campos obrigatórios não foi incorporada: ' + ', '.join(sorted(unchanged))
             )
+        if overlay is not None:
+            try:
+                overlay(document, values)
+            except Exception as exc:
+                logger.exception('Falha ao aplicar overlay no PDF modelo=%s', template_name)
+                raise PdfGenerationError('Não foi possível concluir os elementos visuais do PDF.') from exc
         pdf_bytes = document.tobytes(garbage=4, deflate=True)
         return RenderResult(
             pdf_bytes, frozenset(resolved), expected_template_pages, output_pages,

@@ -1,0 +1,101 @@
+{# #agendaApp: página completa e resposta parcial HTMX (troca outerHTML). #}
+{% macro event_attrs(event) -%}
+data-event-trigger data-event-uid="{{ event.uid|e }}" data-event-date="{{ event.event_date }}"
+data-event-title="{{ event.title|e }}" data-event-start="{{ event.start.strftime('%d/%m/%Y %H:%M') }}"
+data-event-end="{{ event.end.strftime('%H:%M') }}" data-event-allday="{{ 'true' if event.all_day else 'false' }}"
+data-event-location="{{ (event.location or '')|e }}" data-event-description="{{ (event.description or '')|e }}"
+data-event-status="{{ event.status }}" data-event-reason="{{ (event.suspension_reason or '')|e }}"
+data-surgery-request-id="{{ event.surgery_request_id or '' }}"
+{%- endmacro %}
+<div id="agendaApp" class="container-fluid agenda-shell" data-view="{{ view }}" data-user-id="{{ current_user.id }}"
+     data-specialty-id="{{ specialty.id if specialty else 0 }}" data-status-endpoint="{{ url_for('main.update_event_status') }}"
+     data-refresh-endpoint="{{ url_for('main.refresh_calendar_cache') if current_user.is_admin else '' }}"
+     hx-target="this" hx-swap="outerHTML" hx-push-url="true" data-hx-error-region>
+  <header class="app-page-header agenda-heading">
+    <div><span class="eyebrow">Ortopedia</span><h1>Agenda cirúrgica</h1><p>{{ total_events }} evento{{ '' if total_events == 1 else 's' }} no período exibido.</p></div>
+    <div class="agenda-legend"><span><i class="legend-pending"></i>Pendente</span><span><i class="legend-done"></i>Realizada</span><span><i class="legend-cancelled"></i>Suspensa</span></div>
+  </header>
+
+  {% if error_type == 'not_configured' %}
+  <div class="alert alert-danger">{{ icon('circle-alert', extra_class='me-2') }}{{ error }}</div>
+  {% else %}
+    {% if meta_source == 'stale' %}
+    <div class="alert alert-warning agenda-notice"><span>{{ icon('clock', extra_class='me-2') }}<strong>Atualizando agenda.</strong> Os últimos dados salvos já estão disponíveis.</span></div>
+    {% elif meta_source == 'error' %}
+    <div class="alert alert-danger agenda-notice"><span>{{ icon('unlink', extra_class='me-2') }}<strong>Agenda indisponível.</strong> {{ error or 'Ainda não existe uma cópia local.' }}</span></div>
+    {% endif %}
+
+    <section class="agenda-toolbar">
+      <div class="period-navigation">
+        <a class="btn btn-light" id="agendaPeriodPrevious" href="{{ nav_urls.previous }}" hx-get="{{ nav_urls.previous }}" aria-label="Período anterior">{{ icon('chevron-left') }}</a>
+        <a class="btn btn-outline-primary" id="agendaPeriodToday" href="{{ nav_urls.today }}" hx-get="{{ nav_urls.today }}">Hoje</a>
+        <a class="btn btn-light" id="agendaPeriodNext" href="{{ nav_urls.next }}" hx-get="{{ nav_urls.next }}" aria-label="Próximo período">{{ icon('chevron-right') }}</a>
+        <strong>{% if view == 'month' %}{{ month_name }} de {{ year }}{% else %}{{ start_date[8:10] }}/{{ start_date[5:7] }} a {{ end_date[8:10] }}/{{ end_date[5:7] }}{% endif %}</strong>
+      </div>
+      <div class="view-switch" role="group" aria-label="Visualização">
+        {% set week_url = url_for('main.agenda', view='week', q=query, status=status_filter) %}
+        {% set month_url = url_for('main.agenda', view='month', month=current_month, q=query, status=status_filter) %}
+        <a class="btn {{ 'active' if view == 'week' }}" id="agendaViewWeek" href="{{ week_url }}" hx-get="{{ week_url }}"{% if view == 'week' %} aria-current="true"{% endif %}>{{ icon('list') }} Semana</a>
+        <a class="btn {{ 'active' if view == 'month' }}" id="agendaViewMonth" href="{{ month_url }}" hx-get="{{ month_url }}"{% if view == 'month' %} aria-current="true"{% endif %}>{{ icon('calendar-days') }} Mês</a>
+      </div>
+      {% if current_user.is_admin %}<button type="button" class="btn btn-light" id="refreshAgendaButton" title="Atualizar agora" aria-label="Atualizar agenda agora">{{ icon('refresh-cw') }}</button>{% endif %}
+    </section>
+
+    <form method="get" action="{{ url_for('main.agenda') }}" class="agenda-filters" hx-get="{{ url_for('main.agenda') }}"
+          hx-trigger="submit, change from:#agendaStatus, input changed delay:400ms from:#agendaQuery">
+      <input type="hidden" name="view" value="{{ view }}">
+      {% if view == 'month' %}<input type="hidden" name="month" id="agendaMonth" value="{{ current_month }}">{% else %}
+      <label><span>Início</span><input class="form-control" type="date" name="start" value="{{ start_date }}"></label>
+      <label><span>Fim</span><input class="form-control" type="date" name="end" value="{{ end_date }}"></label>
+      {% endif %}
+      <label class="agenda-search"><span>Buscar evento</span><div>{{ icon('search') }}<input class="form-control" id="agendaQuery" name="q" maxlength="100" value="{{ query }}" placeholder="Paciente ou procedimento"></div></label>
+      <label><span>Status</span><select class="form-select" id="agendaStatus" name="status"><option value="todos" {{ 'selected' if status_filter == 'todos' }}>Todos</option><option value="pendente" {{ 'selected' if status_filter == 'pendente' }}>Pendentes</option><option value="realizada" {{ 'selected' if status_filter == 'realizada' }}>Realizadas</option><option value="suspensa" {{ 'selected' if status_filter == 'suspensa' }}>Suspensas</option></select></label>
+      <button class="btn btn-primary" type="submit">Aplicar</button>
+      {% if query or status_filter != 'todos' %}{% set clear_url = url_for('main.agenda', view=view, month=current_month if view == 'month' else None, start=start_date if view == 'week' else None, end=end_date if view == 'week' else None) %}<a class="btn btn-link" href="{{ clear_url }}" hx-get="{{ clear_url }}">Limpar</a>{% endif %}
+    </form>
+
+    <div class="agenda-results">
+    {% if total_events == 0 %}
+    <div class="agenda-empty">{{ icon('calendar-x') }}<h2>Nenhum evento encontrado</h2><p>Não há procedimentos neste período com os filtros selecionados.</p></div>
+    {% elif view == 'week' %}
+    <section class="week-list">
+      {% for date_key in sorted_dates %}
+      <div class="agenda-day-group">
+        <header><time datetime="{{ date_key }}">{{ formatted_dates[date_key] }}</time><span>{{ grouped_events[date_key]|length }}</span></header>
+        {% for event in grouped_events[date_key] %}
+        <button type="button" class="agenda-row status-{{ event.status|lower }}" data-event-container data-event-uid="{{ event.uid|e }}" {{ event_attrs(event) }}>
+          <span class="event-hour">{% if event.all_day %}<small>Dia inteiro</small>{% else %}<strong>{{ event.start.strftime('%H:%M') }}</strong><small>até {{ event.end.strftime('%H:%M') }}</small>{% endif %}</span>
+          <span class="event-content"><strong>{{ event.title }}</strong>{% if event.location %}<small>{{ icon('map-pin') }} {{ event.location }}</small>{% endif %}<small class="event-description-preview">{{ event.description or 'Sem descrição' }}</small></span>
+          <span class="event-status-label">{{ event.status|title }}</span>{{ icon('chevron-right', extra_class='row-chevron') }}
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </section>
+    {% else %}
+    <section class="month-grid d-none d-md-block">
+      <div class="month-weekdays">{% for day in ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'] %}<span>{{ day }}</span>{% endfor %}</div>
+      <div class="month-days">
+        {% for week in weeks %}{% for cell in week %}
+        <div class="month-day {{ 'outside' if cell.is_other_month }} {{ 'today' if cell.is_today }}">
+          {% if cell.day %}<span class="day-number">{{ cell.day }}</span>{% endif %}
+          {% for event in cell.events[:4] %}
+          <button type="button" class="month-event status-{{ event.status|lower }}" data-event-container data-event-uid="{{ event.uid|e }}" {{ event_attrs(event) }} title="{{ event.title|e }}"><time>{{ event.start.strftime('%H:%M') if not event.all_day else '' }}</time><span>{{ event.title }}</span></button>
+          {% endfor %}
+          {% if cell.events|length > 4 %}<small class="more-events">+{{ cell.events|length - 4 }} evento(s)</small>{% endif %}
+        </div>
+        {% endfor %}{% endfor %}
+      </div>
+    </section>
+    <section class="month-mobile d-md-none">
+      {% for date_key in sorted_dates %}
+      <div class="agenda-day-group"><header><time datetime="{{ date_key }}">{{ formatted_dates[date_key] }}</time><span>{{ grouped_events[date_key]|length }}</span></header>
+      {% for event in grouped_events[date_key] %}<button type="button" class="agenda-row status-{{ event.status|lower }}" data-event-container data-event-uid="{{ event.uid|e }}" {{ event_attrs(event) }}><span class="event-hour"><strong>{{ event.start.strftime('%H:%M') if not event.all_day else 'Dia' }}</strong></span><span class="event-content"><strong>{{ event.title }}</strong><small>{{ event.location or 'Sem local informado' }}</small></span><span class="event-status-label">{{ event.status|title }}</span></button>{% endfor %}</div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    </div>
+    <footer class="agenda-cache-info"><span>{{ icon('database') }} Atualizado em {{ cache_info.fetched_at[:16].replace('T', ' ') if cache_info else '—' }}</span>{% if meta_source == 'stale' %}<span class="text-warning">Atualização em andamento</span>{% endif %}</footer>
+  {% endif %}
+</div>

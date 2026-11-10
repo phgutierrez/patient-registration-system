@@ -754,3 +754,49 @@
         width: 100%;
     }
 }
+
+/* ── Ícones Lucide (sprite SVG local, v2.7) ─────────────────────────────
+   Equivalentes às regras de <i class="fas"> acima; mesmos tamanhos/espaços. */
+.icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+    stroke: currentColor;
+    fill: none;
+    overflow: visible;
+}
+
+.icon-xs { font-size: 0.65rem; }
+
+.sidebar-pin-btn .icon { margin: 0; font-size: 0.82rem; }
+.sidebar-pin-btn .icon-chevrons-right { display: none; }
+body.sidebar-collapsed .sidebar-pin-btn .icon-chevrons-left { display: none; }
+body.sidebar-collapsed .sidebar-pin-btn .icon-chevrons-right { display: inline-block; }
+
+.nav-link .icon { margin-right: 0; width: 18px; height: 0.96rem; font-size: 0.96rem; flex-shrink: 0; }
+.message .icon { margin-right: 1rem; font-size: 1.1rem; flex-shrink: 0; }
+
+@media (min-width: 769px) {
+    body:not(.sidebar-pinned) .sidebar:not(:hover):not(:focus-within) .nav-link .icon { margin-right: 0; width: 24px; }
+    body:not(.sidebar-pinned) .sidebar:not(:hover):not(:focus-within) .sidebar-logout-btn .icon { margin-right: 0; }
+    body.sidebar-collapsed .nav-link .icon,
+    body.sidebar-collapsed .sidebar-logout-btn .icon { width: 24px; margin: 0; }
+}
+
+.is-spinning .icon,
+.icon.is-spinning { animation: icon-spin 0.9s linear infinite; }
+
+@keyframes icon-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .is-spinning .icon,
+    .icon.is-spinning { animation: none; }
+}
+
+/* Correção v2.7: a regra base ".menu-toggle { display: none }" vinha depois
+   da media query e escondia o botão do menu em telas ≤ 768px. */
+@media (max-width: 768px) {
+    .menu-toggle { display: flex; }
+}
