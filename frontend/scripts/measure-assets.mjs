@@ -10,10 +10,13 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const statik = join(root, 'src', 'static');
 const dist = join(statik, 'dist');
 const manifest = JSON.parse(readFileSync(join(dist, '.vite', 'manifest.json'), 'utf8'));
-const icons = JSON.parse(readFileSync(join(dist, 'icons-manifest.json'), 'utf8'));
+const iconsDir = join(statik, 'icons');
+const icons = JSON.parse(readFileSync(join(iconsDir, 'icons-manifest.json'), 'utf8'));
 
-const COMMON = ['vendor/bootstrap/bootstrap.min.css', 'vendor/fontawesome/css/all.min.css',
-  'vendor/fontawesome/webfonts/fa-solid-900.woff2'];
+// v2.6 carregava Font Awesome (CSS + fonte sólida) em todas as páginas; v2.7 usa o sprite Lucide.
+// Os tamanhos do Font Awesome removido ficam registrados aqui para a comparação.
+const FONT_AWESOME_BYTES = [102025 + 150124, 21627 + 150174]; // bruto, gzip -9 (v2.6)
+const COMMON = ['vendor/bootstrap/bootstrap.min.css'];
 const BOOTSTRAP_JS = 'vendor/bootstrap/bootstrap.bundle.min.js';
 const OLD_SHELL = ['css/app-shell.css', 'css/sync-status.css', 'js/app-shell.js', 'js/sync-status.js', 'js/lifecycle.js'];
 
@@ -48,12 +51,13 @@ function entryFiles(name, seen = new Set()) {
 const kb = ([r, g]) => `${(r / 1024).toFixed(1)} KB (${(g / 1024).toFixed(1)} KB gz)`;
 const rows = [];
 for (const [page, [entry, usesBootstrap, oldPage]] of Object.entries(PAGES)) {
-  const before = sum([...COMMON, BOOTSTRAP_JS, ...OLD_SHELL, ...oldPage].map((p) => join(statik, p)));
+  const oldFiles = sum([...COMMON, BOOTSTRAP_JS, ...OLD_SHELL, ...oldPage].map((p) => join(statik, p)));
+  const before = [oldFiles[0] + FONT_AWESOME_BYTES[0], oldFiles[1] + FONT_AWESOME_BYTES[1]];
   const after = sum([
     ...COMMON.map((p) => join(statik, p)),
     ...(usesBootstrap ? [join(statik, BOOTSTRAP_JS)] : []),
     ...entryFiles('shell'),
-    join(dist, icons.file),
+    join(iconsDir, icons.file),
     ...(entry ? entryFiles(entry) : oldPage.map((p) => join(statik, p))),
   ]);
   rows.push({ page, before: kb(before), after: kb(after), delta: `${(((after[1] - before[1]) / before[1]) * 100).toFixed(0)}% gz` });

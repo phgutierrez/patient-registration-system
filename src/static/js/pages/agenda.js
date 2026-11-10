@@ -152,7 +152,7 @@
       feedback.querySelector('.alert').textContent = error.message;
     } finally {
       button.disabled = false;
-      button.innerHTML = '<i class="fas fa-save"></i> Salvar status';
+      button.innerHTML = `${window.appIcon('save')} Salvar status`;
     }
   }
 
@@ -173,7 +173,6 @@
     if (!button || !app.dataset.refreshEndpoint) return;
     button.disabled = true;
     button.classList.add('is-spinning');
-    button.querySelector('i')?.classList.add('fa-spin');
     try {
       const response = await fetch(app.dataset.refreshEndpoint, {
         method: 'POST',
@@ -190,7 +189,6 @@
     } finally {
       button.disabled = false;
       button.classList.remove('is-spinning');
-      button.querySelector('i')?.classList.remove('fa-spin');
     }
   }
 

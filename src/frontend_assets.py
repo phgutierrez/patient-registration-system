@@ -20,15 +20,18 @@ import re
 import threading
 from pathlib import Path
 
-from flask import current_app, url_for
+import mimetypes
+
+from flask import current_app, request, send_from_directory, url_for
 from markupsafe import Markup, escape
 
 logger = logging.getLogger(__name__)
 
 MANIFEST_RELATIVE = Path('dist') / '.vite' / 'manifest.json'
-ICONS_MANIFEST_RELATIVE = Path('dist') / 'icons-manifest.json'
+ICONS_MANIFEST_RELATIVE = Path('icons') / 'icons-manifest.json'
 ICON_MAP_RELATIVE = Path('icon-map.json')
-HASHED_DIST_FILE = re.compile(r'^dist/.+-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$')
+PRECOMPRESSED_FILE = re.compile(r'^(?:dist|icons|vendor/bootstrap)/.+\.(?:js|css|svg)$')
+HASHED_DIST_FILE = re.compile(r'^(?:dist/.+|icons/icons)-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$')
 
 # Arquivos-fonte equivalentes a cada entrada do Vite (fallback sem build).
 LEGACY_ASSETS: dict[str, dict[str, tuple[str, ...]]] = {
@@ -160,28 +163,32 @@ def _icon_map() -> dict:
     return data.get('icons', {})
 
 
-def icon(name: str, label: str | None = None, extra_class: str = '') -> Markup:
-    """Ícone Lucide via sprite SVG local (funciona sem JavaScript).
-
-    Sem o sprite gerado, recorre ao Font Awesome equivalente do icon-map.
-    """
-    icons = _icon_map()
-    if name not in icons:
-        raise KeyError(f'Ícone não mapeado em icon-map.json: {name}')
-    classes = f'icon icon-{name} {extra_class}'.strip()
-    a11y = (
-        f'role="img" aria-label="{escape(label)}"' if label else 'aria-hidden="true"'
-    )
+def icon_sprite_url() -> str:
+    """URL do sprite SVG (com hash) para uso também pelo JavaScript."""
     sprite = _load_json(ICONS_MANIFEST_RELATIVE)
-    if not sprite or name not in sprite.get('icons', ()):
-        return Markup(
-            f'<i class="fas fa-{escape(icons[name])} {escape(extra_class)}" {a11y}></i>'
-        )
-    href = _static_url(f'dist/{sprite["file"]}') + f'#{name}'
-    return Markup(
-        f'<svg class="{escape(classes)}" {a11y} focusable="false">'
-        f'<use href="{escape(href)}"></use></svg>'
+    if not sprite:
+        logger.warning('Sprite de ícones ausente (src/static/icons); execute "npm run build".')
+        return ''
+    return _static_url(f'icons/{sprite["file"]}')
+
+
+def icon(name: str, label: str | None = None, extra_class: str = '') -> Markup:
+    """Ícone Lucide do sprite SVG local (funciona sem JavaScript).
+
+    O <i> externo mantém as regras de CSS já existentes para ícones
+    (posição, cor, tamanho); o SVG interno ocupa 1em.
+    """
+    if name not in _icon_map():
+        raise KeyError(f'Ícone não mapeado em icon-map.json: {name}')
+    classes = f'lucide lucide-{name} {extra_class}'.strip()
+    a11y = f'role="img" aria-label="{escape(label)}"' if label else 'aria-hidden="true"'
+    sprite = icon_sprite_url()
+    svg = (
+        f'<svg class="icon" aria-hidden="true" focusable="false">'
+        f'<use href="{escape(sprite)}#{escape(name)}"></use></svg>'
+        if sprite else ''
     )
+    return Markup(f'<i class="{escape(classes)}" {a11y}>{svg}</i>')
 
 
 def static_max_age(filename: str | None):
@@ -191,13 +198,40 @@ def static_max_age(filename: str | None):
     return None
 
 
+def _install_precompressed_static(app) -> None:
+    """Serve <arquivo>.gz (gerado no build) quando o navegador aceita gzip."""
+    original_static = app.view_functions['static']
+
+    def static_with_gzip(filename):
+        normalized = filename.replace('\\', '/')
+        if not PRECOMPRESSED_FILE.match(normalized):
+            return original_static(filename=filename)
+        compressed = Path(app.static_folder) / f'{normalized}.gz'
+        if request.accept_encodings['gzip'] and compressed.is_file():
+            response = send_from_directory(
+                app.static_folder,
+                f'{normalized}.gz',
+                mimetype=mimetypes.guess_type(normalized)[0] or 'application/octet-stream',
+                max_age=app.get_send_file_max_age(normalized),
+            )
+            response.headers['Content-Encoding'] = 'gzip'
+        else:
+            response = original_static(filename=filename)
+        response.vary.add('Accept-Encoding')
+        return response
+
+    app.view_functions['static'] = static_with_gzip
+
+
 def init_app(app) -> None:
     app.jinja_env.globals.update(
         vite_css=vite_css,
         vite_js=vite_js,
         icon=icon,
+        icon_sprite_url=icon_sprite_url,
         frontend_bundles_available=frontend_bundles_available,
     )
+    _install_precompressed_static(app)
     if not frontend_bundles_available_for(app):
         app.logger.warning(
             'Bundles do frontend ausentes (src/static/dist). Usando arquivos-fonte; '

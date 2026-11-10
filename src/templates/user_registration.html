@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container" style="max-width: 1100px; margin: 0 auto;">
-    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+<div class="container u-maxw-1100">
+    <div class="card border-0 shadow-sm mb-4 u-bg-amber text-white">
         <div class="card-body py-4">
-            <h1 class="mb-2" style="font-size: 2rem; font-weight: 700;">
-                <i class="fas fa-user-cog me-3"></i>Gerenciar Usuários
+            <h1 class="mb-2 u-title-lg">
+                {{ icon('user-cog', extra_class='me-3') }}Gerenciar Usuários
             </h1>
-            <p class="mb-0" style="font-size: 1rem; opacity: 0.95;">
+            <p class="mb-0 fs-6 u-opacity-95">
                 Crie acessos com senha temporária e force a troca no primeiro login.
             </p>
         </div>
     </div>
 
     <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
+        <div class="card-header u-bg-dark text-white border-0">
             <h5 class="card-title mb-0">
-                <i class="fas fa-plus-circle me-2"></i>Adicionar Novo Usuário
+                {{ icon('circle-plus', extra_class='me-2') }}Adicionar Novo Usuário
             </h5>
         </div>
         <div class="card-body p-4">
@@ -61,7 +61,7 @@
 
                 <div class="d-flex justify-content-end mt-4">
                     <button type="submit" class="btn btn-lg btn-success">
-                        <i class="fas fa-plus-circle me-2"></i>Adicionar Usuário
+                        {{ icon('circle-plus', extra_class='me-2') }}Adicionar Usuário
                     </button>
                 </div>
             </form>
@@ -69,9 +69,9 @@
     </div>
 
     <div class="card border-0 shadow-sm">
-        <div class="card-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none;">
+        <div class="card-header u-bg-dark text-white border-0">
             <h5 class="card-title mb-0">
-                <i class="fas fa-users me-2"></i>Usuários Registrados
+                {{ icon('users', extra_class='me-2') }}Usuários Registrados
                 <span class="badge bg-light text-dark ms-2">{{ users|length if users else 0 }}</span>
             </h5>
         </div>

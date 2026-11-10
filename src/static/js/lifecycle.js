@@ -13,7 +13,7 @@
     }
 
     function showShutdownScreen(finished) {
-        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;background:#f8fafc"><div style="text-align:center;padding:3rem;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.1);max-width:560px"><div class="${finished ? '' : 'spinner-border text-primary'}" style="${finished ? 'font-size:4rem;color:#10b981' : ''}">${finished ? '&#10003;' : ''}</div><h2 style="color:#1e293b;margin:1rem 0">${finished ? 'Sistema encerrado' : 'Encerrando sistema...'}</h2><p style="color:#64748b;margin:0">${finished ? 'Esta aba já pode ser fechada.' : 'Aguarde enquanto o servidor finaliza as tarefas em andamento.'}</p></div></div>`;
+        document.body.innerHTML = `<div class="shutdown-screen"><div class="shutdown-card"><div class="${finished ? 'shutdown-done' : 'spinner-border text-primary'}">${finished ? '&#10003;' : ''}</div><h2 class="shutdown-title">${finished ? 'Sistema encerrado' : 'Encerrando sistema...'}</h2><p class="shutdown-text">${finished ? 'Esta aba já pode ser fechada.' : 'Aguarde enquanto o servidor finaliza as tarefas em andamento.'}</p></div></div>`;
     }
 
     async function pollShutdownStatus() {

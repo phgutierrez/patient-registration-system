@@ -13,11 +13,16 @@
 - **Agenda**: avançar/voltar período, trocar Semana/Mês e filtrar não recarregam
   mais a tela inteira.
 - **Menu em telas pequenas**: o botão ☰ voltou a aparecer.
+- **Ícones** com novo desenho (traço fino, biblioteca Lucide) em todas as telas.
+  O layout das telas não mudou.
 
 ## Para quem instala/atualiza
 
 - Sem mudança no banco de dados e sem novo pareamento das estações.
 - Passo a passo por tipo de instalação (rede, EXE local, Python):
   [docs/ATUALIZACAO_V2.7.md](docs/ATUALIZACAO_V2.7.md).
-- Segurança: Werkzeug atualizado para 3.1.9.
+- Segurança: Werkzeug atualizado para 3.1.9. A política de segurança de
+  conteúdo (CSP) passou a ser aplicada (`SECURITY_CSP_ENFORCE=false` desativa,
+  veja o guia de atualização).
+- Telas mais leves: Font Awesome removido e arquivos pré-comprimidos (gzip).
 - Mudanças técnicas: [docs/CHANGELOG_V2.7.md](docs/CHANGELOG_V2.7.md).

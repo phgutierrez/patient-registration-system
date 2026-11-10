@@ -131,14 +131,17 @@ class Config:
     # Browser-facing response hardening
     SECURITY_HEADERS_ENABLED = _env_bool('SECURITY_HEADERS_ENABLED', True)
     SECURITY_CSP_REPORT_ONLY = _env_bool('SECURITY_CSP_REPORT_ONLY', True)
+    # v2.7: CSP aplicada (bloqueia). SECURITY_CSP_ENFORCE=false volta ao modo
+    # somente relatório (usa SECURITY_CSP_REPORT_ONLY).
+    SECURITY_CSP_ENFORCE = _env_bool('SECURITY_CSP_ENFORCE', True)
     SECURITY_CSP_REPORT_URI = (os.getenv('SECURITY_CSP_REPORT_URI') or '').strip()
     SECURITY_CSP_REPORT_ONLY_POLICY = os.getenv(
         'SECURITY_CSP_REPORT_ONLY_POLICY',
         "default-src 'self'; frame-ancestors 'none'; object-src 'none'; "
         "base-uri 'self'; form-action 'self'; img-src 'self' data:; "
-        "font-src 'self' https: data:; frame-src 'self' https://docs.google.com; "
-        # Sem 'unsafe-inline' em script-src (v2.7): não há scripts inline nos templates.
-        "script-src 'self'; style-src 'self' 'unsafe-inline' https:; "
+        "font-src 'self' data:; frame-src 'self' https://docs.google.com; "
+        # v2.7: sem 'unsafe-inline' — não há scripts nem estilos inline nos templates.
+        "script-src 'self'; style-src 'self'; "
         "connect-src 'self' https://docs.google.com https://calendar.google.com",
     )
     SECURITY_HSTS_ENABLED = _env_bool('SECURITY_HSTS_ENABLED', False)

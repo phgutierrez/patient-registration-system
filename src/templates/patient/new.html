@@ -13,12 +13,12 @@
       <p>Localize o prontuário no CPAM ou preencha os dados manualmente.</p>
     </div>
     <a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left"></i> Voltar aos pacientes
+      {{ icon('arrow-left') }} Voltar aos pacientes
     </a>
   </header>
 
   <div id="formErrorSummary" class="alert alert-danger patient-error-summary d-none" role="alert" tabindex="-1">
-    <i class="fas fa-circle-exclamation"></i>
+    {{ icon('circle-alert') }}
     <div><strong>Revise os campos destacados.</strong><ul class="mb-0 mt-1"></ul></div>
   </div>
 
@@ -27,7 +27,7 @@
 
     <section class="access-lookup-panel" aria-labelledby="accessLookupTitle">
       <div class="lookup-copy">
-        <span class="section-icon"><i class="fas fa-database"></i></span>
+        <span class="section-icon">{{ icon('database') }}</span>
         <div>
           <span class="section-kicker">Preenchimento rápido</span>
           <h2 id="accessLookupTitle">Buscar no banco de pacientes</h2>
@@ -37,12 +37,12 @@
       <div class="lookup-controls">
         <label for="prontuario" class="form-label">Prontuário <span aria-hidden="true">*</span></label>
         <div class="input-group input-group-lg">
-          <span class="input-group-text"><i class="fas fa-file-medical"></i></span>
+          <span class="input-group-text">{{ icon('file-plus') }}</span>
           <input type="text" class="form-control" id="prontuario" name="prontuario" required
                  value="{{ request.form.get('prontuario', '') }}" inputmode="numeric"
                  placeholder="Número do prontuário" aria-describedby="prontuarioHelp prontuario-feedback">
           <button class="btn btn-primary" type="button" id="btnBuscaAccess">
-            <i class="fas fa-search"></i><span>Buscar</span>
+            {{ icon('search') }}<span>Buscar</span>
           </button>
         </div>
         <small id="prontuarioHelp" class="form-text">Número interno do prontuário no CPAM.</small>
@@ -53,47 +53,47 @@
 
     <section class="patient-form-section" aria-labelledby="personalDataTitle">
       <header class="form-section-header">
-        <span class="section-icon"><i class="fas fa-user"></i></span>
+        <span class="section-icon">{{ icon('user') }}</span>
         <div><span class="section-kicker">Identificação</span><h2 id="personalDataTitle">Dados pessoais</h2></div>
       </header>
       <div class="form-section-body form-grid">
         <div class="field-group field-span-2">
           <label for="nome" class="form-label">Nome do paciente <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-user"></i><input type="text" class="form-control" id="nome" name="nome" required value="{{ request.form.get('nome', '') }}" placeholder="Nome completo do paciente"></div>
-          <div id="nameExists" class="field-notice field-notice-warning d-none"><i class="fas fa-triangle-exclamation"></i> Já existe um paciente com este nome.</div>
+          <div class="field-control">{{ icon('user') }}<input type="text" class="form-control" id="nome" name="nome" required value="{{ request.form.get('nome', '') }}" placeholder="Nome completo do paciente"></div>
+          <div id="nameExists" class="field-notice field-notice-warning d-none">{{ icon('triangle-alert') }} Já existe um paciente com este nome.</div>
           <div class="invalid-feedback-custom" id="nome-feedback">Informe o nome completo do paciente.</div>
         </div>
 
         <div class="field-group">
           <label for="data_nascimento" class="form-label">Data de nascimento <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-calendar-days"></i><input type="text" class="form-control" id="data_nascimento" name="data_nascimento" required maxlength="10" inputmode="numeric" value="{{ request.form.get('data_nascimento', '') }}" placeholder="DD/MM/AAAA"></div>
+          <div class="field-control">{{ icon('calendar-days') }}<input type="text" class="form-control" id="data_nascimento" name="data_nascimento" required maxlength="10" inputmode="numeric" value="{{ request.form.get('data_nascimento', '') }}" placeholder="DD/MM/AAAA"></div>
           <div class="invalid-feedback-custom" id="data_nascimento-feedback">Informe uma data válida no formato DD/MM/AAAA.</div>
         </div>
 
         <div class="field-group">
           <label for="idade" class="form-label">Idade calculada</label>
-          <div class="field-control field-readonly"><i class="fas fa-calculator"></i><input type="text" class="form-control" id="idade" readonly tabindex="-1" placeholder="—"></div>
+          <div class="field-control field-readonly">{{ icon('calculator') }}<input type="text" class="form-control" id="idade" readonly tabindex="-1" placeholder="—"></div>
           <small class="form-text">Atualizada pela data de nascimento.</small>
         </div>
 
         <fieldset class="field-group field-span-2 sex-field">
           <legend class="form-label">Sexo <span aria-hidden="true">*</span></legend>
           <div class="choice-grid">
-            <label class="choice-option"><input type="radio" name="sexo" id="sexo_m" value="M" required {% if request.form.get('sexo') == 'M' %}checked{% endif %}><span><i class="fas fa-mars"></i> Masculino</span></label>
-            <label class="choice-option"><input type="radio" name="sexo" id="sexo_f" value="F" {% if request.form.get('sexo') == 'F' %}checked{% endif %}><span><i class="fas fa-venus"></i> Feminino</span></label>
+            <label class="choice-option"><input type="radio" name="sexo" id="sexo_m" value="M" required {% if request.form.get('sexo') == 'M' %}checked{% endif %}><span>{{ icon('mars') }} Masculino</span></label>
+            <label class="choice-option"><input type="radio" name="sexo" id="sexo_f" value="F" {% if request.form.get('sexo') == 'F' %}checked{% endif %}><span>{{ icon('venus') }} Feminino</span></label>
           </div>
           <div class="invalid-feedback-custom" id="sexo-feedback">Selecione o sexo do paciente.</div>
         </fieldset>
 
         <div class="field-group field-span-2">
           <label for="nome_mae" class="form-label">Nome da mãe <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-person-dress"></i><input type="text" class="form-control" id="nome_mae" name="nome_mae" required value="{{ request.form.get('nome_mae', '') }}" placeholder="Nome completo da mãe"></div>
+          <div class="field-control">{{ icon('user-round') }}<input type="text" class="form-control" id="nome_mae" name="nome_mae" required value="{{ request.form.get('nome_mae', '') }}" placeholder="Nome completo da mãe"></div>
           <div class="invalid-feedback-custom" id="nome_mae-feedback">Informe o nome da mãe.</div>
         </div>
 
         <div class="field-group field-span-2">
           <label for="cns" class="form-label">CNS <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-id-card"></i><input type="text" class="form-control" id="cns" name="cns" required maxlength="15" minlength="15" pattern="\d{15}" inputmode="numeric" value="{{ request.form.get('cns', '') }}" placeholder="000000000000000"></div>
+          <div class="field-control">{{ icon('id-card') }}<input type="text" class="form-control" id="cns" name="cns" required maxlength="15" minlength="15" pattern="\d{15}" inputmode="numeric" value="{{ request.form.get('cns', '') }}" placeholder="000000000000000"></div>
           <small class="form-text">Cartão Nacional de Saúde com 15 dígitos.</small>
           <div class="invalid-feedback-custom" id="cns-feedback">Informe um CNS válido com 15 números.</div>
         </div>
@@ -102,22 +102,22 @@
 
     <section class="patient-form-section" aria-labelledby="contactTitle">
       <header class="form-section-header">
-        <span class="section-icon"><i class="fas fa-location-dot"></i></span>
+        <span class="section-icon">{{ icon('map-pin') }}</span>
         <div><span class="section-kicker">Localização</span><h2 id="contactTitle">Endereço e contato</h2></div>
       </header>
       <div class="form-section-body form-grid">
         <div class="field-group field-span-full">
           <label for="endereco" class="form-label">Endereço</label>
-          <div class="field-control"><i class="fas fa-map-location-dot"></i><input type="text" class="form-control" id="endereco" name="endereco" value="{{ request.form.get('endereco', '') }}" placeholder="Rua, número, bairro e complemento"></div>
+          <div class="field-control">{{ icon('map-pinned') }}<input type="text" class="form-control" id="endereco" name="endereco" value="{{ request.form.get('endereco', '') }}" placeholder="Rua, número, bairro e complemento"></div>
         </div>
         <div class="field-group field-span-2">
           <label for="cidade" class="form-label">Cidade <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-city"></i><input type="text" class="form-control" id="cidade" name="cidade" required value="{{ request.form.get('cidade', '') }}" placeholder="Nome da cidade"></div>
+          <div class="field-control">{{ icon('building-2') }}<input type="text" class="form-control" id="cidade" name="cidade" required value="{{ request.form.get('cidade', '') }}" placeholder="Nome da cidade"></div>
           <div class="invalid-feedback-custom" id="cidade-feedback">Informe a cidade.</div>
         </div>
         <div class="field-group field-span-2">
           <label for="contato" class="form-label">Contato <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-phone"></i><input type="text" class="form-control" id="contato" name="contato" required maxlength="14" inputmode="tel" value="{{ request.form.get('contato', '') }}" placeholder="(83)99999-9999"></div>
+          <div class="field-control">{{ icon('phone') }}<input type="text" class="form-control" id="contato" name="contato" required maxlength="14" inputmode="tel" value="{{ request.form.get('contato', '') }}" placeholder="(83)99999-9999"></div>
           <div class="invalid-feedback-custom" id="contato-feedback">Informe um número para contato.</div>
         </div>
       </div>
@@ -125,18 +125,18 @@
 
     <section class="patient-form-section" aria-labelledby="clinicalTitle">
       <header class="form-section-header">
-        <span class="section-icon"><i class="fas fa-stethoscope"></i></span>
+        <span class="section-icon">{{ icon('stethoscope') }}</span>
         <div><span class="section-kicker">Ortopedia</span><h2 id="clinicalTitle">Informações clínicas</h2></div>
       </header>
       <div class="form-section-body form-grid">
         <div class="field-group field-span-3">
           <label for="diagnostico" class="form-label">Diagnóstico <span aria-hidden="true">*</span></label>
-          <div class="field-control field-textarea"><i class="fas fa-notes-medical"></i><textarea class="form-control" id="diagnostico" name="diagnostico" rows="3" required placeholder="Descreva o diagnóstico do paciente">{{ request.form.get('diagnostico', '') }}</textarea></div>
+          <div class="field-control field-textarea">{{ icon('clipboard-plus') }}<textarea class="form-control" id="diagnostico" name="diagnostico" rows="3" required placeholder="Descreva o diagnóstico do paciente">{{ request.form.get('diagnostico', '') }}</textarea></div>
           <div class="invalid-feedback-custom" id="diagnostico-feedback">Informe o diagnóstico do paciente.</div>
         </div>
         <div class="field-group">
           <label for="cid" class="form-label">CID <span aria-hidden="true">*</span></label>
-          <div class="field-control"><i class="fas fa-file-waveform"></i><input type="text" class="form-control text-uppercase" id="cid" name="cid" required maxlength="4" value="{{ request.form.get('cid', '') }}" placeholder="M17"></div>
+          <div class="field-control">{{ icon('activity') }}<input type="text" class="form-control text-uppercase" id="cid" name="cid" required maxlength="4" value="{{ request.form.get('cid', '') }}" placeholder="M17"></div>
           <small class="form-text">Código CID informado no atendimento.</small>
           <div class="invalid-feedback-custom" id="cid-feedback">Informe o CID.</div>
         </div>
@@ -147,7 +147,7 @@
       <span class="required-hint"><span>*</span> Campos obrigatórios</span>
       <div>
         <a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-secondary">Cancelar</a>
-        <button type="submit" class="btn btn-primary" id="savePatientButton"><i class="fas fa-check"></i> Cadastrar paciente</button>
+        <button type="submit" class="btn btn-primary" id="savePatientButton">{{ icon('check') }} Cadastrar paciente</button>
       </div>
     </div>
   </form>

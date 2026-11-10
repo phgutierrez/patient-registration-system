@@ -101,7 +101,7 @@ CalendarEventStatus
 - A solicitação permanece em uma única página e os modelos locais contêm apenas dados clínicos reutilizáveis.
 - A agenda guarda uma cópia por especialidade. Dados expirados são exibidos imediatamente enquanto uma única atualização ocorre em segundo plano.
 - O modal da agenda registra `Pendente`, `Realizada` ou `Suspensa` sem recarregar a página. Quando o evento contém uma referência segura, o status da solicitação é atualizado na mesma transação.
-- Bootstrap, Font Awesome, CSS e JavaScript são servidos localmente e incluídos no executável.
+- Bootstrap, ícones Lucide (sprite SVG), CSS e JavaScript são servidos localmente (com versões `.gz` pré-comprimidas) e incluídos no executável.
 
 ### Estrutura do Projeto
 ```
@@ -348,6 +348,7 @@ GOOGLE_FORMS_TIMEOUT=10
 
 # Hardening HTTP
 SECURITY_HEADERS_ENABLED=true
+SECURITY_CSP_ENFORCE=true      # v2.7: CSP aplicada; false = somente relatório
 SECURITY_CSP_REPORT_ONLY=true
 SECURITY_HSTS_ENABLED=false
 ```

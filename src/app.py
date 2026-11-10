@@ -161,7 +161,10 @@ def create_app(config_class=Config):
             app.config.get('SECURITY_CSP_REPORT_ONLY_POLICY', ''),
             app.config.get('SECURITY_CSP_REPORT_URI', ''),
         )
-        if app.config.get('SECURITY_CSP_REPORT_ONLY', True) and csp_policy:
+        if csp_policy and app.config.get('SECURITY_CSP_ENFORCE', True):
+            # Respostas que definem a própria CSP (ex.: PDF em iframe) são preservadas.
+            response.headers.setdefault('Content-Security-Policy', csp_policy)
+        elif csp_policy and app.config.get('SECURITY_CSP_REPORT_ONLY', True):
             response.headers.setdefault('Content-Security-Policy-Report-Only', csp_policy)
 
         is_authenticated_response = current_user.is_authenticated and request.endpoint != 'static'

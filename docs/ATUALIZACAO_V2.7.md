@@ -10,6 +10,8 @@ O que muda na v2.7.0 (detalhes em [CHANGELOG_V2.7.md](CHANGELOG_V2.7.md)):
 - faixa verde **"RESERVAR VAGA DE UTI"** no Aviso de Cirurgia quando a reserva de UTI é marcada;
 - requisição de hemocomponente sem a data de exemplo do modelo (03/05/2024), sempre com a data de internação;
 - correção do botão de menu em telas estreitas;
+- ícones Lucide em todas as telas (Font Awesome removido) e arquivos pré-comprimidos;
+- política de segurança de conteúdo (CSP) passou a ser aplicada;
 - `Werkzeug 3.1.9` (alerta de segurança CVE-2026-102598).
 
 > Os bundles do frontend (`src/static/dist`) já vêm prontos no repositório.
@@ -126,6 +128,18 @@ Vale para `run_local.bat`, `run_network.bat` (servidor LAN clássico) e
 > Documentos de solicitações **antigas** são regenerados a partir do conteúdo
 > salvo na época (snapshot). Para que uma solicitação antiga ganhe a faixa de UTI
 > ou a data corrigida, abra **Editar dados** e salve — isso gera uma nova revisão.
+
+## Se alguma tela ficar sem funcionar (CSP)
+
+A v2.7.0 aplica a política de segurança de conteúdo (CSP). Todas as telas
+foram testadas assim. Se algum navegador antigo apresentar problema, é
+possível voltar ao modo anterior (somente relatório) sem reinstalar:
+
+1. Abra o arquivo `.env` da instalação:
+   - **Versão em rede:** na estação, `%LOCALAPPDATA%\PatientRegistrationSystem\data\<implantação>\.env`;
+   - **EXE local / Python:** `.env` na pasta do sistema.
+2. Acrescente a linha `SECURITY_CSP_ENFORCE=false`.
+3. Feche e abra o sistema.
 
 ## Como voltar para a versão anterior
 

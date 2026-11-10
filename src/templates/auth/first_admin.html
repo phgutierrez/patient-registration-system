@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-5" style="max-width: 620px;">
+<div class="container py-5 u-maxw-620">
   <div class="card border-0 shadow-lg">
-    <div class="card-header text-white p-4" style="background:linear-gradient(135deg,#1e3a8a,#2563eb);">
-      <h1 class="h3 mb-2"><i class="fas fa-user-shield me-2"></i>Primeiro acesso</h1>
+    <div class="card-header text-white p-4 u-bg-indigo">
+      <h1 class="h3 mb-2">{{ icon('shield-user', extra_class='me-2') }}Primeiro acesso</h1>
       <p class="mb-0">Crie o administrador inicial da Ortopedia. Esta tela será desativada após o cadastro.</p>
     </div>
     <div class="card-body p-4">

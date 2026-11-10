@@ -16,15 +16,15 @@
       <hr>
       <form id="eventStatusForm">
         <fieldset><legend>Resultado do procedimento</legend><div class="status-selector">
-          <label class="status-option pending"><input type="radio" name="eventStatus" value="PENDENTE"><span><i class="fas fa-clock"></i>Pendente</span></label>
-          <label class="status-option done"><input type="radio" name="eventStatus" value="REALIZADA"><span><i class="fas fa-check-circle"></i>Realizada</span></label>
-          <label class="status-option cancelled"><input type="radio" name="eventStatus" value="SUSPENSA"><span><i class="fas fa-ban"></i>Suspensa</span></label>
+          <label class="status-option pending"><input type="radio" name="eventStatus" value="PENDENTE"><span>{{ icon('clock') }}Pendente</span></label>
+          <label class="status-option done"><input type="radio" name="eventStatus" value="REALIZADA"><span>{{ icon('circle-check') }}Realizada</span></label>
+          <label class="status-option cancelled"><input type="radio" name="eventStatus" value="SUSPENSA"><span>{{ icon('ban') }}Suspensa</span></label>
         </div></fieldset>
         <div id="suspensionReasonGroup" hidden><label for="suspensionReason" class="form-label">Motivo da suspensão <span class="text-muted">(opcional)</span></label><textarea id="suspensionReason" class="form-control" maxlength="1000" rows="3" placeholder="Registre uma observação, se necessário"></textarea></div>
         <div id="eventStatusFeedback" class="mt-3" aria-live="polite"></div>
       </form>
     </div>
-    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button><button type="submit" form="eventStatusForm" id="saveEventStatus" class="btn btn-primary"><i class="fas fa-save"></i> Salvar status</button></div>
+    <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button><button type="submit" form="eventStatusForm" id="saveEventStatus" class="btn btn-primary">{{ icon('save') }} Salvar status</button></div>
   </div></div>
 </div>
 <div id="agendaToastRegion" class="agenda-toast-region" aria-live="polite"></div>

@@ -49,13 +49,15 @@ class Build32BitsConfigurationTests(unittest.TestCase):
     def test_frontend_bundles_are_packaged_and_complete(self):
         destinations = {destination for _, destination in build_exe_32bits.DATA_FILES}
         self.assertIn('src/static/dist', destinations)
+        self.assertIn('src/static/icons', destinations)
+        self.assertFalse(any('fontawesome' in str(source) for source, _ in build_exe_32bits.DATA_FILES))
         sources = {source for source, _ in build_exe_32bits.DATA_FILES}
         self.assertIn(ROOT / 'src' / 'static' / 'icon-map.json', sources)
         files = build_exe_32bits.frontend_bundle_files()
         names = {path.as_posix() for path in files}
-        self.assertIn('.vite/manifest.json', names)
-        self.assertTrue(any(name.startswith('icons-') and name.endswith('.svg') for name in names))
-        self.assertTrue(any(name.startswith('js/shell-') for name in names))
+        self.assertIn('dist/.vite/manifest.json', names)
+        self.assertTrue(any(name.startswith('icons/icons-') and name.endswith('.svg') for name in names))
+        self.assertTrue(any(name.startswith('dist/js/shell-') for name in names))
         # Caminhos relativos: funcionam em /static/dist e dentro do _internal do PyInstaller.
         self.assertFalse(any(name.startswith('/') or ':' in name for name in names))
 
@@ -63,7 +65,7 @@ class Build32BitsConfigurationTests(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as empty:
             with self.assertRaisesRegex(FileNotFoundError, 'npm run build'):
-                build_exe_32bits.frontend_bundle_files(Path(empty))
+                build_exe_32bits.frontend_bundle_files(Path(empty), Path(empty))
 
 
 if __name__ == '__main__':

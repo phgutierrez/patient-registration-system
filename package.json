@@ -5,10 +5,10 @@
   "description": "Bundles locais (Vite) do Sistema de Solicitação de Cirurgia. Sem CDN em tempo de execução.",
   "type": "module",
   "scripts": {
-    "build": "vite build && node frontend/scripts/build-icons.mjs",
+    "build": "vite build && node frontend/scripts/build-icons.mjs && node frontend/scripts/compress.mjs",
     "dev": "vite build --watch --mode development",
     "measure": "node frontend/scripts/measure-assets.mjs",
-    "check": "npm run build && git diff --exit-code -- src/static/dist"
+    "check": "npm run build && git diff --exit-code -- src/static/dist src/static/icons src/static/vendor"
   },
   "engines": {
     "node": ">=20"

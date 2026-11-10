@@ -7,11 +7,11 @@
      data-user-id="{{ current_user.id }}" data-specialty="{{ specialty.slug if specialty else 'ortopedia' }}">
   <header class="app-page-header request-heading">
     <div>
-      <a class="back-link" href="{{ url_for('patients.view_patient', id=patient.id) }}"><i class="fas fa-arrow-left"></i> Voltar ao paciente</a>
+      <a class="back-link" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ icon('arrow-left') }} Voltar ao paciente</a>
       <h1>{{ 'Editar solicitação' if is_edit_mode else 'Nova solicitação cirúrgica' }}</h1>
       <p>Preencha os dados necessários para gerar a documentação.</p>
     </div>
-    <button type="button" class="btn btn-outline-primary" id="openModelsButton"><i class="fas fa-layer-group"></i> Modelos clínicos</button>
+    <button type="button" class="btn btn-outline-primary" id="openModelsButton">{{ icon('layers') }} Modelos clínicos</button>
   </header>
 
   <section class="patient-context">
@@ -24,7 +24,7 @@
 
   {% if form.errors %}
   <div class="alert alert-danger error-summary" role="alert" tabindex="-1">
-    <strong><i class="fas fa-exclamation-circle"></i> Revise os campos destacados</strong>
+    <strong>{{ icon('circle-alert') }} Revise os campos destacados</strong>
     <ul>{% for name, errors in form.errors.items() %}<li><a href="#{{ form[name].id }}">{{ form[name].label.text }}: {{ errors|join(', ') }}</a></li>{% endfor %}</ul>
   </div>
   {% endif %}
@@ -40,7 +40,7 @@
     <form method="post" class="surgery-form" novalidate>
       {{ form.hidden_tag() }}
       <section id="clinicalSection" class="form-section">
-        <div class="section-title"><span><i class="fas fa-notes-medical"></i></span><div><h2>Dados clínicos</h2><p>Informações que justificam o procedimento.</p></div></div>
+        <div class="section-title"><span>{{ icon('clipboard-plus') }}</span><div><h2>Dados clínicos</h2><p>Informações que justificam o procedimento.</p></div></div>
         <div class="form-grid">
           <div class="field col-small">{{ form.peso.label(class="form-label") }}{{ form.peso(class="form-control" + (" is-invalid" if form.peso.errors else ""), inputmode="decimal", placeholder="Ex.: 72,5") }}{{ field_errors(form.peso) }}</div>
           <div class="field col-full">{{ form.sinais_sintomas.label(class="form-label") }}{{ form.sinais_sintomas(class="form-control" + (" is-invalid" if form.sinais_sintomas.errors else ""), rows=3, placeholder="Descreva os principais sinais e sintomas") }}{{ field_errors(form.sinais_sintomas) }}</div>
@@ -50,11 +50,11 @@
       </section>
 
       <section id="procedureSection" class="form-section">
-        <div class="section-title"><span><i class="fas fa-procedures"></i></span><div><h2>Procedimento</h2><p>Selecione o procedimento e informe quando será realizado.</p></div></div>
+        <div class="section-title"><span>{{ icon('bed') }}</span><div><h2>Procedimento</h2><p>Selecione o procedimento e informe quando será realizado.</p></div></div>
         <div class="form-grid">
           <div class="field col-full">
             <label for="procedureSearch" class="form-label">Localizar procedimento</label>
-            <div class="procedure-search"><i class="fas fa-search"></i><input id="procedureSearch" class="form-control" type="search" autocomplete="off" placeholder="Filtrar a lista de procedimentos"></div>
+            <div class="procedure-search">{{ icon('search') }}<input id="procedureSearch" class="form-control" type="search" autocomplete="off" placeholder="Filtrar a lista de procedimentos"></div>
           </div>
           <div class="field col-wide">{{ form.procedimento_solicitado.label(class="form-label") }}{{ form.procedimento_solicitado(id="procedimento_select", class="form-select" + (" is-invalid" if form.procedimento_solicitado.errors else "")) }}{{ field_errors(form.procedimento_solicitado) }}<small id="procedureFilterHint" class="form-text"></small></div>
           <div class="field">{{ form.codigo_procedimento.label(class="form-label") }}{{ form.codigo_procedimento(id="codigo_sus_input", class="form-control", readonly=true, placeholder="Automático") }}</div>
@@ -70,7 +70,7 @@
       </section>
 
       <section id="resourcesSection" class="form-section">
-        <div class="section-title"><span><i class="fas fa-toolbox"></i></span><div><h2>Recursos necessários</h2><p>Equipe, equipamentos e reservas para a sala.</p></div></div>
+        <div class="section-title"><span>{{ icon('toolbox') }}</span><div><h2>Recursos necessários</h2><p>Equipe, equipamentos e reservas para a sala.</p></div></div>
         <div class="form-grid">
           <div class="field col-wide">{{ form.assistente.label(class="form-label") }}{{ form.assistente(class="form-select" + (" is-invalid" if form.assistente.errors else "")) }}{{ field_errors(form.assistente) }}</div>
           <div class="field col-wide">{{ form.duracao_prevista.label(class="form-label") }}{{ form.duracao_prevista(class="form-control" + (" is-invalid" if form.duracao_prevista.errors else ""), placeholder="Ex.: 2 horas") }}{{ field_errors(form.duracao_prevista) }}</div>
@@ -85,7 +85,7 @@
       </section>
 
       <section id="admissionSection" class="form-section">
-        <div class="section-title"><span><i class="fas fa-hospital"></i></span><div><h2>Internação e OPME</h2><p>Orientações para continuidade do cuidado e materiais.</p></div></div>
+        <div class="section-title"><span>{{ icon('hospital') }}</span><div><h2>Internação e OPME</h2><p>Orientações para continuidade do cuidado e materiais.</p></div></div>
         <div class="form-grid">
           <div class="field col-full">{{ form.evolucao_internacao.label(class="form-label") }}{{ form.evolucao_internacao(class="form-control", rows=3, placeholder="Evolução clínica para internação") }}</div>
           <div class="field col-full">{{ form.prescricao_internacao.label(class="form-label") }}{{ form.prescricao_internacao(class="form-control", rows=3, placeholder="Prescrição e cuidados") }}</div>
@@ -96,7 +96,7 @@
       </section>
 
       <footer class="request-actions">
-        <button type="button" class="btn btn-outline-primary" id="saveAsModelButton"><i class="fas fa-save"></i> Salvar como modelo</button>
+        <button type="button" class="btn btn-outline-primary" id="saveAsModelButton">{{ icon('save') }} Salvar como modelo</button>
         <span class="action-spacer"></span>
         <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-light">Cancelar</a>
         {{ form.submit(class="btn btn-primary", value=('Salvar alterações' if is_edit_mode else 'Gerar solicitação')) }}
@@ -116,7 +116,7 @@
         <div class="input-group"><input id="modelName" class="form-control" maxlength="80" placeholder="Ex.: Osteossíntese de tornozelo"><button id="persistModelButton" type="button" class="btn btn-primary">Salvar campos atuais</button></div>
         <small>Paciente, peso, assistente, data e horário nunca são incluídos.</small>
       </div>
-      <div class="model-search"><i class="fas fa-search"></i><input id="modelSearch" class="form-control" placeholder="Buscar por nome ou procedimento"></div>
+      <div class="model-search">{{ icon('search') }}<input id="modelSearch" class="form-control" placeholder="Buscar por nome ou procedimento"></div>
       <div id="modelsList" class="models-list"></div>
     </div>
   </div></div>

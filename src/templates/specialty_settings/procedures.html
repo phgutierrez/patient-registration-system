@@ -11,13 +11,13 @@
       <p>Consulte, corrija ou acrescente opções usadas nas solicitações cirúrgicas.</p>
     </div>
     {% if current_user.is_admin %}
-    <a href="{{ url_for('specialty_settings.index') }}" class="btn btn-outline-secondary"><i class="fas fa-sliders me-1"></i>Configurações administrativas</a>
+    <a href="{{ url_for('specialty_settings.index') }}" class="btn btn-outline-secondary">{{ icon('sliders-horizontal', extra_class='me-1') }}Configurações administrativas</a>
     {% endif %}
   </header>
 
   <section class="procedure-add-panel">
     <div class="procedure-add-copy">
-      <span><i class="fas fa-plus"></i></span>
+      <span>{{ icon('plus') }}</span>
       <div><h2>Novo procedimento</h2><p>O novo item será incluído no final da lista.</p></div>
     </div>
     <form method="post" action="{{ url_for('specialty_settings.add_procedure', specialty_id=specialty.id) }}" class="procedure-add-form">
@@ -25,13 +25,13 @@
       <input type="hidden" name="return_to" value="catalog">
       <div><label for="newProcedureDescription">Descrição</label><input id="newProcedureDescription" class="form-control" name="descricao" maxlength="300" required placeholder="Ex.: Artroplastia total do quadril"></div>
       <div><label for="newProcedureCode">Código SUS</label><input id="newProcedureCode" class="form-control" name="codigo_sus" maxlength="20" placeholder="Ex.: 0408040085"></div>
-      <button class="btn btn-primary" type="submit"><i class="fas fa-plus me-1"></i>Adicionar</button>
+      <button class="btn btn-primary" type="submit">{{ icon('plus', extra_class='me-1') }}Adicionar</button>
     </form>
   </section>
 
   <section class="procedures-surface">
     <div class="procedures-toolbar">
-      <div class="procedure-search"><i class="fas fa-search"></i><input id="procedureCatalogSearch" type="search" placeholder="Buscar por procedimento ou código" autocomplete="off"></div>
+      <div class="procedure-search">{{ icon('search') }}<input id="procedureCatalogSearch" type="search" placeholder="Buscar por procedimento ou código" autocomplete="off"></div>
       <span id="procedureCatalogCount">{{ procedures|length }} procedimento(s)</span>
     </div>
     {% if procedures %}
@@ -46,15 +46,15 @@
             <td data-label="Status"><span class="procedure-state {{ 'is-active' if proc.is_active else '' }}">{{ 'Ativo' if proc.is_active else 'Inativo' }}</span></td>
             <td class="procedure-actions-cell" data-label="Ações">
               <div class="procedure-actions">
-                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editProcedure{{ proc.id }}"><i class="fas fa-pen me-1"></i>Editar</button>
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editProcedure{{ proc.id }}">{{ icon('pen', extra_class='me-1') }}Editar</button>
                 {% if current_user.is_admin %}
                 <form method="post" action="{{ url_for('specialty_settings.toggle_procedure', proc_id=proc.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-sm {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}" type="submit" title="{{ 'Desativar' if proc.is_active else 'Ativar' }}"><i class="fas {{ 'fa-eye-slash' if proc.is_active else 'fa-eye' }}"></i></button>
+                  <button class="btn btn-sm {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}" type="submit" title="{{ 'Desativar' if proc.is_active else 'Ativar' }}">{{ icon('eye-off' if proc.is_active else 'eye') }}</button>
                 </form>
                 <form method="post" action="{{ url_for('specialty_settings.delete_procedure', proc_id=proc.id) }}" data-confirm-delete="{{ proc.descricao }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remover"><i class="fas fa-trash"></i></button>
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remover">{{ icon('trash') }}</button>
                 </form>
                 {% endif %}
               </div>
@@ -64,13 +64,13 @@
         </tbody>
       </table>
     </div>
-    <div id="procedureCatalogEmpty" class="procedure-empty d-none"><i class="fas fa-search"></i><strong>Nenhum procedimento encontrado</strong><span>Revise o texto pesquisado ou acrescente uma nova opção.</span></div>
+    <div id="procedureCatalogEmpty" class="procedure-empty d-none">{{ icon('search') }}<strong>Nenhum procedimento encontrado</strong><span>Revise o texto pesquisado ou acrescente uma nova opção.</span></div>
     {% else %}
-    <div class="procedure-empty"><i class="fas fa-list-check"></i><strong>Catálogo vazio</strong><span>Use o formulário acima para cadastrar o primeiro procedimento.</span></div>
+    <div class="procedure-empty">{{ icon('list-checks') }}<strong>Catálogo vazio</strong><span>Use o formulário acima para cadastrar o primeiro procedimento.</span></div>
     {% endif %}
   </section>
 
-  {% if not current_user.is_admin %}<p class="procedure-permission-note"><i class="fas fa-circle-info"></i> Médicos podem acrescentar e corrigir descrições e códigos. Ativação e exclusão permanecem sob responsabilidade administrativa.</p>{% endif %}
+  {% if not current_user.is_admin %}<p class="procedure-permission-note">{{ icon('info') }} Médicos podem acrescentar e corrigir descrições e códigos. Ativação e exclusão permanecem sob responsabilidade administrativa.</p>{% endif %}
 </div>
 
 {% for proc in procedures %}

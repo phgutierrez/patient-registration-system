@@ -219,7 +219,7 @@
                   data-model-edit="${escapeHtml(model.id)}">Atualizar</button>
           <button class="btn btn-outline-danger"
                   data-model-delete="${escapeHtml(model.id)}"
-                  aria-label="Excluir"><i class="fas fa-trash"></i></button>
+                  aria-label="Excluir">${window.appIcon('trash')}</button>
         </div>
       </article>
     `).join('');
@@ -271,7 +271,7 @@
     editingId = null;
     document.getElementById('modelName').value = '';
     document.getElementById('saveAsModelButton').innerHTML =
-      '<i class="fas fa-save"></i> Salvar como modelo';
+      `${window.appIcon('save')} Salvar como modelo`;
   }
 
   function persistModel() {
@@ -334,7 +334,7 @@
     applyFields(model);
     document.getElementById('modelName').value = model.nome;
     document.getElementById('saveAsModelButton').innerHTML =
-      '<i class="fas fa-save"></i> Atualizar modelo';
+      `${window.appIcon('save')} Atualizar modelo`;
     modal.hide();
     document.getElementById('clinicalSection')
       .scrollIntoView({behavior: 'smooth'});

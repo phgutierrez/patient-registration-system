@@ -6,16 +6,15 @@
 {% block page_styles %}{{ vite_css('settings') }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width:1100px;">
+<div class="container mt-4 u-maxw-1100">
 
   <!-- Cabeçalho -->
-  <div class="card border-0 shadow-sm mb-4"
-       style="background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color:white;">
+  <div class="card border-0 shadow-sm mb-4 u-bg-slate text-white">
     <div class="card-body py-4">
-      <h1 class="mb-1" style="font-size:2rem;font-weight:700;">
-        <i class="fas fa-cog me-3"></i>Configurações de Especialidades
+      <h1 class="mb-1 u-title-lg">
+        {{ icon('settings', extra_class='me-3') }}Configurações de Especialidades
       </h1>
-      <p class="mb-0" style="opacity:.9;">
+      <p class="mb-0 u-opacity-90">
         Gerencie procedimentos, códigos SUS e links de cada especialidade.
       </p>
     </div>
@@ -51,7 +50,7 @@
         <div class="accordion-body p-4">
 
           <!-- ── Links da especialidade ── -->
-          <h5 class="mb-3"><i class="fas fa-link me-2 text-primary"></i>Links de Integração</h5>
+          <h5 class="mb-3">{{ icon('link', extra_class='me-2 text-primary') }}Links de Integração</h5>
           {% set access_source = esp.settings.access_source if esp.settings and esp.settings.access_source else 'network' %}
           <form method="POST"
                 action="{{ url_for('specialty_settings.save_settings', specialty_id=esp.id) }}"
@@ -72,7 +71,7 @@
               </div>
             </div>
             <hr class="my-4">
-            <h5 class="mb-3"><i class="fas fa-database me-2 text-info"></i>Banco Access de Pacientes</h5>
+            <h5 class="mb-3">{{ icon('database', extra_class='me-2 text-info') }}Banco Access de Pacientes</h5>
             <p class="text-muted small">Consulta somente leitura ao cadastro do CPAM. O sistema nunca altera o arquivo Access.</p>
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" role="switch" name="access_enabled"
@@ -130,7 +129,7 @@
                        placeholder="C:\Dados\AMBULATORIO_SERV.accdb">
                 <button type="button" class="btn btn-outline-secondary select-local-access-btn"
                         data-url="{{ url_for('specialty_settings.select_local_access_file') }}">
-                  <i class="fas fa-folder-open me-1"></i>Procurar arquivo
+                  {{ icon('folder-open', extra_class='me-1') }}Procurar arquivo
                 </button>
               </div>
               <div class="form-text">A janela abre no computador servidor. Em clientes da rede, informe um caminho que exista no servidor.</div>
@@ -138,12 +137,12 @@
             <div id="access-test-result-{{ esp.id }}" class="mt-3" aria-live="polite"></div>
             <div class="mt-3">
               <button type="submit" class="btn btn-primary btn-sm">
-                <i class="fas fa-save me-1"></i>Salvar configurações
+                {{ icon('save', extra_class='me-1') }}Salvar configurações
               </button>
               <button type="button" class="btn btn-outline-info btn-sm test-access-btn"
                       data-url="{{ url_for('specialty_settings.test_access_connection', specialty_id=esp.id) }}"
                       data-result="access-test-result-{{ esp.id }}">
-                <i class="fas fa-plug me-1"></i>Testar conexão
+                {{ icon('plug', extra_class='me-1') }}Testar conexão
               </button>
             </div>
           </form>
@@ -151,18 +150,18 @@
           <hr>
 
           <!-- ── Lista de procedimentos ── -->
-          <h5 class="mb-3"><i class="fas fa-list-ul me-2 text-success"></i>Procedimentos</h5>
+          <h5 class="mb-3">{{ icon('list', extra_class='me-2 text-success') }}Procedimentos</h5>
 
           {% if esp.procedures %}
           <div class="table-responsive mb-4">
             <table class="table table-sm table-hover align-middle procedures-table">
               <thead class="table-light">
                 <tr>
-                  <th style="width:3rem;">#</th>
+                  <th class="u-w-3">#</th>
                   <th>Descrição</th>
-                  <th style="width:10rem;">Código SUS</th>
-                  <th style="width:5rem;">Status</th>
-                  <th style="width:9rem;">Ações</th>
+                  <th class="u-w-10">Código SUS</th>
+                  <th class="u-w-5">Status</th>
+                  <th class="u-w-9">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,7 +188,7 @@
                               data-bs-toggle="modal"
                               data-bs-target="#editProc{{ proc.id }}"
                               title="Editar">
-                        <i class="fas fa-pencil-alt"></i>
+                        {{ icon('pencil') }}
                       </button>
                       <!-- Ativar/Desativar -->
                       <form method="POST"
@@ -200,7 +199,7 @@
                         <button type="submit"
                                 class="btn btn-sm btn-icon {{ 'btn-outline-warning' if proc.is_active else 'btn-outline-success' }}"
                                 title="{{ 'Desativar' if proc.is_active else 'Ativar' }}">
-                          <i class="fas {{ 'fa-eye-slash' if proc.is_active else 'fa-eye' }}"></i>
+                          {{ icon('eye-off' if proc.is_active else 'eye') }}
                         </button>
                       </form>
                       <!-- Remover -->
@@ -211,20 +210,26 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="return_to" value="settings">
                         <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="Remover">
-                          <i class="fas fa-trash"></i>
+                          {{ icon('trash') }}
                         </button>
                       </form>
                     </div>
                   </td>
                 </tr>
 
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {# Modais de edição fora da tabela (HTML válido). #}
+          {% for proc in esp.procedures %}
                 <!-- Modal editar procedimento -->
-                <div class="modal fade" id="editProc{{ proc.id }}" tabindex="-1">
+                <div class="modal fade" id="editProc{{ proc.id }}" tabindex="-1" aria-labelledby="editProcTitle{{ proc.id }}" aria-hidden="true">
                   <div class="modal-dialog">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title">Editar Procedimento #{{ proc.id }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <h5 class="modal-title" id="editProcTitle{{ proc.id }}">Editar Procedimento #{{ proc.id }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                       </div>
                       <form method="POST"
                             action="{{ url_for('specialty_settings.edit_procedure', proc_id=proc.id) }}">
@@ -232,13 +237,13 @@
                         <input type="hidden" name="return_to" value="settings">
                         <div class="modal-body">
                           <div class="mb-3">
-                            <label class="form-label fw-semibold">Descrição *</label>
-                            <input type="text" name="descricao" class="form-control"
+                            <label class="form-label fw-semibold" for="editProcDesc{{ proc.id }}">Descrição *</label>
+                            <input type="text" id="editProcDesc{{ proc.id }}" name="descricao" class="form-control"
                                    value="{{ proc.descricao }}" required>
                           </div>
                           <div class="mb-3">
-                            <label class="form-label fw-semibold">Código SUS</label>
-                            <input type="text" name="codigo_sus" class="form-control"
+                            <label class="form-label fw-semibold" for="editProcSus{{ proc.id }}">Código SUS</label>
+                            <input type="text" id="editProcSus{{ proc.id }}" name="codigo_sus" class="form-control"
                                    value="{{ proc.codigo_sus or '' }}">
                           </div>
                         </div>
@@ -250,16 +255,13 @@
                     </div>
                   </div>
                 </div>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+          {% endfor %}
           {% else %}
           <p class="text-muted">Nenhum procedimento cadastrado ainda.</p>
           {% endif %}
 
           <!-- Formulário: adicionar procedimento -->
-          <h6 class="mb-2"><i class="fas fa-plus-circle me-1 text-primary"></i>Adicionar Procedimento</h6>
+          <h6 class="mb-2">{{ icon('circle-plus', extra_class='me-1 text-primary') }}Adicionar Procedimento</h6>
           <form method="POST"
                 action="{{ url_for('specialty_settings.add_procedure', specialty_id=esp.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -277,7 +279,7 @@
               </div>
               <div class="col-md-2">
                 <button type="submit" class="btn btn-success btn-sm w-100">
-                  <i class="fas fa-plus me-1"></i>Adicionar
+                  {{ icon('plus', extra_class='me-1') }}Adicionar
                 </button>
               </div>
             </div>

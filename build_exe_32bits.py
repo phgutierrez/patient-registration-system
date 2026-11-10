@@ -43,6 +43,7 @@ DATA_FILES = (
     (ROOT / 'src' / 'static' / 'vendor', 'src/static/vendor'),
     # Bundles Vite (HTMX, Alpine, CSS/JS minificados) e sprite de ícones Lucide.
     (ROOT / 'src' / 'static' / 'dist', 'src/static/dist'),
+    (ROOT / 'src' / 'static' / 'icons', 'src/static/icons'),
     (ROOT / 'src' / 'static' / 'icon-map.json', 'src/static'),
     (ROOT / 'src' / 'static' / 'icon.ico', 'src/static'),
     (ROOT / 'src' / 'static' / 'logo ortoped.png', 'src/static'),
@@ -70,27 +71,31 @@ EXCLUDES = (
 
 FRONTEND_DIST = ROOT / 'src' / 'static' / 'dist'
 FRONTEND_MANIFEST = Path('.vite') / 'manifest.json'
+FRONTEND_ICONS_DIR = ROOT / 'src' / 'static' / 'icons'
 FRONTEND_ICONS_MANIFEST = Path('icons-manifest.json')
 
 
-def frontend_bundle_files(dist_dir: Path = FRONTEND_DIST) -> list[Path]:
-    """Arquivos (relativos a dist/) exigidos pelos manifestos do Vite e dos ícones.
+def frontend_bundle_files(
+    dist_dir: Path = FRONTEND_DIST, icons_dir: Path = FRONTEND_ICONS_DIR,
+) -> list[Path]:
+    """Arquivos (relativos a src/static/) exigidos pelos manifestos do Vite e dos ícones.
 
     Falha com instrução clara quando os bundles não foram gerados.
     """
     manifest_path = dist_dir / FRONTEND_MANIFEST
-    icons_path = dist_dir / FRONTEND_ICONS_MANIFEST
+    icons_path = icons_dir / FRONTEND_ICONS_MANIFEST
     if not manifest_path.is_file() or not icons_path.is_file():
         raise FileNotFoundError(
-            'Bundles do frontend ausentes em src/static/dist. '
+            'Bundles do frontend ausentes (src/static/dist ou src/static/icons). '
             'Execute "npm ci" e "npm run build" (Node.js 20+) antes do build.'
         )
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     icons = json.loads(icons_path.read_text(encoding='utf-8'))
-    files = {FRONTEND_MANIFEST, FRONTEND_ICONS_MANIFEST, Path(icons['file'])}
+    dist, icons_rel = Path('dist'), Path('icons')
+    files = {dist / FRONTEND_MANIFEST, icons_rel / FRONTEND_ICONS_MANIFEST, icons_rel / icons['file']}
     for chunk in manifest.values():
-        files.add(Path(chunk['file']))
-        files.update(Path(css) for css in chunk.get('css', ()))
+        files.add(dist / chunk['file'])
+        files.update(dist / css for css in chunk.get('css', ()))
     entries = {key for key, chunk in manifest.items() if chunk.get('isEntry')}
     expected = {f'frontend/entries/{path.stem}.js' for path in (ROOT / 'frontend' / 'entries').glob('*.js')}
     if expected and not expected <= entries:
@@ -98,9 +103,13 @@ def frontend_bundle_files(dist_dir: Path = FRONTEND_DIST) -> list[Path]:
             'Bundles do frontend desatualizados (entradas ausentes: '
             + ', '.join(sorted(expected - entries)) + '). Execute "npm run build".'
         )
-    missing = [str(path) for path in sorted(files) if not (dist_dir / path).is_file()]
+    static_root = {dist: dist_dir, icons_rel: icons_dir}
+    missing = [
+        str(path) for path in sorted(files)
+        if not (static_root[Path(path.parts[0])] / Path(*path.parts[1:])).is_file()
+    ]
     if missing:
-        raise FileNotFoundError('Arquivos do frontend ausentes em dist:\n- ' + '\n- '.join(missing))
+        raise FileNotFoundError('Arquivos do frontend ausentes:\n- ' + '\n- '.join(missing))
     return sorted(files)
 
 
@@ -233,8 +242,6 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         app_dir / '_internal' / 'src' / 'static' / 'css' / 'sync-status.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.min.css',
         app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'bootstrap' / 'bootstrap.bundle.min.js',
-        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'fontawesome' / 'css' / 'all.min.css',
-        app_dir / '_internal' / 'src' / 'static' / 'vendor' / 'fontawesome' / 'webfonts' / 'fa-solid-900.woff2',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'agenda.js',
         app_dir / '_internal' / 'src' / 'static' / 'js' / 'pages' / 'patient-new.js',
         app_dir / '_internal' / 'src' / 'static' / 'css' / 'pages' / 'patient-new.css',
@@ -245,7 +252,7 @@ def validate_distribution(app_dir: Path) -> tuple[int, int]:
         app_dir / '_internal' / 'src' / 'static' / 'Internacao.pdf',
         app_dir / '_internal' / 'src' / 'static' / 'REQUISIÇÃO HEMOCOMPONENTE.pdf',
         app_dir / '_internal' / 'src' / 'static' / 'icon-map.json',
-        *(app_dir / '_internal' / 'src' / 'static' / 'dist' / path for path in frontend_bundle_files()),
+        *(app_dir / '_internal' / 'src' / 'static' / path for path in frontend_bundle_files()),
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:

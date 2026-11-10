@@ -125,8 +125,11 @@
     alert.className = `alert alert-${type}`;
     const content = document.createElement('div');
     content.className = 'search-result-content';
-    const icon = document.createElement('i');
-    icon.className = type === 'success' ? 'fas fa-circle-check' : type === 'danger' ? 'fas fa-triangle-exclamation' : 'fas fa-circle-info';
+    const iconHost = document.createElement('span');
+    iconHost.innerHTML = window.appIcon(
+      type === 'success' ? 'circle-check' : type === 'danger' ? 'triangle-alert' : 'info',
+    );
+    const icon = iconHost.firstElementChild;
     const copy = document.createElement('div');
     const strong = document.createElement('strong');
     strong.textContent = message;
@@ -140,7 +143,7 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'btn btn-sm btn-outline-danger retry-access';
-      button.innerHTML = '<i class="fas fa-rotate-right"></i> Tentar novamente';
+      button.innerHTML = `${window.appIcon('rotate-cw')} Tentar novamente`;
       button.addEventListener('click', searchAccess);
       copy.appendChild(button);
     }
@@ -151,7 +154,7 @@
 
   function setSearching(searching) {
     searchButton.disabled = searching;
-    searchButton.innerHTML = searching ? '<i class="fas fa-spinner fa-spin"></i><span>Buscando…</span>' : '<i class="fas fa-search"></i><span>Buscar</span>';
+    searchButton.innerHTML = searching ? `${window.appIcon('loader-circle', 'is-spinning')}<span>Buscando…</span>` : `${window.appIcon('search')}<span>Buscar</span>`;
   }
 
   async function searchAccess() {
@@ -269,7 +272,7 @@
       return;
     }
     saveButton.disabled = true;
-    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cadastrando…';
+    saveButton.innerHTML = `${window.appIcon('loader-circle', 'is-spinning')} Cadastrando…`;
   });
 
   formatBirthInput(document.getElementById('data_nascimento'));

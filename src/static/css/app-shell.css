@@ -756,43 +756,41 @@
 }
 
 /* ── Ícones Lucide (sprite SVG local, v2.7) ─────────────────────────────
-   Equivalentes às regras de <i class="fas"> acima; mesmos tamanhos/espaços. */
+   <i class="lucide ..."> substitui <i class="fas ...">: as regras existentes
+   para "i" continuam valendo; o SVG interno ocupa 1em e herda a cor. */
+.lucide {
+    display: inline-block;
+    font-style: normal;
+    line-height: 1;
+}
+
 .icon {
     display: inline-block;
     width: 1em;
     height: 1em;
     vertical-align: -0.125em;
-    flex-shrink: 0;
     stroke: currentColor;
     fill: none;
     overflow: visible;
 }
 
 .icon-xs { font-size: 0.65rem; }
+.icon-lg { font-size: 1.25em; line-height: 0.05em; vertical-align: -0.2em; }
+.icon-hero { font-size: 3rem; margin-bottom: 0.75rem; }
+.icon-accent { color: #3b82f6; }
 
-.sidebar-pin-btn .icon { margin: 0; font-size: 0.82rem; }
-.sidebar-pin-btn .icon-chevrons-right { display: none; }
-body.sidebar-collapsed .sidebar-pin-btn .icon-chevrons-left { display: none; }
-body.sidebar-collapsed .sidebar-pin-btn .icon-chevrons-right { display: inline-block; }
-
-.nav-link .icon { margin-right: 0; width: 18px; height: 0.96rem; font-size: 0.96rem; flex-shrink: 0; }
-.message .icon { margin-right: 1rem; font-size: 1.1rem; flex-shrink: 0; }
-
-@media (min-width: 769px) {
-    body:not(.sidebar-pinned) .sidebar:not(:hover):not(:focus-within) .nav-link .icon { margin-right: 0; width: 24px; }
-    body:not(.sidebar-pinned) .sidebar:not(:hover):not(:focus-within) .sidebar-logout-btn .icon { margin-right: 0; }
-    body.sidebar-collapsed .nav-link .icon,
-    body.sidebar-collapsed .sidebar-logout-btn .icon { width: 24px; margin: 0; }
-}
+.sidebar-pin-btn .lucide-chevrons-right { display: none; }
+body.sidebar-collapsed .sidebar-pin-btn .lucide-chevrons-left { display: none; }
+body.sidebar-collapsed .sidebar-pin-btn .lucide-chevrons-right { display: inline-block; }
 
 .is-spinning .icon,
-.icon.is-spinning { animation: icon-spin 0.9s linear infinite; }
+.lucide.is-spinning .icon { animation: icon-spin 0.9s linear infinite; }
 
 @keyframes icon-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
     .is-spinning .icon,
-    .icon.is-spinning { animation: none; }
+    .lucide.is-spinning .icon { animation: none; }
 }
 
 /* Correção v2.7: a regra base ".menu-toggle { display: none }" vinha depois
@@ -800,3 +798,40 @@ body.sidebar-collapsed .sidebar-pin-btn .icon-chevrons-right { display: inline-b
 @media (max-width: 768px) {
     .menu-toggle { display: flex; }
 }
+
+/* ── Utilitários v2.7 (antes estilos inline nos templates; CSP sem 'unsafe-inline') ── */
+.u-bg-dark { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+.u-bg-slate { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+.u-bg-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+.u-bg-indigo { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+.u-bg-teal { background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); }
+.u-bg-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.u-title-md { font-size: 1.6rem; font-weight: 700; }
+.u-title-lg { font-size: 2rem; font-weight: 700; }
+.u-subtitle { margin: 0.5rem 0 0; opacity: 0.85; font-size: 0.95rem; }
+.u-subtitle-90 { margin: 0.5rem 0 0; opacity: 0.9; }
+.u-opacity-90 { opacity: 0.9; }
+.u-opacity-95 { opacity: 0.95; }
+.u-fs-08 { font-size: 0.8rem; }
+.u-radius-8 { border-radius: 8px; }
+.u-radius-16 { border-radius: 16px; }
+.u-pointer { cursor: pointer; }
+.u-badge-glass { background: rgba(255, 255, 255, 0.2); font-size: 0.85rem; padding: 0.45em 0.9em; }
+.u-input-outline { padding: 1rem; border: 2px solid #e2e8f0; border-radius: 8px; }
+.u-maxw-560 { max-width: 560px; }
+.u-maxw-620 { max-width: 620px; }
+.u-maxw-760 { max-width: 760px; }
+.u-maxw-920 { max-width: 920px; }
+.u-maxw-1100 { max-width: 1100px; }
+.u-my-4rem { margin-top: 4rem; margin-bottom: 4rem; }
+.u-w-3 { width: 3rem; }
+.u-w-5 { width: 5rem; }
+.u-w-9 { width: 9rem; }
+.u-w-10 { width: 10rem; }
+
+/* Tela exibida ao encerrar o sistema (lifecycle.js). */
+.shutdown-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-family: Arial, sans-serif; background: #f8fafc; }
+.shutdown-card { text-align: center; padding: 3rem; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); max-width: 560px; }
+.shutdown-done { font-size: 4rem; color: #10b981; }
+.shutdown-title { color: #1e293b; margin: 1rem 0; }
+.shutdown-text { color: #64748b; margin: 0; }

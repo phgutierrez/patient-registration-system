@@ -39,8 +39,8 @@ class ManifestHelperTests(_App):
             (folder / 'dist' / '.vite').mkdir(parents=True)
             (folder / 'dist' / '.vite' / 'manifest.json').write_text(json.dumps(manifest))
         if icons is not None:
-            (folder / 'dist').mkdir(exist_ok=True)
-            (folder / 'dist' / 'icons-manifest.json').write_text(json.dumps(icons))
+            (folder / 'icons').mkdir(exist_ok=True)
+            (folder / 'icons' / 'icons-manifest.json').write_text(json.dumps(icons))
         self.app.static_folder = str(folder)
 
     def test_manifest_emits_hashed_css_js_and_preloads(self):
@@ -68,23 +68,24 @@ class ManifestHelperTests(_App):
         with self.app.test_request_context(), self.assertRaises(KeyError):
             frontend_assets.vite_js('nao-existe')
 
-    def test_icon_uses_sprite_or_font_awesome_fallback(self):
+    def test_icon_markup_uses_local_sprite(self):
         self._with_static(None, icons={'file': 'icons-0123abcd.svg', 'icons': ['search']})
         with self.app.test_request_context():
-            sprite = str(frontend_assets.icon('search'))
+            plain = str(frontend_assets.icon('search', extra_class='me-2'))
             labelled = str(frontend_assets.icon('search', label='Buscar'))
-            fallback = str(frontend_assets.icon('menu'))
-        self.assertIn('<use href="/static/dist/icons-0123abcd.svg#search">', sprite)
-        self.assertIn('aria-hidden="true"', sprite)
+            self.assertEqual('/static/icons/icons-0123abcd.svg', frontend_assets.icon_sprite_url())
+            with self.assertRaises(KeyError):
+                frontend_assets.icon('nao-mapeado')
+        self.assertIn('<i class="lucide lucide-search me-2" aria-hidden="true">', plain)
+        self.assertIn('<use href="/static/icons/icons-0123abcd.svg#search">', plain)
         self.assertIn('role="img" aria-label="Buscar"', labelled)
-        self.assertIn('class="fas fa-bars', fallback)
 
     def test_full_page_renders_with_fallback_when_bundles_missing(self):
         self._with_static(None)
         response = self.client.get('/patients/patients')
         self.assertEqual(200, response.status_code)
         self.assertIn(b'/static/js/pages/patients.js', response.data)
-        self.assertIn(b'fa-user-plus', response.data)
+        self.assertIn(b'lucide-user-plus', response.data)
 
 
 class ServedAssetsTests(_App):
@@ -104,6 +105,28 @@ class ServedAssetsTests(_App):
         self.assertNotIn('max-age=31536000', source.headers.get('Cache-Control', ''))
         source.close()
 
+    def test_precompressed_assets_served_when_gzip_accepted(self):
+        import gzip
+        path = '/static/vendor/bootstrap/bootstrap.min.css'
+        plain = self.client.get(path)
+        compressed = self.client.get(path, headers={'Accept-Encoding': 'gzip, deflate'})
+        try:
+            if not (STATIC / 'vendor' / 'bootstrap' / 'bootstrap.min.css.gz').is_file():
+                self.skipTest('Arquivos .gz não gerados (npm run build).')
+            self.assertNotIn('Content-Encoding', plain.headers)
+            self.assertEqual('gzip', compressed.headers['Content-Encoding'])
+            self.assertIn('text/css', compressed.headers['Content-Type'])
+            self.assertIn('Accept-Encoding', compressed.headers['Vary'])
+            self.assertLess(len(compressed.data), len(plain.data) / 3)
+            self.assertEqual(plain.data, gzip.decompress(compressed.data))
+        finally:
+            plain.close()
+            compressed.close()
+        # Arquivos fora das pastas pré-comprimidas continuam iguais.
+        pdf = self.client.get('/static/icon.ico', headers={'Accept-Encoding': 'gzip'})
+        self.assertNotIn('Content-Encoding', pdf.headers)
+        pdf.close()
+
     def test_bootstrap_js_only_on_pages_with_components(self):
         self.assertNotIn(b'bootstrap.bundle.min.js', self.client.get('/index').data)
         self.assertIn(b'bootstrap.bundle.min.js', self.client.get('/patients/patients').data)
@@ -119,6 +142,20 @@ class ServedAssetsTests(_App):
 
 
 class SourceTreeTests(unittest.TestCase):
+    def test_no_font_awesome_left(self):
+        self.assertFalse((STATIC / 'vendor' / 'fontawesome').exists())
+        pattern = re.compile(r'\bfa[sr]? fa-|\bfa-[a-z]')
+        sources = [*TEMPLATES.rglob('*.html'), *(STATIC / 'js').rglob('*.js')]
+        offenders = [str(path) for path in sources if pattern.search(path.read_text(encoding='utf-8'))]
+        self.assertEqual([], offenders)
+
+    def test_templates_have_no_inline_styles(self):
+        for template in TEMPLATES.rglob('*.html'):
+            source = template.read_text(encoding='utf-8')
+            with self.subTest(template=str(template.relative_to(TEMPLATES))):
+                self.assertNotIn('<style', source)
+                self.assertIsNone(re.search(r'\sstyle=', source))
+
     def test_templates_have_no_executable_inline_scripts_or_handlers(self):
         inline_script = re.compile(r'<script(?![^>]*\bsrc=)(?![^>]*type="application/json")[^>]*>')
         handler = re.compile(r'\son(?:click|submit|change|load|input)=', re.IGNORECASE)
@@ -147,8 +184,8 @@ class SourceTreeTests(unittest.TestCase):
         for chunk in manifest.values():
             for path in [chunk['file'], *chunk.get('css', ())]:
                 self.assertTrue((STATIC / 'dist' / path).is_file(), path)
-        icons = json.loads((STATIC / 'dist' / 'icons-manifest.json').read_text(encoding='utf-8'))
-        self.assertTrue((STATIC / 'dist' / icons['file']).is_file())
+        icons = json.loads((STATIC / 'icons' / 'icons-manifest.json').read_text(encoding='utf-8'))
+        self.assertTrue((STATIC / 'icons' / icons['file']).is_file())
 
     def test_template_icons_are_mapped_and_in_sprite(self):
         icon_map = json.loads((STATIC / 'icon-map.json').read_text(encoding='utf-8'))['icons']
@@ -157,7 +194,7 @@ class SourceTreeTests(unittest.TestCase):
             used.update(re.findall(r"icon\('([a-z0-9-]+)'", template.read_text(encoding='utf-8')))
         self.assertTrue(used)
         self.assertEqual(set(), used - set(icon_map))
-        sprite_manifest = STATIC / 'dist' / 'icons-manifest.json'
+        sprite_manifest = STATIC / 'icons' / 'icons-manifest.json'
         if sprite_manifest.is_file():
             sprite_icons = set(json.loads(sprite_manifest.read_text(encoding='utf-8'))['icons'])
             self.assertEqual(set(icon_map), sprite_icons)
@@ -168,6 +205,10 @@ class SourceTreeTests(unittest.TestCase):
         script_src = re.search(r"script-src ([^;]+)", policy).group(1)
         self.assertNotIn("'unsafe-inline'", script_src)
         self.assertNotIn("'unsafe-eval'", script_src)
+        style_src = re.search(r"style-src ([^;]+)", policy).group(1)
+        self.assertNotIn("'unsafe-inline'", style_src)
+        self.assertNotIn('https:', policy.split('connect-src')[0].split('frame-src')[0])
+        self.assertTrue(Config.SECURITY_CSP_ENFORCE)
 
 
 if __name__ == '__main__':

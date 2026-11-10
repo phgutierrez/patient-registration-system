@@ -1,6 +1,20 @@
 (() => {
   'use strict';
 
+  // Ícone Lucide (mesma marcação do helper Jinja icon()) para HTML gerado em JS.
+  // Nomes precisam constar em src/static/icon-map.json.
+  window.appIcon = function appIcon(name, extraClass = '') {
+    const sprite = document.querySelector('meta[name="icon-sprite"]')?.content || '';
+    const safe = String(name).replace(/[^a-z0-9-]/g, '');
+    const extra = String(extraClass).replace(/[^\w -]/g, '');
+    const href = sprite.replace(/["<>]/g, '');
+    const svg = href
+      ? `<svg class="icon" aria-hidden="true" focusable="false"><use href="${href}#${safe}"></use></svg>`
+      : '';
+    const classes = `lucide lucide-${safe} ${extra}`.trim();
+    return `<i class="${classes}" aria-hidden="true">${svg}</i>`;
+  };
+
   const DESKTOP_BREAKPOINT = 768;
   const SIDEBAR_KEY = 'sidebarPinned';
 

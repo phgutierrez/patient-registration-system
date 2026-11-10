@@ -7,6 +7,7 @@ Esta passada traduz o endurecimento de navegador e a atualização de dependênc
 - Headers de segurança foram centralizados em um hook global de resposta.
 - `Cache-Control: no-store` passou a ser aplicado em respostas autenticadas, JSON com dados clínicos e PDFs protegidos.
 - CSP foi introduzida em modo `Report-Only` para evitar quebrar templates ainda dependentes de inline JS/CSS.
+- **v2.7.0:** todo JS/CSS inline foi removido e a CSP passou a ser **aplicada** (`Content-Security-Policy`, `script-src 'self'; style-src 'self'`). `SECURITY_CSP_ENFORCE=false` retorna ao `Report-Only`. Todas as páginas são verificadas por `tests/test_browser_e2e.py`.
 - `Strict-Transport-Security` continua desligado por padrão e deve ser habilitado apenas atrás de HTTPS real.
 - Dependências de maior prioridade foram revisadas com base no PyPI oficial em **3 de abril de 2026**.
 

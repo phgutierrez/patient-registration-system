@@ -1,5 +1,6 @@
-// Gera src/static/dist/icons.<hash>.svg contendo SOMENTE os ícones Lucide
+// Gera src/static/icons/icons-<hash>.svg contendo SOMENTE os ícones Lucide
 // listados em src/static/icon-map.json, e um manifesto para o Flask.
+// Fica fora de dist/ para que os ícones existam mesmo sem os bundles do Vite.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, readdirSync, unlinkSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -9,7 +10,7 @@ import { createRequire } from 'node:module';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
 const iconsDir = join(dirname(require.resolve('lucide-static/package.json')), 'icons');
-const distDir = join(root, 'src', 'static', 'dist');
+const distDir = join(root, 'src', 'static', 'icons');
 const map = JSON.parse(readFileSync(join(root, 'src', 'static', 'icon-map.json'), 'utf8')).icons;
 
 const symbols = Object.keys(map).sort().map((name) => {
@@ -36,4 +37,4 @@ writeFileSync(
   join(distDir, 'icons-manifest.json'),
   `${JSON.stringify({ file, icons: Object.keys(map).sort() }, null, 2)}\n`,
 );
-console.log(`icons: ${symbols.length} símbolos -> dist/${file} (${sprite.length} bytes)`);
+console.log(`icons: ${symbols.length} símbolos -> static/icons/${file} (${sprite.length} bytes)`);

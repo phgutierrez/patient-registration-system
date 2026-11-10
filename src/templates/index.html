@@ -10,7 +10,7 @@
       <p>Encontre pacientes e acompanhe as próximas solicitações.</p>
     </div>
     <a class="btn btn-primary" href="{{ url_for('patients.new_patient') }}">
-      <i class="fas fa-user-plus"></i><span>Novo paciente</span>
+      {{ icon('user-plus') }}<span>Novo paciente</span>
     </a>
   </header>
 
@@ -21,7 +21,7 @@
     </div>
     <form action="{{ url_for('patients.list_patients') }}" method="get">
       <div class="input-group input-group-lg">
-        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <span class="input-group-text">{{ icon('search') }}</span>
         <input class="form-control" name="q" maxlength="100" autocomplete="off"
                placeholder="Digite para localizar um cadastro" aria-label="Localizar paciente">
         <button class="btn btn-primary" type="submit">Buscar</button>
@@ -31,15 +31,15 @@
 
   <section class="dashboard-metrics" aria-label="Resumo">
     <a href="{{ url_for('patients.list_patients') }}" class="metric-card">
-      <span class="metric-icon metric-blue"><i class="fas fa-users"></i></span>
+      <span class="metric-icon metric-blue">{{ icon('users') }}</span>
       <span><strong>{{ dashboard.patients }}</strong><small>Pacientes cadastrados</small></span>
     </a>
     <div class="metric-card">
-      <span class="metric-icon metric-amber"><i class="fas fa-clock"></i></span>
+      <span class="metric-icon metric-amber">{{ icon('clock') }}</span>
       <span><strong>{{ dashboard.pending }}</strong><small>Solicitações pendentes</small></span>
     </div>
     <a href="{{ url_for('main.agenda') }}" class="metric-card">
-      <span class="metric-icon metric-green"><i class="fas fa-calendar-check"></i></span>
+      <span class="metric-icon metric-green">{{ icon('calendar-check') }}</span>
       <span><strong>{{ dashboard.scheduled }}</strong><small>Enviadas à agenda</small></span>
     </a>
   </section>
@@ -69,13 +69,13 @@
             {{ surgery.hora_cirurgia.strftime('%H:%M') if surgery.hora_cirurgia else '—' }}
             <span class="status-dot status-{{ (surgery.status or 'Pendente')|lower }}">{{ surgery.status or 'Pendente' }}</span>
           </span>
-          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+          {{ icon('chevron-right') }}
         </a>
         {% endfor %}
       </div>
       {% else %}
       <div class="empty-compact">
-        <i class="fas fa-calendar-day"></i>
+        {{ icon('calendar-1') }}
         <div><strong>Nenhum procedimento futuro</strong><span>Novas solicitações aparecerão aqui.</span></div>
       </div>
       {% endif %}
@@ -84,11 +84,11 @@
     <aside class="surface-card quick-actions">
       <div class="surface-header"><div><h2>Ações rápidas</h2><p>Acessos mais usados no atendimento.</p></div></div>
       <nav>
-        <a href="{{ url_for('patients.new_patient') }}"><i class="fas fa-user-plus"></i><span><strong>Cadastrar paciente</strong><small>Buscar no Access ou preencher manualmente</small></span></a>
-        <a href="{{ url_for('patients.list_patients') }}"><i class="fas fa-address-book"></i><span><strong>Pacientes</strong><small>Consultar e iniciar solicitação</small></span></a>
-        <a href="{{ url_for('main.agenda') }}"><i class="fas fa-calendar-alt"></i><span><strong>Agenda cirúrgica</strong><small>Visualizar e registrar resultados</small></span></a>
+        <a href="{{ url_for('patients.new_patient') }}">{{ icon('user-plus') }}<span><strong>Cadastrar paciente</strong><small>Buscar no Access ou preencher manualmente</small></span></a>
+        <a href="{{ url_for('patients.list_patients') }}">{{ icon('book-user') }}<span><strong>Pacientes</strong><small>Consultar e iniciar solicitação</small></span></a>
+        <a href="{{ url_for('main.agenda') }}">{{ icon('calendar') }}<span><strong>Agenda cirúrgica</strong><small>Visualizar e registrar resultados</small></span></a>
         {% if current_user.is_admin %}
-        <a href="{{ url_for('specialty_settings.index') }}"><i class="fas fa-sliders-h"></i><span><strong>Configurações</strong><small>Integrações e cadastros</small></span></a>
+        <a href="{{ url_for('specialty_settings.index') }}">{{ icon('sliders-horizontal') }}<span><strong>Configurações</strong><small>Integrações e cadastros</small></span></a>
         {% endif %}
       </nav>
     </aside>

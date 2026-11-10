@@ -11,35 +11,35 @@
         <span class="eyebrow">Cadastro do paciente</span>
         <h1>{{ patient.nome }}</h1>
         <div class="patient-profile-meta">
-          <span><i class="fas fa-folder-open"></i> Prontuário {{ patient.prontuario }}</span>
-          <span><i class="fas fa-hospital-user"></i> {{ patient.specialty.name if patient.specialty else 'Ortopedia' }}</span>
-          <span><i class="fas fa-calendar-day"></i> {{ patient.idade }} anos</span>
+          <span>{{ icon('folder-open') }} Prontuário {{ patient.prontuario }}</span>
+          <span>{{ icon('hospital') }} {{ patient.specialty.name if patient.specialty else 'Ortopedia' }}</span>
+          <span>{{ icon('calendar-1') }} {{ patient.idade }} anos</span>
         </div>
       </div>
     </div>
     <div class="patient-profile-actions">
       <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-primary">
-        <i class="fas fa-notes-medical me-1"></i>Nova solicitação
+        {{ icon('clipboard-plus', extra_class='me-1') }}Nova solicitação
       </a>
       <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-outline-primary">
-        <i class="fas fa-pen me-1"></i>Editar cadastro
+        {{ icon('pen', extra_class='me-1') }}Editar cadastro
       </a>
       <a href="{{ url_for('patients.list_patients') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i>Pacientes
+        {{ icon('arrow-left', extra_class='me-1') }}Pacientes
       </a>
     </div>
   </header>
 
   <section class="patient-summary-grid" aria-label="Resumo do paciente">
-    <article class="summary-tile"><span class="summary-icon"><i class="fas fa-id-card"></i></span><div><small>CNS</small><strong>{{ patient.cns or 'Não informado' }}</strong></div></article>
-    <article class="summary-tile"><span class="summary-icon"><i class="fas fa-cake-candles"></i></span><div><small>Nascimento</small><strong>{{ patient.data_nascimento.strftime('%d/%m/%Y') }}</strong></div></article>
-    <article class="summary-tile"><span class="summary-icon"><i class="fas fa-venus-mars"></i></span><div><small>Sexo</small><strong>{{ 'Masculino' if patient.sexo == 'M' else 'Feminino' if patient.sexo == 'F' else patient.sexo }}</strong></div></article>
-    <article class="summary-tile"><span class="summary-icon"><i class="fas fa-phone"></i></span><div><small>Contato</small><strong>{{ patient.contato or 'Não informado' }}</strong></div></article>
+    <article class="summary-tile"><span class="summary-icon">{{ icon('id-card') }}</span><div><small>CNS</small><strong>{{ patient.cns or 'Não informado' }}</strong></div></article>
+    <article class="summary-tile"><span class="summary-icon">{{ icon('cake') }}</span><div><small>Nascimento</small><strong>{{ patient.data_nascimento.strftime('%d/%m/%Y') }}</strong></div></article>
+    <article class="summary-tile"><span class="summary-icon">{{ icon('venus-and-mars') }}</span><div><small>Sexo</small><strong>{{ 'Masculino' if patient.sexo == 'M' else 'Feminino' if patient.sexo == 'F' else patient.sexo }}</strong></div></article>
+    <article class="summary-tile"><span class="summary-icon">{{ icon('phone') }}</span><div><small>Contato</small><strong>{{ patient.contato or 'Não informado' }}</strong></div></article>
   </section>
 
   <div class="patient-info-layout">
     <section class="patient-surface">
-      <div class="surface-heading"><span><i class="fas fa-user"></i></span><div><h2>Dados pessoais</h2><p>Identificação e vínculo familiar.</p></div></div>
+      <div class="surface-heading"><span>{{ icon('user') }}</span><div><h2>Dados pessoais</h2><p>Identificação e vínculo familiar.</p></div></div>
       <dl class="patient-data-grid">
         <div><dt>Nome da mãe</dt><dd>{{ patient.nome_mae or 'Não informado' }}</dd></div>
         <div><dt>Prontuário</dt><dd>{{ patient.prontuario }}</dd></div>
@@ -49,7 +49,7 @@
     </section>
 
     <section class="patient-surface">
-      <div class="surface-heading"><span><i class="fas fa-location-dot"></i></span><div><h2>Contato e endereço</h2><p>Dados para comunicação com o paciente.</p></div></div>
+      <div class="surface-heading"><span>{{ icon('map-pin') }}</span><div><h2>Contato e endereço</h2><p>Dados para comunicação com o paciente.</p></div></div>
       <dl class="patient-data-grid">
         <div class="data-wide"><dt>Endereço</dt><dd>{{ patient.endereco or 'Não informado' }}</dd></div>
         <div><dt>Cidade</dt><dd>{{ patient.cidade or 'Não informada' }}</dd></div>
@@ -60,7 +60,7 @@
   </div>
 
   <section class="patient-surface clinical-surface">
-    <div class="surface-heading"><span><i class="fas fa-stethoscope"></i></span><div><h2>Informações clínicas</h2><p>Diagnóstico atualmente registrado no cadastro.</p></div></div>
+    <div class="surface-heading"><span>{{ icon('stethoscope') }}</span><div><h2>Informações clínicas</h2><p>Diagnóstico atualmente registrado no cadastro.</p></div></div>
     <div class="clinical-content">
       <span class="clinical-code">{{ patient.cid or 'Sem CID' }}</span>
       <p>{{ patient.diagnostico or 'Diagnóstico não informado.' }}</p>
@@ -69,7 +69,7 @@
 
   <section class="patient-surface requests-surface" id="solicitacoes">
     <div class="surface-heading requests-heading">
-      <span><i class="fas fa-file-medical"></i></span>
+      <span>{{ icon('file-plus') }}</span>
       <div><h2>Solicitações cirúrgicas</h2><p>Abra uma solicitação antiga para revisar PDFs, editar dados ou enviar o agendamento.</p></div>
       <strong class="request-count">{{ surgery_requests|length }}</strong>
     </div>
@@ -102,16 +102,16 @@
             <td data-label="Situação">
               <div class="request-badges">
                 <span class="request-status status-{{ status_key|replace(' ', '-') }}">{{ surgery.status or 'Pendente' }}</span>
-                {% if surgery.calendar_status == 'agendado' %}<span class="schedule-status is-scheduled"><i class="fas fa-calendar-check"></i> Enviada</span>
-                {% elif surgery.calendar_status == 'erro' %}<span class="schedule-status has-error"><i class="fas fa-triangle-exclamation"></i> Falha no envio</span>
-                {% else %}<span class="schedule-status"><i class="fas fa-calendar-plus"></i> Não enviada</span>{% endif %}
+                {% if surgery.calendar_status == 'agendado' %}<span class="schedule-status is-scheduled">{{ icon('calendar-check') }} Enviada</span>
+                {% elif surgery.calendar_status == 'erro' %}<span class="schedule-status has-error">{{ icon('triangle-alert') }} Falha no envio</span>
+                {% else %}<span class="schedule-status">{{ icon('calendar-plus') }} Não enviada</span>{% endif %}
               </div>
             </td>
             <td data-label="Criada em"><span>{{ surgery.created_at.strftime('%d/%m/%Y') if surgery.created_at else '—' }}</span></td>
             <td class="request-actions-cell" data-label="Ações">
               <div class="request-actions">
-                <a href="{{ url_for('surgery.confirmation', surgery_id=surgery.id) }}" class="btn btn-sm btn-primary" title="Abrir confirmação"><i class="fas fa-arrow-up-right-from-square"></i><span>Abrir</span></a>
-                <a href="{{ url_for('surgery.edit_surgery_request', surgery_id=surgery.id) }}" class="btn btn-sm btn-outline-secondary" title="Editar solicitação"><i class="fas fa-pen"></i></a>
+                <a href="{{ url_for('surgery.confirmation', surgery_id=surgery.id) }}" class="btn btn-sm btn-primary" title="Abrir confirmação">{{ icon('external-link') }}<span>Abrir</span></a>
+                <a href="{{ url_for('surgery.edit_surgery_request', surgery_id=surgery.id) }}" class="btn btn-sm btn-outline-secondary" title="Editar solicitação">{{ icon('pen') }}</a>
               </div>
             </td>
           </tr>
@@ -121,7 +121,7 @@
     </div>
     {% else %}
     <div class="requests-empty">
-      <i class="fas fa-file-circle-plus"></i>
+      {{ icon('file-plus') }}
       <h3>Nenhuma solicitação registrada</h3>
       <p>Crie a primeira solicitação cirúrgica deste paciente.</p>
       <a href="{{ url_for('surgery.request_surgery', patient_id=patient.id) }}" class="btn btn-primary">Nova solicitação</a>

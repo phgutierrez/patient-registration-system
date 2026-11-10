@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Configurar sincronização{% endblock %}
 {% block content %}
-<section class="container py-4" style="max-width:760px">
+<section class="container py-4 u-maxw-760">
   <div class="card border-0 shadow-sm">
     <div class="card-body p-4 p-lg-5">
       <span class="text-primary fw-bold text-uppercase small">Implantação multiestação</span>
@@ -40,7 +40,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="retry_sync">
           <button class="btn btn-primary" type="submit">
-            <i class="fas fa-rotate me-1"></i>Tentar sincronizar novamente
+            {{ icon('rotate-cw', extra_class='me-1') }}Tentar sincronizar novamente
           </button>
         </form>
         {% endif %}
@@ -82,7 +82,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="retry_sync">
         <button class="btn btn-primary" type="submit">
-          <i class="fas fa-rotate me-1"></i>Sincronizar agora
+          {{ icon('rotate-cw', extra_class='me-1') }}Sincronizar agora
         </button>
       </form>
       {% endif %}

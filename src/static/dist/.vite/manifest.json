@@ -4,7 +4,7 @@
     "name": "htmx-setup"
   },
   "frontend/entries/agenda.js": {
-    "file": "js/agenda-Cn3A5YMr.js",
+    "file": "js/agenda-BcA8EfA8.js",
     "name": "agenda",
     "src": "frontend/entries/agenda.js",
     "isEntry": true,
@@ -12,7 +12,7 @@
       "_htmx-setup-Cne41TUS.js"
     ],
     "css": [
-      "assets/agenda-B3e-aAUU.css"
+      "assets/agenda-CvNiJ3XO.css"
     ]
   },
   "frontend/entries/patient-edit.js": {
@@ -25,7 +25,7 @@
     ]
   },
   "frontend/entries/patient-new.js": {
-    "file": "js/patient-new-DHikthPO.js",
+    "file": "js/patient-new-DltOS_SD.js",
     "name": "patient-new",
     "src": "frontend/entries/patient-new.js",
     "isEntry": true,
@@ -34,7 +34,7 @@
     ]
   },
   "frontend/entries/patients.js": {
-    "file": "js/patients-HUE_eFw_.js",
+    "file": "js/patients-CZfPtcyR.js",
     "name": "patients",
     "src": "frontend/entries/patients.js",
     "isEntry": true,
@@ -42,7 +42,7 @@
       "_htmx-setup-Cne41TUS.js"
     ],
     "css": [
-      "assets/patients-NoEjZlv8.css"
+      "assets/patients-CQQ7x82Q.css"
     ]
   },
   "frontend/entries/procedures.js": {
@@ -64,16 +64,16 @@
     ]
   },
   "frontend/entries/shell.js": {
-    "file": "js/shell-CZTZcme6.js",
+    "file": "js/shell-BsUq64M_.js",
     "name": "shell",
     "src": "frontend/entries/shell.js",
     "isEntry": true,
     "css": [
-      "assets/shell-_wjPGpBR.css"
+      "assets/shell-BblK54Yr.css"
     ]
   },
   "frontend/entries/surgery-confirmation.js": {
-    "file": "js/surgery-confirmation--v4DYPVd.js",
+    "file": "js/surgery-confirmation-m8yolJxx.js",
     "name": "surgery-confirmation",
     "src": "frontend/entries/surgery-confirmation.js",
     "isEntry": true,
@@ -82,7 +82,7 @@
     ]
   },
   "frontend/entries/surgery-request.js": {
-    "file": "js/surgery-request-BeQsffXV.js",
+    "file": "js/surgery-request--cueQF-3.js",
     "name": "surgery-request",
     "src": "frontend/entries/surgery-request.js",
     "isEntry": true,
