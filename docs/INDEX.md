@@ -38,6 +38,7 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 ### Produto e histórico
 - [CHANGELOG_V2.7.md](CHANGELOG_V2.7.md)
+- [ATUALIZACAO_V2.8.md](ATUALIZACAO_V2.8.md) — v2.8.0: excluir solicitação, pendências, formulário (rede, EXE local, Python)
 - [ATUALIZACAO_V2.7.md](ATUALIZACAO_V2.7.md) — passo a passo de atualização (rede, EXE local, Python)
 - [FRONTEND.md](FRONTEND.md) — Vite, HTMX, Alpine.js e ícones
 - [CHANGELOG_V2.6.md](CHANGELOG_V2.6.md)

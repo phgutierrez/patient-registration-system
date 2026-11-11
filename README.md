@@ -40,7 +40,16 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
 - 💾 **Armazenamento Confiável** - SQLite local, outbox transacional, checkpoints e histórico restaurável
 
-### 🆕 Versão 2.7.0 (Novembro/2026)
+### 🆕 Versão 2.8.0 (Novembro/2026)
+
+- ✅ **Excluir solicitação de cirurgia** (autor ou administrador), com aviso quando o evento já está no Google Agenda
+- ✅ Tela **Pendências** (card do início clicável): minhas pendências ou todas da especialidade
+- ✅ Início mostra **Minhas próximas cirurgias** (como autor ou assistente); a Agenda continua com todos os agendamentos
+- ✅ Formulário de solicitação: obrigatórios marcados, progresso por seção, validação antes do envio, **rascunho automático** e atalhos
+- ✅ Build do EXE sem Node.js corrigido (`app-shell.js`); vínculo agenda → solicitação corrigido
+- 📘 **Como atualizar:** [docs/ATUALIZACAO_V2.8.md](docs/ATUALIZACAO_V2.8.md) · [Notas de versão](RELEASE_NOTES_2.8.md)
+
+### Versão 2.7.0 (Novembro/2026)
 
 - ✅ PDF de internação: faixa verde **RESERVAR VAGA DE UTI** no Aviso de Cirurgia quando há reserva de UTI
 - ✅ Requisição de hemocomponente sempre com a **data de internação** (sem a data de exemplo 03/05/2024)

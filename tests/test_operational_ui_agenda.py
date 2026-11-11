@@ -140,7 +140,8 @@ class OperationalUiAgendaTests(unittest.TestCase):
             response = self.client.get('/index')
         self.assertEqual(200, response.status_code)
         self.assertIn(b'Vis\xc3\xa3o geral do consult\xc3\xb3rio', response.data)
-        self.assertIn(b'Pr\xc3\xb3ximos procedimentos', response.data)
+        self.assertIn('Minhas próximas cirurgias'.encode('utf-8'), response.data)
+        self.assertIn(b'href="/pendencias"', response.data)
         self.assertIn(b'Paciente Teste', response.data)
         external.assert_not_called()
 
@@ -259,6 +260,26 @@ class OperationalUiAgendaTests(unittest.TestCase):
             self.assertEqual('Pendente', surgery.status)
             self.assertEqual('PENDENTE', saved.status)
             self.assertEqual(self.surgery_id, saved.surgery_request_id)
+
+    def test_reference_marker_with_sync_uuid_links_request(self):
+        # schedule_confirm grava [SOLICITACAO:<sync_uuid>] na descrição do evento.
+        with self.app.app_context():
+            sync_uuid = db.session.get(SurgeryRequest, self.surgery_id).sync_uuid
+        event = self._event(uid='uuid-event', description=f'Evento\n[SOLICITACAO:{sync_uuid}]')
+        fake = self._fake_cache([event])
+        with patch(
+            'src.services.calendar_cache_service.get_calendar_cache_service',
+            return_value=fake,
+        ):
+            response = self.client.post('/agenda/events/status', json={
+                'event_uid': event['uid'],
+                'event_date': (date.today() + timedelta(days=2)).isoformat(),
+                'status': 'REALIZADA',
+            })
+        self.assertEqual(200, response.status_code)
+        self.assertTrue(response.get_json()['request_sync']['matched'])
+        with self.app.app_context():
+            self.assertEqual('Realizada', db.session.get(SurgeryRequest, self.surgery_id).status)
 
     def test_unmatched_event_updates_only_agenda(self):
         event = self._event(uid='external-event', description='Evento externo sem referência')

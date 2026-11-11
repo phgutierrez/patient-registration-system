@@ -76,6 +76,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="{{ url_for('main.pending_requests') }}" class="nav-link{{ ' active' if request.endpoint == 'main.pending_requests' else '' }}" title="Solicitações pendentes"{% if request.endpoint == 'main.pending_requests' %} aria-current="page"{% endif %}>
+                        {{ icon('clock') }}
+                        <span class="nav-text">Pendências</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ url_for('main.agenda') }}" class="nav-link{{ ' active' if request.endpoint == 'main.agenda' else '' }}" title="Agenda cirúrgica"{% if request.endpoint == 'main.agenda' %} aria-current="page"{% endif %}>
                         {{ icon('calendar') }}
                         <span class="nav-text">Agenda Cirúrgica</span>

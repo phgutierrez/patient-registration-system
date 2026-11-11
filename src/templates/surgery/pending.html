@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "surgery/_delete.html" import delete_surgery_button %}
+{% block title %}Pendências · Solicitações cirúrgicas{% endblock %}
+{% block page_styles %}{{ vite_css('pending') }}{% endblock %}
+{% block content %}
+<div class="container-fluid pending-page">
+  <header class="app-page-header page-heading">
+    <div>
+      <span class="eyebrow">{{ specialty.name if specialty else 'Ortopedia' }}</span>
+      <h1>Solicitações pendentes</h1>
+      <p>Solicitações ainda não realizadas nem suspensas. A agenda completa continua disponível para todos.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.agenda') }}">{{ icon('calendar') }}<span>Agenda</span></a>
+  </header>
+
+  <nav class="pending-scope" aria-label="Filtro de pendências">
+    <a href="{{ url_for('main.pending_requests', escopo='minhas') }}" class="scope-tab {{ 'is-active' if scope == 'minhas' }}"{% if scope == 'minhas' %} aria-current="page"{% endif %}>
+      {{ icon('user') }}<span>Minhas</span><strong>{{ counts.minhas }}</strong>
+    </a>
+    <a href="{{ url_for('main.pending_requests', escopo='todas') }}" class="scope-tab {{ 'is-active' if scope == 'todas' }}"{% if scope == 'todas' %} aria-current="page"{% endif %}>
+      {{ icon('users') }}<span>Todas da especialidade</span><strong>{{ counts.todas }}</strong>
+    </a>
+  </nav>
+
+  <section class="pending-surface">
+    {% if requests %}
+    <ul class="pending-list">
+      {% for surgery in requests %}
+      {% set overdue = surgery.data_cirurgia and surgery.data_cirurgia < today %}
+      <li class="pending-item{{ ' is-overdue' if overdue }}">
+        <time class="pending-date"{% if surgery.data_cirurgia %} datetime="{{ surgery.data_cirurgia.isoformat() }}"{% endif %}>
+          {% if surgery.data_cirurgia %}
+            <strong>{{ surgery.data_cirurgia.strftime('%d') }}</strong><span>{{ surgery.data_cirurgia.strftime('%m/%Y') }}</span>
+          {% else %}<strong>—</strong><span>sem data</span>{% endif %}
+        </time>
+        <div class="pending-main">
+          <a class="pending-patient" href="{{ url_for('surgery.confirmation', surgery_id=surgery.id) }}">{{ surgery.patient.nome if surgery.patient else 'Paciente removido' }}</a>
+          <span class="pending-procedure">{{ surgery.procedimento_solicitado or 'Procedimento não informado' }}</span>
+          <span class="pending-meta">
+            {% if surgery.hora_cirurgia %}{{ icon('clock') }} {{ surgery.hora_cirurgia.strftime('%H:%M') }}{% endif %}
+            {% if surgery.patient %}· Pront. {{ surgery.patient.prontuario or '—' }}{% endif %}
+            · Solicitante: {{ surgery.created_by_user.full_name if surgery.created_by_user else '—' }}
+            {% if surgery.assistente %}· Assistente: {{ surgery.assistente }}{% endif %}
+          </span>
+        </div>
+        <div class="pending-badges">
+          {% if overdue %}<span class="badge-soft is-danger">{{ icon('triangle-alert') }} Data passou</span>{% endif %}
+          {% if surgery.calendar_status == 'agendado' %}<span class="badge-soft is-success">{{ icon('calendar-check') }} Na agenda</span>
+          {% elif surgery.calendar_status == 'erro' %}<span class="badge-soft is-danger">{{ icon('triangle-alert') }} Falha no envio</span>
+          {% else %}<span class="badge-soft">{{ icon('calendar-plus') }} Não enviada</span>{% endif %}
+        </div>
+        <div class="pending-actions">
+          <a class="btn btn-sm btn-primary" href="{{ url_for('surgery.confirmation', surgery_id=surgery.id) }}">{{ icon('external-link') }}<span>Abrir</span></a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('surgery.edit_surgery_request', surgery_id=surgery.id) }}" title="Editar">{{ icon('pen') }}<span class="visually-hidden">Editar</span></a>
+          {{ delete_surgery_button(surgery, next_url=request.full_path) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="pending-empty">
+      {{ icon('circle-check') }}
+      <h2>Nenhuma pendência {{ 'sua' if scope == 'minhas' else 'na especialidade' }}</h2>
+      {% if scope == 'minhas' and counts.todas %}<p><a href="{{ url_for('main.pending_requests', escopo='todas') }}">Ver as {{ counts.todas }} pendências da especialidade</a></p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if pagination.pages > 1 %}
+    <footer class="pending-footer">
+      <span>Página {{ pagination.page }} de {{ pagination.pages }}</span>
+      <nav aria-label="Paginação"><ul class="pagination pagination-sm mb-0">
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">{% if pagination.has_prev %}<a class="page-link" href="{{ url_for('main.pending_requests', escopo=scope, page=pagination.prev_num) }}">Anterior</a>{% else %}<span class="page-link">Anterior</span>{% endif %}</li>
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">{% if pagination.has_next %}<a class="page-link" href="{{ url_for('main.pending_requests', escopo=scope, page=pagination.next_num) }}">Próxima</a>{% else %}<span class="page-link">Próxima</span>{% endif %}</li>
+      </ul></nav>
+    </footer>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block page_scripts %}{{ vite_js('pending') }}{% endblock %}

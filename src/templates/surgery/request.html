@@ -4,12 +4,14 @@
 {% macro field_errors(field) -%}{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join(', ') }}</div>{% endif %}{%- endmacro %}
 {% block content %}
 <div id="surgeryRequestApp" class="container-fluid request-shell"
-     data-user-id="{{ current_user.id }}" data-specialty="{{ specialty.slug if specialty else 'ortopedia' }}">
+     data-user-id="{{ current_user.id }}" data-specialty="{{ specialty.slug if specialty else 'ortopedia' }}"
+     data-patient-id="{{ patient.id }}" data-edit-mode="{{ '1' if is_edit_mode else '0' }}"
+     data-has-errors="{{ '1' if form.errors else '0' }}">
   <header class="app-page-header request-heading">
     <div>
       <a class="back-link" href="{{ url_for('patients.view_patient', id=patient.id) }}">{{ icon('arrow-left') }} Voltar ao paciente</a>
       <h1>{{ 'Editar solicitação' if is_edit_mode else 'Nova solicitação cirúrgica' }}</h1>
-      <p>Preencha os dados necessários para gerar a documentação.</p>
+      <p>Preencha os dados necessários para gerar a documentação. Campos com <span class="required-mark" aria-hidden="true">*</span> são obrigatórios; o rascunho é salvo automaticamente neste computador.</p>
     </div>
     <button type="button" class="btn btn-outline-primary" id="openModelsButton">{{ icon('layers') }} Modelos clínicos</button>
   </header>
@@ -28,6 +30,18 @@
     <ul>{% for name, errors in form.errors.items() %}<li><a href="#{{ form[name].id }}">{{ form[name].label.text }}: {{ errors|join(', ') }}</a></li>{% endfor %}</ul>
   </div>
   {% endif %}
+
+  <div id="draftBanner" class="draft-banner" role="status" hidden>
+    {{ icon('history') }}
+    <span><strong>Há um rascunho não enviado desta solicitação.</strong> <small id="draftTimestamp"></small></span>
+    <button type="button" class="btn btn-sm btn-primary" id="restoreDraftButton">Restaurar rascunho</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="discardDraftButton">Descartar</button>
+  </div>
+
+  <div id="clientErrorSummary" class="alert alert-danger error-summary" role="alert" tabindex="-1" hidden>
+    <strong>{{ icon('circle-alert') }} Faltam campos obrigatórios</strong>
+    <ul id="clientErrorList"></ul>
+  </div>
 
   <div class="request-layout">
     <nav class="section-nav" aria-label="Seções do formulário">
@@ -97,7 +111,7 @@
 
       <footer class="request-actions">
         <button type="button" class="btn btn-outline-primary" id="saveAsModelButton">{{ icon('save') }} Salvar como modelo</button>
-        <span class="action-spacer"></span>
+        <span class="action-spacer"><small id="draftStatus" class="draft-status" aria-live="polite"></small></span>
         <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-light">Cancelar</a>
         {{ form.submit(class="btn btn-primary", value=('Salvar alterações' if is_edit_mode else 'Gerar solicitação')) }}
       </footer>

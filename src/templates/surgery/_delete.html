@@ -1,0 +1,16 @@
+{# Botão + formulário oculto de exclusão de solicitação (JS: js/confirm-delete.js). #}
+{% macro delete_surgery_button(surgery, next_url='', label_text='', btn_class='btn btn-sm btn-outline-danger') %}
+{% if can_delete_surgery(surgery) %}
+<button type="button" class="{{ btn_class }}" title="Excluir solicitação"
+        data-delete-surgery="{{ surgery.id }}"
+        data-surgery-label="{{ surgery.procedimento_solicitado or ('#' ~ surgery.id) }}"
+        data-scheduled="{{ '1' if surgery.calendar_status == 'agendado' else '0' }}">
+  {{ icon('trash') }}{% if label_text %}<span>{{ label_text }}</span>{% else %}<span class="visually-hidden">Excluir</span>{% endif %}
+</button>
+<form id="delete-surgery-form-{{ surgery.id }}" method="post" hidden
+      action="{{ url_for('surgery.delete_surgery_request', surgery_id=surgery.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+</form>
+{% endif %}
+{% endmacro %}

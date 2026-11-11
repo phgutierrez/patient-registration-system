@@ -28,7 +28,7 @@ from src.services.specialty_service import (
 
 logger = logging.getLogger(__name__)
 main = Blueprint('main', __name__)
-_REQUEST_REFERENCE_RE = re.compile(r'\[SOLICITACAO:(\d+)\]', re.IGNORECASE)
+_REQUEST_REFERENCE_RE = re.compile(r'\[SOLICITACAO:([A-Za-z0-9-]+)\]', re.IGNORECASE)
 
 
 def _active_specialty_patient_query():
@@ -44,7 +44,7 @@ def _active_specialty_surgery_query():
     query = SurgeryRequest.query.outerjoin(
         Patient,
         SurgeryRequest.patient_id == Patient.id,
-    )
+    ).filter(SurgeryRequest.sync_deleted.is_(False))
     if specialty:
         query = query.filter(or_(
             SurgeryRequest.specialty_id == specialty.id,
@@ -55,7 +55,34 @@ def _active_specialty_surgery_query():
         ))
     elif not current_user.is_admin:
         query = query.filter(False)
+    if not current_user.is_admin:
+        # Mesma fronteira de ensure_surgery_access: só a especialidade do usuário.
+        user_specialty_id = getattr(current_user, 'specialty_id', None)
+        if not user_specialty_id:
+            return query.filter(False)
+        query = query.filter(or_(
+            SurgeryRequest.specialty_id == user_specialty_id,
+            (
+                SurgeryRequest.specialty_id.is_(None)
+                & (Patient.specialty_id == user_specialty_id)
+            ),
+        ))
     return query
+
+
+def _mine_filter(query):
+    """Solicitações do usuário atual: criadas por ele ou em que é o assistente."""
+    conditions = [SurgeryRequest.created_by_user_id == current_user.id]
+    full_name = (getattr(current_user, 'full_name', '') or '').strip()
+    if full_name:
+        conditions.append(func.lower(func.trim(SurgeryRequest.assistente)) == full_name.lower())
+    return query.filter(or_(*conditions))
+
+
+def _pending_filter(query):
+    return query.filter(
+        func.lower(func.coalesce(SurgeryRequest.status, 'pendente')) == 'pendente'
+    )
 
 
 @main.route('/')
@@ -70,17 +97,17 @@ def index():
     patient_query = _active_specialty_patient_query()
     surgery_query = _active_specialty_surgery_query()
 
+    mine_query = _mine_filter(surgery_query)
     dashboard = {
         'patients': patient_query.count(),
-        'pending': surgery_query.filter(
-            func.lower(func.coalesce(SurgeryRequest.status, 'pendente')) == 'pendente'
-        ).count(),
+        'pending': _pending_filter(mine_query).count(),
+        'pending_all': _pending_filter(surgery_query).count(),
         'scheduled': surgery_query.filter(
             func.lower(func.coalesce(SurgeryRequest.calendar_status, '')) == 'agendado'
         ).count(),
     }
     upcoming = (
-        surgery_query.options(joinedload(SurgeryRequest.patient))
+        mine_query.options(joinedload(SurgeryRequest.patient))
         .filter(SurgeryRequest.data_cirurgia >= today)
         .filter(
             func.lower(func.coalesce(SurgeryRequest.status, 'pendente')).notin_(
@@ -100,6 +127,44 @@ def index():
         specialty=get_active_specialty(),
         dashboard=dashboard,
         upcoming=upcoming,
+    )
+
+
+@main.route('/pendencias')
+@login_required
+def pending_requests():
+    """Solicitações pendentes: minhas (padrão) ou todas da especialidade."""
+    if not session.get('specialty_slug'):
+        return redirect(url_for('auth.select_user'))
+    scope = request.args.get('escopo', 'minhas')
+    if scope not in {'minhas', 'todas'}:
+        scope = 'minhas'
+    page = request.args.get('page', 1, type=int) or 1
+
+    base_query = _pending_filter(_active_specialty_surgery_query())
+    mine_query = _mine_filter(base_query)
+    query = mine_query if scope == 'minhas' else base_query
+    pagination = (
+        query.options(
+            joinedload(SurgeryRequest.patient),
+            joinedload(SurgeryRequest.created_by_user),
+        )
+        .order_by(
+            SurgeryRequest.data_cirurgia.is_(None),
+            SurgeryRequest.data_cirurgia.asc(),
+            SurgeryRequest.hora_cirurgia.asc(),
+            SurgeryRequest.id.asc(),
+        )
+        .paginate(page=max(page, 1), per_page=20, error_out=False)
+    )
+    return render_template(
+        'surgery/pending.html',
+        specialty=get_active_specialty(),
+        scope=scope,
+        pagination=pagination,
+        requests=pagination.items,
+        counts={'minhas': mine_query.count(), 'todas': base_query.count()},
+        today=date.today(),
     )
 
 
@@ -477,6 +542,7 @@ def _resolve_surgery_for_event(event, saved_status, specialty):
     if (
         saved_status
         and saved_status.surgery_request
+        and not saved_status.surgery_request.sync_deleted
         and _same_specialty(saved_status.surgery_request, specialty)
     ):
         return saved_status.surgery_request, 'saved-link'
@@ -484,9 +550,19 @@ def _resolve_surgery_for_event(event, saved_status, specialty):
     description = event.get('description') or ''
     marker = _REQUEST_REFERENCE_RE.search(description)
     if marker:
-        surgery_request = SurgeryRequest.query.options(
+        reference = marker.group(1)
+        reference_query = SurgeryRequest.query.options(
             joinedload(SurgeryRequest.patient)
-        ).filter_by(id=int(marker.group(1))).first()
+        ).filter(SurgeryRequest.sync_deleted.is_(False))
+        if reference.isdigit():
+            surgery_request = reference_query.filter(or_(
+                SurgeryRequest.id == int(reference),
+                SurgeryRequest.sync_uuid == reference,
+            )).first()
+        else:
+            surgery_request = reference_query.filter(
+                SurgeryRequest.sync_uuid == reference
+            ).first()
         if (
             surgery_request
             and surgery_request.data_cirurgia == event_date
@@ -496,13 +572,16 @@ def _resolve_surgery_for_event(event, saved_status, specialty):
 
     surgery_request = SurgeryRequest.query.options(
         joinedload(SurgeryRequest.patient)
-    ).filter_by(scheduled_event_id=event.get('uid')).first()
+    ).filter_by(scheduled_event_id=event.get('uid'), sync_deleted=False).first()
     if surgery_request and _same_specialty(surgery_request, specialty):
         return surgery_request, 'event-id'
 
     candidates = SurgeryRequest.query.options(
         joinedload(SurgeryRequest.patient)
-    ).filter(SurgeryRequest.data_cirurgia == event_date).all()
+    ).filter(
+        SurgeryRequest.data_cirurgia == event_date,
+        SurgeryRequest.sync_deleted.is_(False),
+    ).all()
     title = _normalize_match_text(event.get('title'))
     safe_matches = []
     for candidate in candidates:

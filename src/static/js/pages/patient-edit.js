@@ -103,3 +103,45 @@
         init();
     }
 })();
+
+(() => {
+  'use strict';
+  // Máscaras de preenchimento (mesmas regras do cadastro novo) e proteção
+  // contra duplo envio na edição de paciente.
+  function onInput(id, format) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('input', () => { input.value = format(input.value); });
+  }
+
+  function formatPhone(value) {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    if (digits.length <= 2) return `(${digits}`;
+    const area = digits.slice(0, 2);
+    const local = digits.slice(2);
+    const split = local.length > 8 ? 5 : 4;
+    return `(${area})${local.slice(0, split)}${local.length > split ? `-${local.slice(split)}` : ''}`;
+  }
+
+  function init() {
+    const form = document.getElementById('patientEditForm');
+    if (!form) return;
+    onInput('cns', value => value.replace(/\D/g, '').slice(0, 15));
+    onInput('contato', formatPhone);
+    onInput('cid', value => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4));
+    onInput('estado', value => value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2));
+    form.addEventListener('submit', event => {
+      if (event.defaultPrevented) return;
+      if (form.dataset.submitting === '1') { event.preventDefault(); return; }
+      form.dataset.submitting = '1';
+      form.querySelectorAll('[type="submit"]').forEach(button => button.classList.add('disabled'));
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();

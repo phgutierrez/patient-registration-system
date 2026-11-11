@@ -19,6 +19,7 @@ export const ENTRIES = [
   'surgery-confirmation',
   'settings',
   'procedures',
+  'pending',
 ];
 
 export default defineConfig(({ mode }) => ({

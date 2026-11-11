@@ -61,6 +61,19 @@ class Build32BitsConfigurationTests(unittest.TestCase):
         # Caminhos relativos: funcionam em /static/dist e dentro do _internal do PyInstaller.
         self.assertFalse(any(name.startswith('/') or ':' in name for name in names))
 
+    def test_script_markers_resolve_without_node(self):
+        # Fallback sem Node.js: app-shell.js fica em js/, páginas em js/pages/.
+        build_exe_32bits.validate_script_markers()
+        js_root = ROOT / 'src' / 'static' / 'js'
+        for relative in build_exe_32bits.SCRIPT_MARKERS:
+            self.assertTrue((js_root / relative).is_file(), relative)
+
+    def test_script_markers_report_missing_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as empty:
+            with self.assertRaisesRegex(FileNotFoundError, 'app-shell.js'):
+                build_exe_32bits.validate_script_markers(Path(empty))
+
     def test_missing_bundles_fail_with_clear_instruction(self):
         import tempfile
         with tempfile.TemporaryDirectory() as empty:

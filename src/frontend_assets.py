@@ -45,12 +45,13 @@ LEGACY_ASSETS: dict[str, dict[str, tuple[str, ...]]] = {
     'patient-edit': {'css': ('css/pages/patient-edit.css',), 'js': ('js/pages/patient-edit.js',)},
     'surgery-request': {
         'css': ('css/pages/surgery-request.css',),
-        'js': ('js/pages/surgery-request.js',),
+        'js': ('js/pages/surgery-request.js', 'js/pages/surgery-request-assist.js'),
     },
     'surgery-confirmation': {
         'css': ('css/pages/surgery-confirmation.css',),
-        'js': ('js/pages/surgery-confirmation.js',),
+        'js': ('js/pages/surgery-confirmation.js', 'js/confirm-delete.js'),
     },
+    'pending': {'css': ('css/pages/pending.css',), 'js': ('js/confirm-delete.js',)},
     'settings': {
         'css': ('css/pages/specialty-settings.css',),
         'js': ('js/pages/specialty-settings.js',),

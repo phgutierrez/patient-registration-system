@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-title Sistema de Ortopedia v2.7.0 - Preparacao local manual
+title Sistema de Ortopedia v2.8.0 - Preparacao local manual
 
 set "LAUNCHER_ROOT=%~dp0"
 set "LAUNCHER_PS1=%LAUNCHER_ROOT%launcher_network.ps1"
@@ -11,7 +11,7 @@ set "NEW_SOURCE="
 
 echo.
 echo ============================================================
-echo   Sistema de Ortopedia v2.7.0 - acesso local com sincronizacao
+echo   Sistema de Ortopedia v2.8.0 - acesso local com sincronizacao
 echo ============================================================
 echo.
 echo Use este arquivo somente quando o Windows impedir a execucao

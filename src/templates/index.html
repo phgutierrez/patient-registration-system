@@ -34,10 +34,10 @@
       <span class="metric-icon metric-blue">{{ icon('users') }}</span>
       <span><strong>{{ dashboard.patients }}</strong><small>Pacientes cadastrados</small></span>
     </a>
-    <div class="metric-card">
+    <a href="{{ url_for('main.pending_requests') }}" class="metric-card" id="pendingMetric">
       <span class="metric-icon metric-amber">{{ icon('clock') }}</span>
-      <span><strong>{{ dashboard.pending }}</strong><small>Solicitações pendentes</small></span>
-    </div>
+      <span><strong>{{ dashboard.pending }}</strong><small>Minhas solicitações pendentes{% if dashboard.pending_all != dashboard.pending %} · {{ dashboard.pending_all }} na especialidade{% endif %}</small></span>
+    </a>
     <a href="{{ url_for('main.agenda') }}" class="metric-card">
       <span class="metric-icon metric-green">{{ icon('calendar-check') }}</span>
       <span><strong>{{ dashboard.scheduled }}</strong><small>Enviadas à agenda</small></span>
@@ -48,15 +48,18 @@
     <section class="surface-card upcoming-card">
       <div class="surface-header">
         <div>
-          <h2>Próximos procedimentos</h2>
-          <p>Dados das solicitações registradas localmente.</p>
+          <h2>Minhas próximas cirurgias</h2>
+          <p>Solicitações criadas por você ou em que você é o assistente.</p>
         </div>
-        <a href="{{ url_for('main.agenda') }}" class="btn btn-sm btn-outline-primary">Abrir agenda</a>
+        <span class="surface-header-actions">
+          <a href="{{ url_for('main.pending_requests') }}" class="btn btn-sm btn-outline-secondary">Pendências</a>
+          <a href="{{ url_for('main.agenda') }}" class="btn btn-sm btn-outline-primary">Agenda completa</a>
+        </span>
       </div>
       {% if upcoming %}
       <div class="upcoming-list">
         {% for surgery in upcoming %}
-        <a class="upcoming-item" href="{{ url_for('patients.view_patient', id=surgery.patient_id) }}">
+        <a class="upcoming-item" href="{{ url_for('surgery.confirmation', surgery_id=surgery.id) }}">
           <time datetime="{{ surgery.data_cirurgia.isoformat() }}">
             <strong>{{ surgery.data_cirurgia.strftime('%d') }}</strong>
             <span>{{ surgery.data_cirurgia.strftime('%m/%Y') }}</span>
@@ -76,7 +79,7 @@
       {% else %}
       <div class="empty-compact">
         {{ icon('calendar-1') }}
-        <div><strong>Nenhum procedimento futuro</strong><span>Novas solicitações aparecerão aqui.</span></div>
+        <div><strong>Nenhuma cirurgia futura sua</strong><span>Veja todos os agendamentos na <a href="{{ url_for('main.agenda') }}">agenda</a>.</span></div>
       </div>
       {% endif %}
     </section>
@@ -86,6 +89,7 @@
       <nav>
         <a href="{{ url_for('patients.new_patient') }}">{{ icon('user-plus') }}<span><strong>Cadastrar paciente</strong><small>Buscar no Access ou preencher manualmente</small></span></a>
         <a href="{{ url_for('patients.list_patients') }}">{{ icon('book-user') }}<span><strong>Pacientes</strong><small>Consultar e iniciar solicitação</small></span></a>
+        <a href="{{ url_for('main.pending_requests') }}">{{ icon('clock') }}<span><strong>Pendências</strong><small>Solicitações aguardando realização</small></span></a>
         <a href="{{ url_for('main.agenda') }}">{{ icon('calendar') }}<span><strong>Agenda cirúrgica</strong><small>Visualizar e registrar resultados</small></span></a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('specialty_settings.index') }}">{{ icon('sliders-horizontal') }}<span><strong>Configurações</strong><small>Integrações e cadastros</small></span></a>

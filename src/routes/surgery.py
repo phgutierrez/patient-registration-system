@@ -8,6 +8,7 @@ from src.pdf.snapshots import (
 )
 from src.forms.surgery_form import SurgeryRequestForm
 from src.runtime_security import (
+    can_delete_surgery,
     ensure_patient_access,
     ensure_surgery_access,
     require_admin,
@@ -35,6 +36,10 @@ def _normalize_text(value):
         return ''
     text = unicodedata.normalize('NFKD', str(value))
     return ''.join(ch for ch in text if not unicodedata.combining(ch)).strip().lower()
+
+
+def _confirmation_redirect(surgery_request):
+    return redirect(url_for('surgery.confirmation', surgery_id=surgery_request.id))
 
 
 def _is_nao_se_aplica(value):
@@ -325,6 +330,48 @@ def confirmation(surgery_id):
                            specialty_settings=settings,
                            forms_configured=forms_configured,
                            forms_error=forms_error)
+
+
+@surgery.route('/surgery/<int:surgery_id>/delete', methods=['POST'])
+@login_required
+def delete_surgery_request(surgery_id):
+    """Exclui uma solicitação (autor ou admin). Com sync ativa vira tombstone."""
+    from src.models.calendar_event_status import CalendarEventStatus
+
+    surgery_request = SurgeryRequest.query.filter_by(id=surgery_id, sync_deleted=False).first_or_404()
+    access_error = ensure_surgery_access(surgery_request)
+    if access_error:
+        return access_error
+    if not can_delete_surgery(surgery_request):
+        flash('Somente quem criou a solicitação ou um administrador pode excluí-la.', 'danger')
+        return _confirmation_redirect(surgery_request)
+
+    patient_id = surgery_request.patient_id
+    was_scheduled = (surgery_request.calendar_status or '').lower() == 'agendado'
+    label = surgery_request.procedimento_solicitado or f'#{surgery_request.id}'
+    try:
+        for status in CalendarEventStatus.query.filter_by(surgery_request_id=surgery_request.id).all():
+            status.surgery_request_id = None
+        db.session.delete(surgery_request)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('Falha ao excluir surgery_id=%s', surgery_id)
+        flash('Não foi possível excluir a solicitação.', 'danger')
+        return redirect(url_for('patients.view_patient', id=patient_id))
+
+    if was_scheduled:
+        flash(
+            f'Solicitação "{label}" excluída. Ela já estava na agenda: remova o evento '
+            'manualmente no Google Agenda.',
+            'warning',
+        )
+    else:
+        flash(f'Solicitação "{label}" excluída com sucesso.', 'success')
+    next_url = request.form.get('next', '')
+    if next_url.startswith('/') and not next_url.startswith('//'):
+        return redirect(next_url)
+    return redirect(url_for('patients.view_patient', id=patient_id))
 
 
 @surgery.route('/surgery/<int:surgery_id>/confirmation/<path:pdf_name>')

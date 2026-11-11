@@ -1,0 +1,45 @@
+.pending-page{padding:1.25rem 1.5rem 2rem;max-width:1300px;margin:0 auto}
+.pending-page .page-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem}
+.pending-page .page-heading h1{font-size:clamp(1.45rem,2.3vw,2rem);margin:.1rem 0 .25rem;color:#172033}
+.pending-page .page-heading p{margin:0;color:#64748b}
+.pending-page .eyebrow{font-size:.75rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--primary,#3b82f6)}
+.pending-scope{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem}
+.scope-tab{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border:1px solid #dbe3ee;border-radius:999px;background:#fff;color:#334155;text-decoration:none;font-weight:650}
+.scope-tab strong{min-width:1.6rem;padding:.05rem .45rem;border-radius:999px;background:#f1f5f9;text-align:center;font-size:.8rem}
+.scope-tab:hover{border-color:#93c5fd;color:#1d4ed8}
+.scope-tab.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.scope-tab.is-active strong{background:rgba(255,255,255,.22);color:#fff}
+.pending-surface{background:#fff;border:1px solid #e6ebf2;border-radius:16px;box-shadow:0 4px 18px rgba(15,23,42,.04);overflow:hidden}
+.pending-list{list-style:none;margin:0;padding:0}
+.pending-item{display:grid;grid-template-columns:62px minmax(0,1fr) auto auto;align-items:center;gap:1rem;padding:.9rem 1.25rem;border-bottom:1px solid #f0f3f7}
+.pending-item:last-child{border-bottom:0}
+.pending-item.is-overdue .pending-date{background:#fee2e2;color:#b91c1c}
+.pending-date{display:flex;flex-direction:column;text-align:center;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:.4rem}
+.pending-date strong{font-size:1.15rem;line-height:1}
+.pending-date span{font-size:.68rem;margin-top:.2rem}
+.pending-main{min-width:0;display:flex;flex-direction:column;gap:.15rem}
+.pending-patient{font-weight:750;color:#172033;text-decoration:none}
+.pending-patient:hover{color:#1d4ed8;text-decoration:underline}
+.pending-procedure{color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pending-meta{color:#64748b;font-size:.78rem;display:inline-flex;flex-wrap:wrap;align-items:center;gap:.25rem}
+.pending-badges{display:flex;flex-direction:column;gap:.3rem;align-items:flex-end}
+.badge-soft{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .5rem;border-radius:999px;font-size:.7rem;font-weight:750;background:#f1f5f9;color:#475569;white-space:nowrap}
+.badge-soft.is-success{background:#dcfce7;color:#15803d}
+.badge-soft.is-danger{background:#fee2e2;color:#b91c1c}
+.pending-actions{display:flex;gap:.35rem;align-items:center}
+.pending-actions .btn{display:inline-flex;align-items:center;gap:.3rem}
+.pending-empty{text-align:center;padding:3rem 1rem;color:#64748b}
+.pending-empty>i{font-size:2rem;color:#16a34a}
+.pending-empty h2{font-size:1.1rem;margin:.6rem 0 .3rem;color:#172033}
+.pending-footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem 1.25rem;border-top:1px solid #edf1f6;color:#64748b;font-size:.85rem}
+@media(max-width:800px){
+  .pending-item{grid-template-columns:52px minmax(0,1fr);grid-template-areas:"date main" "badges badges" "actions actions"}
+  .pending-date{grid-area:date}.pending-main{grid-area:main}
+  .pending-badges{grid-area:badges;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .pending-actions{grid-area:actions;justify-content:flex-end}
+}
+@media(max-width:576px){
+  .pending-page{padding:1rem .75rem}
+  .pending-page .page-heading{align-items:flex-start}
+  .pending-page .page-heading .btn span{display:none}
+}

@@ -226,6 +226,8 @@ def create_app(config_class=Config):
 
     # Context processor: especialidade ativa disponível em todos os templates
     from src.services.specialty_service import specialty_context
+    from src.runtime_security import can_delete_surgery
+    app.jinja_env.globals['can_delete_surgery'] = can_delete_surgery
 
     @app.context_processor
     def inject_specialty():

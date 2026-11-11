@@ -1,0 +1,3 @@
+window.__confirmDeleteSurgeryBound||(window.__confirmDeleteSurgeryBound=!0,document.addEventListener(`click`,e=>{let t=e.target.closest(`[data-delete-surgery]`);if(!t)return;e.preventDefault(),e.stopPropagation();let n=`Excluir a solicitação "${t.dataset.surgeryLabel||`esta solicitação`}"? Esta ação não pode ser desfeita.`;if(t.dataset.scheduled===`1`&&(n+=`
+
+ATENÇÃO: ela já foi enviada à agenda. O evento no Google Agenda NÃO será removido automaticamente — exclua-o manualmente depois.`),window.confirm(n)){var r;(r=document.getElementById(`delete-surgery-form-${t.dataset.deleteSurgery}`))==null||r.submit()}},!0));

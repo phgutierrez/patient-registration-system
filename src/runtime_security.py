@@ -278,6 +278,17 @@ def ensure_surgery_access(surgery_request):
     return enforce_specialty_access(specialty_id, 'Você não pode acessar solicitações de outra especialidade.')
 
 
+def can_delete_surgery(surgery_request, user=None) -> bool:
+    """Autor da solicitação ou administrador. Registros sem autor: só admin."""
+    target_user = user or current_user
+    if not getattr(target_user, 'is_authenticated', False):
+        return False
+    if user_is_admin(target_user):
+        return True
+    author_id = getattr(surgery_request, 'created_by_user_id', None)
+    return author_id is not None and author_id == getattr(target_user, 'id', None)
+
+
 def scoped_patients_query(query):
     from src.models.patient import Patient
     query = query.filter(Patient.sync_deleted.is_(False))

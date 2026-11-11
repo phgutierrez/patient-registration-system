@@ -27,7 +27,7 @@ GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
 GREENLET_WHEEL_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
 CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
 CRYPTO_WHEEL_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
-BUILD_VERSION = '2.7.0'
+BUILD_VERSION = '2.8.0'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 NETWORK_LAUNCHER_FILES = (
     (ROOT / 'Iniciar_Sistema_Rede.bat', 'Iniciar_Sistema_Rede.bat'),
@@ -113,6 +113,29 @@ def frontend_bundle_files(
     return sorted(files)
 
 
+# Validação estrutural usada quando o Node.js não está disponível na máquina de
+# build. Caminhos relativos a src/static/js (app-shell.js fica na raiz, as
+# páginas em pages/).
+SCRIPT_MARKERS = {
+    'app-shell.js': 'sidebarPinned',
+    'pages/agenda.js': 'eventStatusForm',
+    'pages/patient-new.js': 'searchAccess',
+    'pages/surgery-request.js': 'cirurgiaModelos',
+    'pages/patients.js': 'data-delete-patient',
+    'confirm-delete.js': 'data-delete-surgery',
+}
+
+
+def validate_script_markers(js_root: Path | None = None) -> None:
+    js_root = js_root or (ROOT / 'src' / 'static' / 'js')
+    for relative, marker in SCRIPT_MARKERS.items():
+        script = js_root / relative
+        if not script.is_file():
+            raise FileNotFoundError(f'Script obrigatório ausente: {script}')
+        if marker not in script.read_text(encoding='utf-8'):
+            raise RuntimeError(f'{relative} falhou na validação estrutural.')
+
+
 def assert_within_project(path: Path) -> Path:
     resolved = path.resolve()
     root = ROOT.resolve()
@@ -172,17 +195,7 @@ def assert_prerequisites() -> None:
             if checked.returncode != 0:
                 raise RuntimeError(f'{script.name} contém erro de sintaxe.')
     else:
-        required_markers = {
-            'app-shell.js': 'sidebarPinned',
-            'agenda.js': 'eventStatusForm',
-            'patient-new.js': 'searchAccess',
-            'surgery-request.js': 'cirurgiaModelos',
-            'patients.js': 'data-delete-patient',
-        }
-        for name, marker in required_markers.items():
-            page_script = ROOT / 'src' / 'static' / 'js' / 'pages' / name
-            if marker not in page_script.read_text(encoding='utf-8'):
-                raise RuntimeError(f'{name} falhou na validação estrutural.')
+        validate_script_markers()
 
     powershell = shutil.which('powershell') or shutil.which('powershell.exe')
     if powershell:

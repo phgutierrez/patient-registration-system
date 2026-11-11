@@ -264,7 +264,8 @@ class BrowserEndToEndTests(unittest.TestCase):
             f'/patient/{self.patient_id}/surgery/request', f'/surgery/{self.surgery_id}/edit',
             f'/surgery/{self.surgery_id}/confirmation', '/configuracoes/procedimentos',
             '/register_user', '/perfil', '/sincronizacao/historico', '/sincronizacao/configurar',
-            '/change-password', '/patients/patient/999999',
+            '/change-password', '/pendencias', '/pendencias?escopo=todas',
+            '/patients/patient/999999',
         ]
         csp_headers = set()
         for url in pages:
@@ -289,6 +290,47 @@ class BrowserEndToEndTests(unittest.TestCase):
         login.goto(f'{self.base}/')
         login.wait_for_load_state('load')
         anonymous.close()
+
+    def test_surgery_delete_flow_and_form_assist(self):
+        # Formulário: obrigatórios marcados, progresso por seção e validação no cliente.
+        self.page.goto(f'{self.base}/patient/{self.patient_id}/surgery/request')
+        self.page.wait_for_load_state('load')
+        self.assertGreater(self.page.locator('.form-label.is-required').count(), 5)
+        self.assertGreater(self.page.locator('.section-nav .nav-progress').count(), 0)
+        self.page.locator('.surgery-form [type="submit"]').click()
+        expect(self.page.locator('#clientErrorSummary')).to_be_visible()
+        self.assertIn('/surgery/request', self.page.url)
+        # Rascunho salvo e oferecido ao reabrir.
+        self.page.fill('#peso', '71')
+        self.page.wait_for_timeout(1000)
+        self.page.reload()
+        expect(self.page.locator('#draftBanner')).to_be_visible()
+        self.page.click('#restoreDraftButton')
+        self.assertEqual('71', self.page.input_value('#peso'))
+        # Exclusão com confirmação (solicitação própria deste teste).
+        with self.app.app_context():
+            base = db.session.get(SurgeryRequest, self.surgery_id)
+            extra = SurgeryRequest(
+                patient_id=base.patient_id, specialty_id=base.specialty_id, peso=30,
+                sinais_sintomas='Dor', condicoes_justificativa='Indicação',
+                resultados_diagnosticos='RX', procedimento_solicitado='Para excluir',
+                codigo_procedimento='0408040158', tipo_cirurgia='Eletiva',
+                data_cirurgia=base.data_cirurgia, hora_cirurgia=base.hora_cirurgia,
+                assistente='Admin', duracao_prevista='1 hora', status='Pendente',
+                created_by_user_id=base.created_by_user_id,
+            )
+            db.session.add(extra)
+            db.session.commit()
+            extra_id = extra.id
+        self.page.goto(f'{self.base}/patients/patient/{self.patient_id}')
+        button = self.page.locator(f'[data-delete-surgery="{extra_id}"]')
+        expect(button).to_be_visible()
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        button.click()
+        self.page.wait_for_load_state('load')
+        expect(self.page.locator(f'[data-delete-surgery="{extra_id}"]')).to_have_count(0)
+        expect(self.page.locator(f'[data-delete-surgery="{self.surgery_id}"]')).to_have_count(1)
+        self.assertEqual([], self.problems)
 
     def test_static_assets_are_compressed_and_cached(self):
         responses = []

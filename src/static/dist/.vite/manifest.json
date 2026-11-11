@@ -1,4 +1,8 @@
 {
+  "_confirm-delete-DnlHdYPC.js": {
+    "file": "js/chunks/confirm-delete-DnlHdYPC.js",
+    "name": "confirm-delete"
+  },
   "_htmx-setup-Cne41TUS.js": {
     "file": "js/chunks/htmx-setup-Cne41TUS.js",
     "name": "htmx-setup"
@@ -16,7 +20,7 @@
     ]
   },
   "frontend/entries/patient-edit.js": {
-    "file": "js/patient-edit--XPVFNL7.js",
+    "file": "js/patient-edit-Du5oX36S.js",
     "name": "patient-edit",
     "src": "frontend/entries/patient-edit.js",
     "isEntry": true,
@@ -43,6 +47,18 @@
     ],
     "css": [
       "assets/patients-CQQ7x82Q.css"
+    ]
+  },
+  "frontend/entries/pending.js": {
+    "file": "js/pending-Cy7uCIP_.js",
+    "name": "pending",
+    "src": "frontend/entries/pending.js",
+    "isEntry": true,
+    "imports": [
+      "_confirm-delete-DnlHdYPC.js"
+    ],
+    "css": [
+      "assets/pending-B-fQVWAE.css"
     ]
   },
   "frontend/entries/procedures.js": {
@@ -73,21 +89,24 @@
     ]
   },
   "frontend/entries/surgery-confirmation.js": {
-    "file": "js/surgery-confirmation-m8yolJxx.js",
+    "file": "js/surgery-confirmation-HRxtQvb2.js",
     "name": "surgery-confirmation",
     "src": "frontend/entries/surgery-confirmation.js",
     "isEntry": true,
+    "imports": [
+      "_confirm-delete-DnlHdYPC.js"
+    ],
     "css": [
       "assets/surgery-confirmation-BUzohagq.css"
     ]
   },
   "frontend/entries/surgery-request.js": {
-    "file": "js/surgery-request--cueQF-3.js",
+    "file": "js/surgery-request-2wli3V8J.js",
     "name": "surgery-request",
     "src": "frontend/entries/surgery-request.js",
     "isEntry": true,
     "css": [
-      "assets/surgery-request-ZUkSpe1x.css"
+      "assets/surgery-request-DtV5xgIf.css"
     ]
   }
 }
