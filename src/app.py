@@ -215,6 +215,7 @@ def create_app(config_class=Config):
     from src.routes.specialty_settings import specialty_settings_bp
     from src.routes.profile import profile_bp
     from src.routes.sync import sync_bp
+    from src.routes.today import today_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(main)
@@ -223,6 +224,7 @@ def create_app(config_class=Config):
     app.register_blueprint(specialty_settings_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(sync_bp)
+    app.register_blueprint(today_bp)
 
     # Context processor: especialidade ativa disponível em todos os templates
     from src.services.specialty_service import specialty_context

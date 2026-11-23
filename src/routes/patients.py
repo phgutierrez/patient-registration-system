@@ -226,21 +226,13 @@ def search_patient_by_prontuario():
 def search_patient_accdb():
     """Busca somente leitura no Access configurado para Ortopedia."""
     from src.models.specialty import Specialty
-    from src.services.access_patient_service import AccessConfig, AccessLookupError, access_patient_service
+    from src.services.access_patient_service import AccessLookupError, access_patient_service, build_access_config
 
     prontuario = str(request.args.get('prontuario', '') or '').strip()
     if not prontuario:
         return jsonify({'ok': False, 'found': False, 'code': 'INVALID_PRONTUARIO', 'message': 'Informe o número do prontuário.', 'hint': 'Digite o prontuário antes de buscar.', 'data': None}), 400
     specialty = Specialty.query.filter_by(slug='ortopedia', is_active=True).first()
-    settings = specialty.settings if specialty else None
-    config = AccessConfig(
-        host=(settings.access_host if settings else '192.168.1.252'),
-        share_path=(settings.access_share_path if settings else r'naqh\AMBULATORIO_SERV'),
-        filename=(settings.access_filename if settings else 'AMBULATORIO_SERV.accdb'),
-        enabled=(settings.access_enabled if settings else True),
-        source=(getattr(settings, 'access_source', None) or 'network') if settings else 'network',
-        local_path=getattr(settings, 'access_local_path', None) if settings else None,
-    )
+    config = build_access_config(specialty.settings if specialty else None)
     try:
         result = access_patient_service.search(config, prontuario)
         if not result['found']:

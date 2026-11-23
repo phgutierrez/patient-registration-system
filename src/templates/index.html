@@ -87,6 +87,7 @@
     <aside class="surface-card quick-actions">
       <div class="surface-header"><div><h2>Ações rápidas</h2><p>Acessos mais usados no atendimento.</p></div></div>
       <nav>
+        <a href="{{ url_for('today.index') }}">{{ icon('calendar-1') }}<span><strong>Pacientes do dia</strong><small>Sua lista de consultas de hoje no CPAM</small></span></a>
         <a href="{{ url_for('patients.new_patient') }}">{{ icon('user-plus') }}<span><strong>Cadastrar paciente</strong><small>Buscar no Access ou preencher manualmente</small></span></a>
         <a href="{{ url_for('patients.list_patients') }}">{{ icon('book-user') }}<span><strong>Pacientes</strong><small>Consultar e iniciar solicitação</small></span></a>
         <a href="{{ url_for('main.pending_requests') }}">{{ icon('clock') }}<span><strong>Pendências</strong><small>Solicitações aguardando realização</small></span></a>

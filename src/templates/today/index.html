@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Pacientes do dia - {{ super() }}{% endblock %}
+{% block page_styles %}{{ vite_css('today') }}{% endblock %}
+{% block content %}
+{% include "today/_list.html" %}
+
+<div class="modal fade" id="todayPatientModal" tabindex="-1" aria-labelledby="todayPatientName" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header">
+      <div><span class="modal-eyebrow">Paciente do dia</span><h2 class="modal-title h5" id="todayPatientName"></h2>
+        <small class="text-muted">Prontuário <strong id="todayPatientProntuario"></strong></small></div>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+    </div>
+    <div class="modal-body today-actions">
+      <form method="post" action="{{ url_for('today.request_surgery_for') }}" id="todaySurgeryForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="prontuario" id="todaySurgeryProntuario" value="">
+        <input type="hidden" name="turno" value="{{ turno }}">
+        <button type="submit" class="today-action">
+          {{ icon('file-plus') }}<span><strong>Solicitar cirurgia</strong><small>Busca os dados pelo prontuário e abre o pedido já preenchido</small></span>
+        </button>
+      </form>
+      <button type="button" class="today-action" id="todayRecordButton" aria-describedby="todayRecordNotice">
+        {{ icon('file-text') }}<span><strong>Prontuário</strong><small>Prontuário eletrônico do paciente</small></span>
+        <span class="badge-soft">Em breve</span>
+      </button>
+      <div class="alert alert-info today-record-notice d-none" id="todayRecordNotice" role="status">
+        {{ icon('info', extra_class='me-2') }}O prontuário eletrônico ainda não está disponível. Esta função está em desenvolvimento.
+      </div>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+{% block bootstrap_js %}{% include "partials/bootstrap_js.html" %}{% endblock %}
+{% block page_scripts %}{{ vite_js('today') }}{% endblock %}

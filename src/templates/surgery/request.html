@@ -21,7 +21,7 @@
     <span><small>Paciente</small><strong>{{ patient.nome }}</strong></span>
     <span><small>Prontuário</small><strong>{{ patient.prontuario }}</strong></span>
     <span><small>Nascimento</small><strong>{{ patient.data_nascimento.strftime('%d/%m/%Y') if patient.data_nascimento else '—' }}</strong></span>
-    <span><small>Diagnóstico</small><strong>{{ patient.diagnostico }}</strong></span>
+    <span><small>Diagnóstico</small><strong>{{ patient.diagnostico or '—' }}</strong></span>
   </section>
 
   {% if form.errors %}
@@ -55,7 +55,12 @@
       {{ form.hidden_tag() }}
       <section id="clinicalSection" class="form-section">
         <div class="section-title"><span>{{ icon('clipboard-plus') }}</span><div><h2>Dados clínicos</h2><p>Informações que justificam o procedimento.</p></div></div>
+        {% if not patient.diagnostico or not patient.cid %}
+        <div class="alert alert-warning py-2" role="status">{{ icon('triangle-alert', extra_class='me-2') }}Paciente importado do CPAM: complete <strong>diagnóstico</strong> e <strong>CID</strong>.</div>
+        {% endif %}
         <div class="form-grid">
+          <div class="field col-full">{{ form.diagnostico_paciente.label(class="form-label") }}{{ form.diagnostico_paciente(class="form-control" + (" is-invalid" if form.diagnostico_paciente.errors else ""), rows=2, required=True, placeholder="Diagnóstico principal do paciente") }}{{ field_errors(form.diagnostico_paciente) }}</div>
+          <div class="field col-small">{{ form.cid_paciente.label(class="form-label") }}{{ form.cid_paciente(class="form-control text-uppercase" + (" is-invalid" if form.cid_paciente.errors else ""), maxlength=5, required=True, placeholder="Ex.: M16") }}{{ field_errors(form.cid_paciente) }}</div>
           <div class="field col-small">{{ form.peso.label(class="form-label") }}{{ form.peso(class="form-control" + (" is-invalid" if form.peso.errors else ""), inputmode="decimal", placeholder="Ex.: 72,5") }}{{ field_errors(form.peso) }}</div>
           <div class="field col-full">{{ form.sinais_sintomas.label(class="form-label") }}{{ form.sinais_sintomas(class="form-control" + (" is-invalid" if form.sinais_sintomas.errors else ""), rows=3, placeholder="Descreva os principais sinais e sintomas") }}{{ field_errors(form.sinais_sintomas) }}</div>
           <div class="field col-full">{{ form.condicoes_justificativa.label(class="form-label") }}{{ form.condicoes_justificativa(class="form-control" + (" is-invalid" if form.condicoes_justificativa.errors else ""), rows=3, placeholder="Condições clínicas que justificam a cirurgia") }}{{ field_errors(form.condicoes_justificativa) }}</div>

@@ -7,6 +7,10 @@
     "file": "js/chunks/htmx-setup-Cne41TUS.js",
     "name": "htmx-setup"
   },
+  "_pending-B-fQVWAE.css": {
+    "file": "assets/pending-B-fQVWAE.css",
+    "src": "_pending-B-fQVWAE.css"
+  },
   "frontend/entries/agenda.js": {
     "file": "js/agenda-BcA8EfA8.js",
     "name": "agenda",
@@ -50,7 +54,7 @@
     ]
   },
   "frontend/entries/pending.js": {
-    "file": "js/pending-Cy7uCIP_.js",
+    "file": "js/pending-nNs2MZ6N.js",
     "name": "pending",
     "src": "frontend/entries/pending.js",
     "isEntry": true,
@@ -107,6 +111,19 @@
     "isEntry": true,
     "css": [
       "assets/surgery-request-DtV5xgIf.css"
+    ]
+  },
+  "frontend/entries/today.js": {
+    "file": "js/today-CUk1JfEj.js",
+    "name": "today",
+    "src": "frontend/entries/today.js",
+    "isEntry": true,
+    "imports": [
+      "_htmx-setup-Cne41TUS.js"
+    ],
+    "css": [
+      "assets/today-CEhfO3bV.css",
+      "assets/pending-B-fQVWAE.css"
     ]
   }
 }

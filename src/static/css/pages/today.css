@@ -1,0 +1,35 @@
+.today-page{padding:1.25rem 1.5rem 2rem;max-width:1100px;margin:0 auto}
+.today-page .page-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem}
+.today-page .page-heading h1{font-size:clamp(1.45rem,2.3vw,2rem);margin:.1rem 0 .25rem;color:#172033}
+.today-page .page-heading p{margin:0;color:#64748b}
+.today-page .eyebrow{font-size:.75rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--primary,#3b82f6)}
+.today-sync{display:flex;flex-direction:column;align-items:flex-end;gap:.3rem}
+.today-sync .btn{display:inline-flex;align-items:center;gap:.4rem}
+.today-sync small{color:#64748b;font-size:.78rem}
+.htmx-request .today-sync .lucide-refresh-cw .icon,.today-sync .htmx-request .lucide-refresh-cw .icon{animation:today-spin 1s linear infinite}
+@keyframes today-spin{to{transform:rotate(360deg)}}
+.today-list{list-style:none;margin:0;padding:0}
+.today-item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:1rem;padding:.8rem 1.25rem;border-bottom:1px solid #f0f3f7}
+.today-item:last-child{border-bottom:0}
+.today-position{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-weight:800;font-size:1.05rem}
+.today-main{min-width:0;display:flex;flex-direction:column;gap:.15rem}
+.today-patient{all:unset;cursor:pointer;font-weight:750;color:#172033;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.today-patient:hover,.today-patient:focus-visible{color:#1d4ed8;text-decoration:underline}
+.today-patient:focus-visible{outline:2px solid #93c5fd;outline-offset:2px;border-radius:4px}
+.today-actions{display:flex;flex-direction:column;gap:.6rem}
+.today-actions form{margin:0}
+.today-action{display:flex;align-items:center;gap:.8rem;width:100%;padding:.85rem 1rem;border:1px solid #dbe3ee;border-radius:12px;background:#fff;text-align:left;color:#172033}
+.today-action:hover{border-color:#93c5fd;background:#f8fbff}
+.today-action>span:not(.badge-soft){display:flex;flex-direction:column;flex:1}
+.today-action small{color:#64748b}
+.today-action .lucide{font-size:1.3rem;color:#1d4ed8}
+.today-action[disabled]{opacity:.7;cursor:progress}
+.today-record-notice{margin:0}
+.modal-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+@media(max-width:700px){
+  .today-page{padding:1rem}
+  .today-page .page-heading{flex-direction:column;align-items:flex-start}
+  .today-sync{align-items:flex-start}
+  .today-item{grid-template-columns:40px minmax(0,1fr);padding:.75rem 1rem}
+  .today-item .badge-soft{grid-column:2;justify-self:start}
+}

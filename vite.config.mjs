@@ -20,6 +20,7 @@ export const ENTRIES = [
   'settings',
   'procedures',
   'pending',
+  'today',
 ];
 
 export default defineConfig(({ mode }) => ({

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="prontuario",
-    version="2.8.0",
+    version="2.9.0",
     packages=find_packages(),
     include_package_data=True,
     install_requires=[

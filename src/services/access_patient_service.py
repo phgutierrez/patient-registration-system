@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import logging
 import re
 import threading
@@ -7,6 +8,7 @@ import time
 import unicodedata
 from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
@@ -18,6 +20,8 @@ except ImportError:  # pragma: no cover - depends on deployment architecture
 logger = logging.getLogger(__name__)
 ACCESS_DRIVER = 'Microsoft Access Driver (*.mdb, *.accdb)'
 TABLE_NAME = 'cadastro_de_pacientes'
+OCORRENCIAS_TABLE = 'Ocorrencias'
+DAY_CACHE_TTL = 180  # segundos — agenda do dia sincroniza a cada 3 minutos
 
 
 class AccessLookupError(RuntimeError):
@@ -108,6 +112,88 @@ COLUMN_ALIASES = {
 }
 
 
+OCORRENCIAS_ALIASES = {
+    'dt_atend': ('dt_atend', 'data atend', 'dataatend', 'data_atendimento'),
+    'medico': ('nome_medico', 'nomemedico', 'medico'),
+    'turno': ('turnomed', 'turno'),
+    'quandoreg': ('quandoreg', 'quando reg'),
+    'prontuario': ('prontuario',),
+    'nome': ('nome do paciente', 'nome', 'nomepaciente', 'nome paciente'),
+}
+OCORRENCIAS_REQUIRED = ('dt_atend', 'medico', 'prontuario')
+_NAME_TITLES = {'dr', 'dra', 'drª', 'doutor', 'doutora', 'prof', 'profa'}
+_NAME_PARTICLES = {'da', 'de', 'do', 'das', 'dos', 'e'}
+
+
+def build_access_config(settings) -> AccessConfig:
+    """Monta a configuração Access a partir de SpecialtySettings (ou padrões)."""
+    return AccessConfig(
+        host=(getattr(settings, 'access_host', None) or '192.168.1.252'),
+        share_path=(getattr(settings, 'access_share_path', None) or r'naqh\AMBULATORIO_SERV'),
+        filename=(getattr(settings, 'access_filename', None) or 'AMBULATORIO_SERV.accdb'),
+        enabled=(settings.access_enabled if settings is not None else True),
+        source=(getattr(settings, 'access_source', None) or 'network'),
+        local_path=getattr(settings, 'access_local_path', None),
+    )
+
+
+def normalize_person_name(value) -> str:
+    """Remove acentos, títulos (Dr./Dra.), pontuação e espaços extras."""
+    text = unicodedata.normalize('NFKD', str(value or ''))
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch)).lower()
+    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    tokens = [token for token in text.split() if token not in _NAME_TITLES]
+    return ' '.join(tokens)
+
+
+def doctor_name_matches(agenda_name, user_name, threshold: float = 0.85) -> bool:
+    """Compara nomes de médico tolerando acentos, partículas e pequenos erros."""
+    a, b = normalize_person_name(agenda_name), normalize_person_name(user_name)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    core_a = [t for t in a.split() if t not in _NAME_PARTICLES]
+    core_b = [t for t in b.split() if t not in _NAME_PARTICLES]
+    if not core_a or not core_b:
+        return False
+    if ' '.join(core_a) == ' '.join(core_b):
+        return True
+    if difflib.SequenceMatcher(None, ' '.join(core_a), ' '.join(core_b)).ratio() >= threshold:
+        return True
+    # Primeiro e último nome equivalentes (ex.: nome do meio omitido em um dos lados)
+    if len(core_a) >= 2 and len(core_b) >= 2:
+        ratio = lambda x, y: difflib.SequenceMatcher(None, x, y).ratio()  # noqa: E731
+        return ratio(core_a[0], core_b[0]) >= 0.8 and ratio(core_a[-1], core_b[-1]) >= 0.8
+    return False
+
+
+def normalize_turno(value) -> str:
+    """Retorna 'MANHA', 'TARDE' ou '' a partir do valor de turnomed."""
+    text = _normalize(value)
+    if text.startswith('m'):
+        return 'MANHA'
+    if text.startswith('t'):
+        return 'TARDE'
+    return ''
+
+
+def _as_datetime(value):
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    raw = str(value or '').strip()
+    if not raw:
+        return None
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(raw[:19], fmt)
+        except ValueError:
+            continue
+    return None
+
+
 class AccessPatientService:
     def __init__(self, success_ttl=300, miss_ttl=60, max_cache=256, clock=time.monotonic):
         self.success_ttl, self.miss_ttl, self.max_cache = success_ttl, miss_ttl, max_cache
@@ -116,12 +202,15 @@ class AccessPatientService:
         self._connection = None
         self._signature = None
         self._columns = None
+        self._occ_columns = None
+        self._day_cache = None
         self._cache: OrderedDict[str, tuple[float, dict[str, Any] | None]] = OrderedDict()
 
     def invalidate(self) -> None:
         with self._lock:
             self._close_connection()
             self._signature, self._columns = None, None
+            self._occ_columns, self._day_cache = None, None
             self._cache.clear()
 
     def _close_connection(self):
@@ -325,6 +414,150 @@ class AccessPatientService:
                             cursor.close()
                         except Exception:
                             logger.warning('Não foi possível fechar o cursor de consulta do Access.')
+        raise AssertionError('unreachable')
+
+    def _discover_ocorrencias_columns(self, connection) -> dict[str, str]:
+        if self._occ_columns is not None:
+            return self._occ_columns
+        cursor = None
+        try:
+            cursor = connection.cursor()
+            cursor.execute(f'SELECT * FROM {self._quote(OCORRENCIAS_TABLE)} WHERE 1=0')
+            description = cursor.description
+        except Exception as exc:
+            self._log_odbc_failure('descoberta_ocorrencias', exc)
+            if self._is_missing_table_error(exc):
+                raise AccessLookupError(
+                    'ACCESS_OCORRENCIAS_NOT_FOUND',
+                    'A tabela Ocorrencias não foi encontrada no banco do CPAM.',
+                    'Verifique se o arquivo Access configurado contém a agenda de consultas.',
+                    502,
+                ) from exc
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+        names = [str(column[0]) for column in (description or []) if column and column[0]]
+        normalized = {_normalize(name): name for name in names}
+        mapping = {}
+        for canonical, aliases in OCORRENCIAS_ALIASES.items():
+            for alias in aliases:
+                if _normalize(alias) in normalized:
+                    mapping[canonical] = normalized[_normalize(alias)]
+                    break
+        missing = [name for name in OCORRENCIAS_REQUIRED if name not in mapping]
+        if missing:
+            raise AccessLookupError(
+                'ACCESS_OCORRENCIAS_COLUMNS_MISSING',
+                'A tabela Ocorrencias não possui as colunas esperadas.',
+                'Colunas ausentes: ' + ', '.join(missing) + '.',
+                502,
+            )
+        self._occ_columns = mapping
+        return mapping
+
+    def _fetch_names(self, connection, prontuarios: list[str]) -> dict[str, str]:
+        """Casa prontuário → nome em cadastro_de_pacientes (consultas em lote)."""
+        if not prontuarios:
+            return {}
+        columns = self._discover_columns(connection)
+        if 'nome' not in columns:
+            return {}
+        names: dict[str, str] = {}
+        for start in range(0, len(prontuarios), 100):
+            chunk = prontuarios[start:start + 100]
+            placeholders = ', '.join('?' for _ in chunk)
+            sql = (
+                f'SELECT {self._quote(columns["prontuario"])}, {self._quote(columns["nome"])} '
+                f'FROM {self._quote(TABLE_NAME)} WHERE {self._quote(columns["prontuario"])} IN ({placeholders})'
+            )
+            cursor = connection.cursor()
+            try:
+                cursor.execute(sql, *chunk)
+                for row in cursor.fetchall():
+                    key = str(row[0] or '').strip()
+                    if key and row[1]:
+                        names[key] = str(row[1]).strip()
+            finally:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+        return names
+
+    def daily_appointments(self, config: AccessConfig, day: date, force: bool = False) -> dict[str, Any]:
+        """Consultas do dia (todos os médicos), com cache compartilhado de 3 minutos."""
+        with self._lock:
+            self._prepare(config)
+            now = self.clock()
+            cached = self._day_cache
+            if not force and cached and cached[0] == day and cached[1] > now:
+                return {'rows': list(cached[2]), 'synced_at': cached[3], 'source': 'memory_cache'}
+            start = datetime(day.year, day.month, day.day)
+            end = start + timedelta(days=1)
+            for attempt in range(2):
+                cursor = None
+                try:
+                    connection = self._connection or self._connect(config)
+                    columns = self._discover_ocorrencias_columns(connection)
+                    selected = list(columns.items())
+                    select_sql = ', '.join(self._quote(real) for _, real in selected)
+                    dt_col = self._quote(columns['dt_atend'])
+                    sql = (
+                        f'SELECT {select_sql} FROM {self._quote(OCORRENCIAS_TABLE)} '
+                        f'WHERE {dt_col} >= ? AND {dt_col} < ?'
+                    )
+                    cursor = connection.cursor()
+                    cursor.execute(sql, start, end)
+                    raw_rows = cursor.fetchall()
+                    cursor.close()
+                    cursor = None
+                    rows = []
+                    for raw in raw_rows:
+                        item = {canonical: raw[index] for index, (canonical, _) in enumerate(selected)}
+                        prontuario = str(item.get('prontuario') or '').strip()
+                        if prontuario.endswith('.0') and prontuario[:-2].isdigit():
+                            prontuario = prontuario[:-2]
+                        if not prontuario:
+                            continue
+                        rows.append({
+                            'prontuario': prontuario,
+                            'nome': str(item.get('nome') or '').strip(),
+                            'medico': str(item.get('medico') or '').strip(),
+                            'turno': normalize_turno(item.get('turno')),
+                            'quandoreg': _as_datetime(item.get('quandoreg')),
+                            'dt_atend': _as_datetime(item.get('dt_atend')),
+                        })
+                    try:
+                        names = self._fetch_names(connection, sorted({row['prontuario'] for row in rows}))
+                    except AccessLookupError:
+                        names = {}
+                    except Exception as exc:  # nomes são complementares; não derruba a lista
+                        self._log_odbc_failure('nomes_ocorrencias', exc)
+                        names = {}
+                    for row in rows:
+                        row['nome'] = names.get(row['prontuario']) or row['nome'] or f'Prontuário {row["prontuario"]}'
+                    synced_at = datetime.now()
+                    self._day_cache = (day, self.clock() + DAY_CACHE_TTL, rows, synced_at)
+                    logger.info('Agenda do dia carregada do Access: %d consultas', len(rows))
+                    return {'rows': list(rows), 'synced_at': synced_at, 'source': 'access'}
+                except AccessLookupError:
+                    raise
+                except Exception as exc:
+                    self._log_odbc_failure('consulta_ocorrencias', exc, attempt + 1)
+                    self._close_connection()
+                    self._columns, self._occ_columns = None, None
+                    if attempt == 1:
+                        raise self._classify_error(exc, config) from exc
+                finally:
+                    if cursor is not None:
+                        try:
+                            cursor.close()
+                        except Exception:
+                            pass
         raise AssertionError('unreachable')
 
     def test_connection(self, config: AccessConfig) -> dict[str, Any]:

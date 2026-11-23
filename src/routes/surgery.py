@@ -147,6 +147,16 @@ def _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, o
     surgery_request.opme = opme_value
 
 
+def _prefill_patient_clinical(form, patient):
+    form.diagnostico_paciente.data = patient.diagnostico or ''
+    form.cid_paciente.data = patient.cid or ''
+
+
+def _apply_patient_clinical(patient, form):
+    patient.diagnostico = (form.diagnostico_paciente.data or '').strip()
+    patient.cid = (form.cid_paciente.data or '').strip().upper().replace('.', '')[:4]
+
+
 def _send_authorized_pdf(surgery_request, document_type, download_name, *, as_attachment):
     access_error = ensure_surgery_access(surgery_request)
     if access_error:
@@ -200,6 +210,9 @@ def request_surgery(patient_id):
     form.assistente.choices = get_user_choices(specialty)
     procedure_code_map = get_procedure_code_map(specialty)
 
+    if request.method == 'GET':
+        _prefill_patient_clinical(form, patient)
+
     if form.validate_on_submit():
         # Derivar código SUS do banco (não aceitar apenas o que veio do form)
         sus_code = (
@@ -211,6 +224,7 @@ def request_surgery(patient_id):
         try:
             # Criar nova solicitação de cirurgia
             surgery_request = SurgeryRequest(patient_id=patient.id)
+            _apply_patient_clinical(patient, form)
             _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value)
             surgery_request.created_by_user_id = current_user.id
             if specialty and not patient.specialty_id:
@@ -264,6 +278,7 @@ def edit_surgery_request(surgery_id):
 
     if request.method == 'GET':
         _prefill_opme_fields(form, surgery_request)
+        _prefill_patient_clinical(form, patient)
 
     if form.validate_on_submit():
         sus_code = (
@@ -273,6 +288,7 @@ def edit_surgery_request(surgery_id):
         opme_value = _build_opme_value(form)
 
         try:
+            _apply_patient_clinical(patient, form)
             _apply_form_to_surgery_request(surgery_request, form, specialty, sus_code, opme_value)
             db.session.flush()
             create_request_snapshots(

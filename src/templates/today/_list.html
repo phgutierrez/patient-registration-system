@@ -1,0 +1,62 @@
+{# #todayApp: página completa e resposta parcial HTMX (troca outerHTML, atualiza a cada 3 min). #}
+{% set self_url = url_for('today.index', turno=turno) %}
+<div id="todayApp" class="container-fluid today-page"
+     hx-get="{{ self_url }}" hx-trigger="every {{ refresh_seconds }}s" hx-target="this" hx-swap="outerHTML" data-hx-error-region>
+  <header class="app-page-header page-heading">
+    <div>
+      <span class="eyebrow">{{ today.strftime('%d/%m/%Y') }}</span>
+      <h1>Pacientes do dia</h1>
+      <p>Consultas agendadas para <strong>{{ doctor_name or 'você' }}</strong>, em ordem de abertura do prontuário.</p>
+    </div>
+    <div class="today-sync">
+      <button type="button" class="btn btn-outline-primary" hx-get="{{ url_for('today.index', turno=turno, sync=1) }}" hx-disabled-elt="this">
+        {{ icon('refresh-cw') }}<span>Sincronizar agora</span>
+      </button>
+      <small>{% if synced_at %}Atualizado às {{ synced_at.strftime('%H:%M') }} · automático a cada {{ refresh_seconds // 60 }} min{% else %}Sincroniza automaticamente a cada {{ refresh_seconds // 60 }} min{% endif %}</small>
+    </div>
+  </header>
+
+  <nav class="pending-scope" aria-label="Filtro de turno">
+    {% for key, label in [('manha', 'Manhã'), ('tarde', 'Tarde'), ('ambos', 'Ambos')] %}
+    {% set url = url_for('today.index', turno=key) %}
+    <a href="{{ url }}" hx-get="{{ url }}" hx-push-url="true" class="scope-tab {{ 'is-active' if turno == key }}"{% if turno == key %} aria-current="page"{% endif %}>
+      <span>{{ label }}</span><strong>{{ counts[key] }}</strong>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% if error %}
+  <div class="alert alert-danger">{{ icon('unlink', extra_class='me-2') }}<strong>{{ error.message }}</strong> {{ error.hint }}</div>
+  {% endif %}
+
+  <section class="pending-surface">
+    {% if appointments %}
+    <ol class="today-list">
+      {% for item in appointments %}
+      <li class="today-item">
+        <span class="today-position" aria-label="Posição {{ item.posicao }}">{{ item.posicao }}</span>
+        <div class="today-main">
+          <button type="button" class="today-patient" data-today-patient
+                  data-prontuario="{{ item.prontuario }}" data-nome="{{ item.nome }}">{{ item.nome }}</button>
+          <span class="pending-meta">{{ icon('id-card') }} Prontuário {{ item.prontuario }}
+            {% if item.quandoreg %} · {{ icon('clock') }} Registrado às {{ item.quandoreg.strftime('%H:%M') }}{% endif %}</span>
+        </div>
+        <span class="badge-soft">{{ 'Manhã' if item.turno == 'MANHA' else ('Tarde' if item.turno == 'TARDE' else 'Sem turno') }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    {% elif not error %}
+    <div class="pending-empty">
+      {{ icon('calendar-1') }}
+      {% if mine_total %}
+      <h2>Nenhum paciente neste turno</h2><p>Você tem {{ mine_total }} paciente{{ '' if mine_total == 1 else 's' }} hoje em outro turno.</p>
+      {% elif day_total %}
+      <h2>Nenhum paciente agendado para você hoje</h2>
+      <p>Há {{ day_total }} consulta{{ '' if day_total == 1 else 's' }} hoje no CPAM, mas nenhuma com médico correspondente a <strong>{{ doctor_name or '(nome não cadastrado)' }}</strong>. Confira o nome completo no seu perfil.</p>
+      {% else %}
+      <h2>Nenhum paciente agendado hoje</h2><p>A lista será atualizada automaticamente.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>

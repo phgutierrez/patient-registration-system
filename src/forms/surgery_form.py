@@ -10,7 +10,7 @@ from wtforms import (
     DateField, TimeField, BooleanField, RadioField, SubmitField,
     SelectMultipleField,
 )
-from wtforms.validators import DataRequired, Optional
+from wtforms.validators import DataRequired, Length, Optional
 from wtforms.widgets import ListWidget, CheckboxInput
 
 OPME_CHOICES = [
@@ -29,6 +29,10 @@ OPME_CHOICES = [
 
 
 class SurgeryRequestForm(FlaskForm):
+    # ── Dados do paciente (gravados no cadastro do paciente) ──────────────
+    diagnostico_paciente = TextAreaField('Diagnóstico', validators=[DataRequired()])
+    cid_paciente = StringField('CID', validators=[DataRequired(), Length(min=3, max=5)])
+
     # ── Dados Clínicos ────────────────────────────────────────────────────
     peso = FloatField('Peso (kg)', validators=[DataRequired()])
     sinais_sintomas = TextAreaField(
