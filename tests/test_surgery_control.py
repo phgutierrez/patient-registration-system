@@ -17,7 +17,7 @@ from src.services.access_patient_service import (
 SURGERY_COLUMNS = ['prontuario', 'nome do paciente', 'dt_atend_cons', 'nome_medico_cons', 'especialidade_cons',
                    'procedimento_cir', 'dt_prov_CIR', 'orientacao_ss', 'CIRURGIA_agendada']
 PROCEDURE_COLUMNS = ['codigo', 'nome']
-SUSPENSION_COLUMNS = ['nome do paciente', 'especialidade', 'DATA_CIR', 'MOTIVO', 'descricao']
+SUSPENSION_COLUMNS = ['Nome_Paciente', 'Especialidade', 'Data_da_Cirurgia', 'Mot_Cancelam', 'Obs_Cancelam', 'Situaçao']
 
 
 def surgery(prontuario, nome, programada, status, esp='Ortopedia', proc='0408050012', obs='', cadastro=None):
@@ -64,7 +64,7 @@ def make_tables(surgeries, procedures=None, suspensions=None):
     return {
         'Ocorrencias_SS': (SURGERY_COLUMNS, surgeries),
         'tb_procedimentos_BC': (PROCEDURE_COLUMNS, procedures if procedures is not None else [('0408050012', 'Artrodese')]),
-        'tb_susp_cir': (SUSPENSION_COLUMNS, suspensions or []),
+        'tb_registro_bC': (SUSPENSION_COLUMNS, suspensions or []),
     }
 
 
@@ -166,13 +166,16 @@ class ServiceReadTests(unittest.TestCase):
         self.assertEqual(1, len(svc.rows_in_period(snapshot.rows, date(2026, 11, 1), date(2026, 11, 30))))
         self.assertIsNone(snapshot.rows[2].cadastro)
 
-    def test_suspension_linked_missing_and_ambiguous(self):
+    def test_suspension_linked_missing_ambiguous_and_divergent(self):
         day = datetime(2026, 11, 20)
         suspensions = [
-            ('JOÃO da Silva', 'ortopedia', day, 'Paciente', 'Faltou'),
-            ('Maria  Souza', 'Ortopedia', day, 'Clínico', 'Febre'),
-            ('maria souza', 'ORTOPEDIA', day, 'Estrutura', 'Sem material'),
-            ('Outro', 'Cardiologia', day, 'X', 'Y'),
+            ('JOÃO da Silva', 'ortopedia', day, 'Paciente', 'Faltou', 'CANCELADA'),
+            ('Maria  Souza', 'Ortopedia', day, 'Clínico', 'Febre', 'cancelada'),
+            ('maria souza', 'ORTOPEDIA', day, 'Estrutura', 'Sem material', None),  # sem situação, com motivo
+            ('Outro', 'Cardiologia', day, 'X', 'Y', 'CANCELADA'),
+            ('Sem Motivo', 'Ortopedia', day, None, '', None),  # sem situação e sem motivo: ignorada
+            ('Divergente', 'Ortopedia', day, None, None, 'REALIZADA'),
+            ('Realizada Ok', 'Ortopedia', day, 'Lixo', 'Lixo', 'REALIZADA'),
         ]
         tables = make_tables([
             surgery(1, 'Joao da silva', day, 0),
@@ -180,6 +183,7 @@ class ServiceReadTests(unittest.TestCase):
             surgery(3, 'Sem Motivo', day, 0),
             surgery(4, 'Realizada Ok', day, 1),
             surgery(5, 'Joao da silva', datetime(2026, 11, 21), 0),  # data diferente
+            surgery(6, 'Divergente', day, 0),  # cancelada na agenda, realizada no registro
         ], suspensions=suspensions)
         snapshot, _ = load_with(tables)
         by_id = {row.prontuario: row for row in snapshot.rows}
@@ -189,18 +193,33 @@ class ServiceReadTests(unittest.TestCase):
         self.assertEqual('', by_id['2'].vinculo.grupo)
         self.assertEqual('nao_localizado', by_id['3'].vinculo.estado)
         self.assertEqual('nao_localizado', by_id['5'].vinculo.estado)
+        self.assertEqual('divergente', by_id['6'].vinculo.estado)
+        self.assertIn('realizada', by_id['6'].vinculo.label)
         self.assertIsNone(by_id['4'].vinculo)
         summary = svc.suspension_summary(snapshot.rows)
-        self.assertEqual(4, summary['total'])
-        self.assertEqual(1, summary['ambiguous'])
-        self.assertEqual(2, summary['missing'])
+        self.assertEqual(5, summary['total'])
+        self.assertEqual((1, 2, 1), (summary['ambiguous'], summary['missing'], summary['divergent']))
         self.assertEqual([('Paciente', 1)], [(g['grupo'], g['count']) for g in summary['groups']])
+
+    def test_registry_kind_uses_situacao_first(self):
+        self.assertEqual('cancelada', svc.registry_kind('CANCELADA', '', ''))
+        self.assertEqual('realizada', svc.registry_kind(' Realizada ', 'Motivo', 'Obs'))
+        self.assertEqual('cancelada', svc.registry_kind(None, 'Motivo', ''))
+        self.assertEqual('cancelada', svc.registry_kind('???', '', 'Obs'))
+        self.assertEqual('', svc.registry_kind(None, None, ''))
+
+    def test_registry_without_situacao_column_falls_back_to_motive(self):
+        day = datetime(2026, 11, 20)
+        tables = make_tables([surgery(1, 'Ana', day, 0)], suspensions=[('Ana', 'Ortopedia', day, 'Clínico', 'Febre', None)])
+        tables['tb_registro_bC'] = (SUSPENSION_COLUMNS[:-1], [row[:-1] for row in tables['tb_registro_bC'][1]])
+        snapshot, _ = load_with(tables)
+        self.assertEqual('confirmado', snapshot.rows[0].vinculo.estado)
 
     def test_suspension_table_unavailable_is_explicit(self):
         tables = make_tables([surgery(1, 'Ana', datetime(2026, 11, 20), 0)])
-        snapshot, _ = load_with(tables, failing={'tb_susp_cir'})
+        snapshot, _ = load_with(tables, failing={'tb_registro_bC'})
         self.assertEqual('indisponivel', snapshot.rows[0].vinculo.estado)
-        self.assertTrue(any('suspensão' in w for w in snapshot.warnings))
+        self.assertTrue(any('tb_registro_bC' in w for w in snapshot.warnings))
 
     def test_procedure_table_unavailable_keeps_surgeries(self):
         tables = make_tables([surgery(1, 'Ana', datetime(2026, 11, 20), None)])

@@ -12,7 +12,7 @@ O que muda (detalhes em [RELEASE_NOTES_3.0.md](../RELEASE_NOTES_3.0.md)):
 - nova tela **Controle de Cirurgias**, exclusiva para administradores e somente
   leitura, com calendário mensal/semanal, indicadores, lista filtrável e resumo
   dos motivos de cancelamento, lida das tabelas `Ocorrencias_SS`,
-  `tb_procedimentos_BC` e `tb_susp_cir` do Access.
+  `tb_procedimentos_BC` e `tb_registro_bC` do Access.
 
 > Os bundles do frontend (`src/static/dist`) já vêm prontos no repositório.
 > **Node.js não é necessário** para atualizar nem para gerar o executável.
@@ -22,7 +22,7 @@ O que muda (detalhes em [RELEASE_NOTES_3.0.md](../RELEASE_NOTES_3.0.md)):
 ## Antes de atualizar (todas as versões)
 
 Confirme que o Access configurado em *Configurações → Testar conexão* é o banco
-que contém as tabelas `Ocorrencias_SS`, `tb_procedimentos_BC` e `tb_susp_cir`.
+que contém as tabelas `Ocorrencias_SS`, `tb_procedimentos_BC` e `tb_registro_bC`.
 Apenas usuários **administradores** veem a nova tela.
 
 ---
@@ -106,12 +106,13 @@ Necessário para as seções A e B.
    status e a busca por paciente/prontuário.
 5. Em uma cirurgia cancelada, confira o grupo e a descrição do motivo. Casos sem
    correspondência mostram "Motivo não localizado"; casos duplicados mostram
-   "Vínculo ambíguo".
+   "Vínculo ambíguo"; se o registro do bloco (`Situaçao`) diz REALIZADA, mostram
+   "Divergência".
 6. Se aparecer aviso de cirurgias sem data programada, use **Ver lista**.
 7. Se aparecer erro de tabela ou colunas, confira o arquivo em
    *Configurações → Testar conexão* e as tabelas citadas acima.
    Avisos sobre procedimentos ou suspensões indisponíveis indicam que
-   `tb_procedimentos_BC` ou `tb_susp_cir` não foram lidas.
+   `tb_procedimentos_BC` ou `tb_registro_bC` não foram lidas.
 
 ## Como voltar para a versão anterior
 

@@ -17,13 +17,19 @@
   - **Lista filtrável** por status e por paciente/prontuário, com prontuário,
     paciente, data de cadastro, médico solicitante, procedimento (nome e código
     SUS), data programada, observações e status.
-  - **Motivos de cancelamento:** a suspensão registrada em `tb_susp_cir` é associada à cirurgia **cancelada** por paciente,
-    especialidade e data da cirurgia (`tb_susp_cir`), sem diferenciar maiúsculas,
-    acentos e espaços. Mostra o **grupo** (`MOTIVO`) e a **descrição**.
+  - **Motivos de cancelamento:** o cancelamento registrado em `tb_registro_bC` é associado à cirurgia **cancelada** por
+    paciente (`Nome_Paciente`), especialidade (`Especialidade`) e data da cirurgia
+    (`Data_da_Cirurgia`), sem diferenciar maiúsculas, acentos e espaços. Mostra o
+    **grupo** (`Mot_Cancelam`) e a **descrição** (`Obs_Cancelam`).
+    - A coluna `Situaçao` do registro decide o que é cancelamento: `CANCELADA` entra;
+      `REALIZADA` é ignorada. Se estiver vazia, a linha só vale como cancelamento
+      quando tiver motivo ou observação.
+    - Se a cirurgia está cancelada na agenda mas o registro do bloco diz
+      **REALIZADA**, a tela mostra *Divergência* e não exibe motivo.
     - Sem correspondência: *Motivo não localizado*.
     - Mais de uma correspondência: *Vínculo ambíguo*. Nenhum motivo é
       apresentado como confirmado.
-  - **Resumo dos motivos de cancelamento** no período, agrupado por `MOTIVO`, com
+  - **Resumo dos motivos de cancelamento** no período, agrupado por `Mot_Cancelam`, com
     contagem e as descrições dos casos.
   - **Cirurgias sem data programada** (ou com data inválida) são avisadas na
     tela e **não aparecem no calendário**; uma lista própria permite consultá-las.
@@ -40,8 +46,10 @@
     `nome_medico_cons`, `especialidade_cons`, `procedimento_cir`, `dt_prov_CIR`,
     `orientaçao_ss` e `CIRURGIA_agendada`;
   - `tb_procedimentos_BC` (nome do procedimento a partir do código SUS);
-  - `tb_susp_cir` com paciente, especialidade, `DATA_CIR`, `MOTIVO` e `descricao`.
-- Se `tb_procedimentos_BC` ou `tb_susp_cir` não puderem ser lidas, as cirurgias
+  - `tb_registro_bC` com `Nome_Paciente`, `Especialidade`, `Data_da_Cirurgia`,
+    `Mot_Cancelam` e `Obs_Cancelam`. A coluna `Situaçao` é opcional (sem ela vale
+    só a regra de motivo/observação).
+- Se `tb_procedimentos_BC` ou `tb_registro_bC` não puderem ser lidas, as cirurgias
   continuam visíveis e a tela avisa que nomes/motivos estão indisponíveis.
 
 ## Técnico

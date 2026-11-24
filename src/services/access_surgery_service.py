@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 SURGERY_TABLE = 'Ocorrencias_SS'
 PROCEDURES_TABLE = 'tb_procedimentos_BC'
-SUSPENSIONS_TABLE = 'tb_susp_cir'
+SUSPENSIONS_TABLE = 'tb_registro_bC'  # registro do bloco: cirurgias realizadas e canceladas
 SNAPSHOT_TTL = 180  # segundos
 MIN_VALID_YEAR = 1950  # datas "zero" do Access (1899/1900) são tratadas como inválidas
 
@@ -39,8 +39,10 @@ STATUS_LABELS = {
 _STATUS_BY_CODE = {0: STATUS_CANCELED, 1: STATUS_DONE}  # nulo = sem resposta do bloco
 
 LINK_CONFIRMED, LINK_MISSING, LINK_AMBIGUOUS, LINK_UNAVAILABLE = 'confirmado', 'nao_localizado', 'ambiguo', 'indisponivel'
+LINK_DIVERGENT = 'divergente'
 LINK_LABELS = {
     LINK_MISSING: 'Motivo não localizado',
+    LINK_DIVERGENT: 'Divergência: o registro do bloco indica cirurgia realizada',
     LINK_AMBIGUOUS: 'Vínculo ambíguo: mais de uma suspensão corresponde a esta cirurgia',
     LINK_UNAVAILABLE: 'Motivos indisponíveis (tabela de suspensões não pôde ser lida)',
 }
@@ -62,12 +64,15 @@ SURGERY_REQUIRED = ('prontuario', 'nome', 'especialidade', 'programada', 'status
 PROCEDURE_CODE_ALIASES = ('codigo_sus', 'cod_sus', 'codigo', 'cod', 'co_procedimento', 'procedimento_cir', 'procedimento', 'id')
 PROCEDURE_NAME_ALIASES = ('nome_procedimento', 'no_procedimento', 'nome', 'descricao', 'procedimento')
 
+# Nomes reais das colunas de tb_registro_bC (chave interna → coluna no Access).
+# Obs.: Mot_Cancelam é o grupo (MOTIVO) e Obs_Cancelam o motivo específico.
 SUSPENSION_ALIASES = {
-    'nome': ('nome do paciente', 'nome_paciente', 'nome paciente', 'nome', 'paciente'),
-    'especialidade': ('especialidade', 'especialidade_cir', 'especialidade_cons'),
-    'data': ('DATA_CIR',),
-    'motivo': ('MOTIVO',),
-    'descricao': ('descricao',),
+    'nome': ('Nome_Paciente',),
+    'especialidade': ('Especialidade',),
+    'data': ('Data_da_Cirurgia',),
+    'motivo': ('Mot_Cancelam',),
+    'descricao': ('Obs_Cancelam',),
+    'situacao': ('Situaçao',),  # opcional: CANCELADA, REALIZADA ou nulo
 }
 SUSPENSION_REQUIRED = ('nome', 'especialidade', 'data', 'motivo')
 
@@ -190,16 +195,21 @@ class SurgerySnapshot:
 
 
 def link_suspensions(rows: list[SurgeryRow], suspensions: list[dict] | None) -> list[SurgeryRow]:
-    """Associa suspensões (paciente + especialidade + DATA_CIR normalizados).
+    """Associa cancelamentos de tb_registro_bC (Nome_Paciente + Especialidade + Data_da_Cirurgia normalizados).
 
     ``suspensions=None`` indica tabela indisponível. Mais de uma correspondência é
     ambígua: nenhum motivo é confirmado.
     """
     index: dict[tuple, list[dict]] = defaultdict(list)
+    done_index: set[tuple] = set()
     for item in suspensions or ():
         if item['data'] is None or not item['nome'] or not item['especialidade']:
             continue
-        index[(item['nome'], item['especialidade'], item['data'])].append(item)
+        key = (item['nome'], item['especialidade'], item['data'])
+        if item.get('tipo', 'cancelada') == 'realizada':
+            done_index.add(key)
+        else:
+            index[key].append(item)
     linked = []
     for row in rows:
         if row.status != STATUS_CANCELED:
@@ -211,13 +221,28 @@ def link_suspensions(rows: list[SurgeryRow], suspensions: list[dict] | None) -> 
             key = (normalize_text(row.paciente), normalize_text(row.especialidade), row.programada)
             matches = index.get(key, []) if row.programada else []
             if not matches:
-                link = SuspensionLink(LINK_MISSING)
+                diverges = bool(row.programada) and key in done_index
+                link = SuspensionLink(LINK_DIVERGENT if diverges else LINK_MISSING)
             elif len(matches) > 1:
                 link = SuspensionLink(LINK_AMBIGUOUS, candidatas=len(matches))
             else:
                 link = SuspensionLink(LINK_CONFIRMED, matches[0]['motivo'], matches[0]['descricao'], 1)
         linked.append(replace(row, vinculo=link))
     return linked
+
+
+def registry_kind(situacao, motivo, descricao) -> str:
+    """Classifica uma linha de tb_registro_bC: 'cancelada', 'realizada' ou '' (ignorar).
+
+    ``Situaçao`` é a fonte principal. Quando está vazia ou desconhecida, a linha só
+    é tratada como cancelamento se tiver motivo ou observação de cancelamento.
+    """
+    situation = normalize_text(situacao)
+    if situation.startswith('cancel'):
+        return 'cancelada'
+    if situation.startswith('realiz'):
+        return 'realizada'
+    return 'cancelada' if (_text(motivo) or _text(descricao)) else ''
 
 
 def week_start(day: date) -> date:
@@ -279,9 +304,9 @@ def build_calendar(view: str, anchor: date, rows, today: date) -> dict[str, Any]
 
 
 def suspension_summary(rows) -> dict[str, Any]:
-    """Resumo por MOTIVO das cirurgias canceladas do período (já filtradas)."""
+    """Resumo por motivo (Mot_Cancelam) das cirurgias canceladas do período (já filtradas)."""
     groups: dict[str, dict] = {}
-    summary = {'total': 0, 'ambiguous': 0, 'missing': 0, 'unavailable': 0}
+    summary = {'total': 0, 'ambiguous': 0, 'missing': 0, 'unavailable': 0, 'divergent': 0}
     for row in rows:
         if row.status != STATUS_CANCELED:
             continue
@@ -293,6 +318,8 @@ def suspension_summary(rows) -> dict[str, Any]:
             summary['ambiguous'] += 1
         elif link.estado == LINK_UNAVAILABLE:
             summary['unavailable'] += 1
+        elif link.estado == LINK_DIVERGENT:
+            summary['divergent'] += 1
         else:
             label = link.grupo.strip() or NO_GROUP_LABEL
             group = groups.setdefault(normalize_text(label), {'grupo': label, 'cases': []})
@@ -446,23 +473,32 @@ class AccessSurgeryService:
             columns = self._map_columns(names, SUSPENSION_ALIASES)
             missing = [key for key in SUSPENSION_REQUIRED if key not in columns]
             if missing:
-                warnings.append('Motivos de suspensão indisponíveis: colunas ausentes em tb_susp_cir (' + ', '.join(missing) + ').')
+                warnings.append('Motivos de cancelamento indisponíveis: colunas ausentes em tb_registro_bC (' + ', '.join(missing) + ').')
                 return None
             data = self._select(connection, SUSPENSIONS_TABLE, columns)
         except Exception as exc:
             self._patients._log_odbc_failure('suspensoes_cirurgias', exc)
-            warnings.append('Motivos de suspensão indisponíveis: não foi possível ler tb_susp_cir.')
+            warnings.append('Motivos de cancelamento indisponíveis: não foi possível ler tb_registro_bC.')
             return None
-        return [
-            {
+        # tb_registro_bC também registra cirurgias realizadas. A coluna Situaçao
+        # separa cancelamentos de realizadas; linhas sem situação só valem como
+        # cancelamento se tiverem motivo ou observação (ver registry_kind).
+        result = []
+        for item in data:
+            if not is_orthopedics(item.get('especialidade')):
+                continue
+            kind = registry_kind(item.get('situacao'), item.get('motivo'), item.get('descricao'))
+            if not kind:
+                continue
+            result.append({
                 'nome': normalize_text(item.get('nome')),
                 'especialidade': normalize_text(item.get('especialidade')),
                 'data': parse_date(item.get('data')),
+                'tipo': kind,
                 'motivo': _text(item.get('motivo')),
                 'descricao': _text(item.get('descricao')),
-            }
-            for item in data if is_orthopedics(item.get('especialidade'))
-        ]
+            })
+        return result
 
 
 access_surgery_service = AccessSurgeryService()

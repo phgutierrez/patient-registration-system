@@ -18,6 +18,7 @@
     {% endfor %}
     {% if suspensions.ambiguous %}<p class="sc-reason sc-reason--warn">{{ suspensions.ambiguous }} suspensão(ões) com vínculo ambíguo — nenhum motivo foi confirmado.</p>{% endif %}
     {% if suspensions.missing %}<p class="sc-reason sc-reason--warn">{{ suspensions.missing }} suspensão(ões) sem motivo localizado.</p>{% endif %}
+    {% if suspensions.divergent %}<p class="sc-reason sc-reason--warn">{{ suspensions.divergent }} cancelamento(s) divergente(s): o registro do bloco indica cirurgia realizada.</p>{% endif %}
     {% if suspensions.unavailable %}<p class="sc-reason sc-reason--warn">{{ suspensions.unavailable }} suspensão(ões) sem motivo: tabela de suspensões indisponível.</p>{% endif %}
   </div>
   {% endif %}
