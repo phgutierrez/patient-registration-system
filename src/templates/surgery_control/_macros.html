@@ -1,0 +1,21 @@
+{% macro status_badge(row) %}
+<span class="sc-badge sc-badge--{{ row.status }}">{{ row.status_label }}</span>
+{% endmacro %}
+
+{% macro procedure(row) %}
+{% if row.procedimento_codigo %}
+  {% if row.procedimento_nome %}{{ row.procedimento_nome }} <small class="text-muted">({{ row.procedimento_codigo }})</small>
+  {% else %}<span class="sc-note">Procedimento não localizado</span> <small class="text-muted">({{ row.procedimento_codigo }})</small>{% endif %}
+{% else %}<span class="sc-note">Procedimento não informado</span>{% endif %}
+{% endmacro %}
+
+{% macro suspension(row) %}
+{% set link = row.vinculo %}
+{% if row.status == 'cancelada' %}
+  {% if link and link.estado == 'confirmado' %}
+  <div class="sc-reason"><strong>{{ link.grupo or 'Sem grupo informado' }}</strong>{% if link.descricao %}<span>{{ link.descricao }}</span>{% endif %}</div>
+  {% else %}
+  <div class="sc-reason sc-reason--warn">{{ link.label if link else 'Motivo não localizado' }}</div>
+  {% endif %}
+{% endif %}
+{% endmacro %}

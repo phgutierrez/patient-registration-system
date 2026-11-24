@@ -302,6 +302,28 @@ class AccessPatientService:
             for token in ('could not find', 'cannot find', 'não foi possível encontrar', 'tabela inexistente')
         )
 
+    def run_read(self, config: AccessConfig, operation, stage: str = 'consulta'):
+        """Executa uma leitura com a conexão somente leitura compartilhada.
+
+        ``operation(connection)`` deve apenas consultar. Reaproveita validação de
+        configuração, conexão, uma nova tentativa e classificação de erros.
+        """
+        with self._lock:
+            self._prepare(config)
+            for attempt in range(2):
+                try:
+                    connection = self._connection or self._connect(config)
+                    return operation(connection)
+                except AccessLookupError:
+                    raise
+                except Exception as exc:
+                    self._log_odbc_failure(stage, exc, attempt + 1)
+                    self._close_connection()
+                    self._columns, self._occ_columns = None, None
+                    if attempt == 1:
+                        raise self._classify_error(exc, config) from exc
+        raise AssertionError('unreachable')
+
     def _discover_columns(self, connection) -> dict[str, str]:
         if self._columns is not None:
             return self._columns

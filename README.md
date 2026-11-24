@@ -40,7 +40,13 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
 - 💾 **Armazenamento Confiável** - SQLite local, outbox transacional, checkpoints e histórico restaurável
 
-### 🆕 Versão 2.9.0 (Novembro/2026)
+### 🆕 Versão 3.0.0 (Novembro/2026)
+
+- ✅ **Controle de cirurgias (somente administradores):** cirurgias de ortopedia lidas do Access (`Ocorrencias_SS`), com calendário mensal/semanal pela data programada, indicadores (canceladas/realizadas/sem resposta do bloco), lista filtrável e resumo dos motivos de cancelamento
+- ✅ Somente leitura: nada é gravado no Access; vínculos de suspensão ausentes ou ambíguos são sinalizados
+- 📘 **Como atualizar:** [docs/ATUALIZACAO_V3.0.md](docs/ATUALIZACAO_V3.0.md) · [Notas de versão](RELEASE_NOTES_3.0.md)
+
+### Versão 2.9.0 (Novembro/2026)
 
 - ✅ **Pacientes do dia:** agenda de hoje do médico logado, lida da tabela `Ocorrencias` do Access, com filtro Manhã/Tarde/Ambos, ordem de abertura do prontuário e sincronização a cada 3 min (ou na hora)
 - ✅ Clique no paciente → **Solicitar cirurgia** (importa do CPAM pelo prontuário e abre o pedido preenchido) · **Prontuário** (em breve)

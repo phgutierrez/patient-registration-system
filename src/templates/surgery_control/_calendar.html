@@ -1,0 +1,33 @@
+{# Calendário mensal/semanal baseado em dt_prov_CIR; semana começa na segunda-feira. #}
+<div class="sc-calendar sc-calendar--{{ view }}" role="grid" aria-label="Calendário de cirurgias — {{ title_period }}">
+  <div class="sc-weekdays" role="row">
+    {% for name in weekdays %}<span role="columnheader">{{ name[:3] }}</span>{% endfor %}
+  </div>
+  {% for week in calendar.weeks %}
+  <div class="sc-week" role="row">
+    {% for cell in week %}
+    {% set day_url = url_for('surgery_control.day_detail', day=cell.date.isoformat(), view=view) %}
+    <div class="sc-cell{{ ' is-outside' if not cell.in_period }}{{ ' is-today' if cell.is_today }}" role="gridcell">
+      {% if cell.in_period %}
+      <a class="sc-cell-link" href="{{ day_url }}" hx-get="{{ day_url }}" hx-target="#scDayPanel" hx-swap="innerHTML"
+         aria-label="{{ cell.date.strftime('%d/%m/%Y') }}: {{ cell.counts.total }} cirurgia{{ '' if cell.counts.total == 1 else 's' }}">
+        <span class="sc-daynum"><span class="sc-weekday-inline">{{ weekdays[cell.date.weekday()][:3] }} </span>{{ cell.date.day }}</span>
+        {% if view == 'week' %}
+          {% for row in cell.rows %}<span class="sc-chip sc-chip--{{ row.status }}">{{ row.paciente or 'Sem nome' }}</span>{% endfor %}
+        {% else %}
+          <span class="sc-counts">
+            {% if cell.counts.sem_resposta %}<span class="sc-dot sc-dot--sem_resposta" title="Sem resposta do bloco">{{ cell.counts.sem_resposta }}</span>{% endif %}
+            {% if cell.counts.realizada %}<span class="sc-dot sc-dot--realizada" title="Realizadas">{{ cell.counts.realizada }}</span>{% endif %}
+            {% if cell.counts.cancelada %}<span class="sc-dot sc-dot--cancelada" title="Canceladas">{{ cell.counts.cancelada }}</span>{% endif %}
+            {% if cell.counts.desconhecido %}<span class="sc-dot sc-dot--desconhecido" title="Status desconhecido">{{ cell.counts.desconhecido }}</span>{% endif %}
+          </span>
+        {% endif %}
+      </a>
+      {% else %}
+      <span class="sc-daynum">{{ cell.date.day }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>

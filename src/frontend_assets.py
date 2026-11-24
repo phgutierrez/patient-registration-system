@@ -61,6 +61,10 @@ LEGACY_ASSETS: dict[str, dict[str, tuple[str, ...]]] = {
         'css': ('css/pages/pending.css', 'css/pages/today.css'),
         'js': ('js/pages/today.js',),
     },
+    'surgery-control': {
+        'css': ('css/pages/pending.css', 'css/pages/surgery-control.css'),
+        'js': ('js/pages/surgery-control.js',),
+    },
 }
 
 _lock = threading.Lock()

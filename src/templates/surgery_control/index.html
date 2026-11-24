@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Controle de cirurgias - {{ super() }}{% endblock %}
+{% block page_styles %}{{ vite_css('surgery-control') }}{% endblock %}
+{% block content %}
+{% include "surgery_control/_app.html" %}
+{% endblock %}
+{% block page_scripts %}{{ vite_js('surgery-control') }}{% endblock %}

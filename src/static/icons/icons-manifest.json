@@ -1,5 +1,5 @@
 {
-  "file": "icons-ea2a8837.svg",
+  "file": "icons-ae5d1618.svg",
   "icons": [
     "activity",
     "arrow-left",
@@ -27,6 +27,7 @@
     "circle-check",
     "circle-plus",
     "circle-user",
+    "clipboard-list",
     "clipboard-plus",
     "clock",
     "database",

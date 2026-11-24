@@ -1,0 +1,67 @@
+{# #scApp: página completa e resposta parcial HTMX (troca outerHTML). Somente administradores. #}
+{% macro nav_url(v, d) %}{{ url_for('surgery_control.index', view=v, date=d.isoformat(), status=status_filter or None, q=query or None) }}{% endmacro %}
+<div id="scApp" class="container-fluid sc-page" data-hx-error-region>
+  <header class="app-page-header page-heading">
+    <div>
+      <span class="eyebrow">Ortopedia · somente leitura</span>
+      <h1>Controle de cirurgias</h1>
+      <p>Cirurgias lidas do banco Access do CPAM, organizadas pela data programada.</p>
+    </div>
+    <div class="sc-sync">
+      <a class="btn btn-outline-primary" href="{{ url_for('surgery_control.index', view=view, date=anchor.isoformat(), sync=1) }}"
+         hx-get="{{ url_for('surgery_control.index', view=view, date=anchor.isoformat(), sync=1) }}" hx-target="#scApp" hx-swap="outerHTML" hx-disabled-elt="this">
+        {{ icon('refresh-cw') }}<span>Sincronizar agora</span></a>
+      <small>{% if synced_at %}Atualizado às {{ synced_at.strftime('%H:%M') }}{% else %}Sem dados carregados{% endif %}</small>
+    </div>
+  </header>
+
+  <div class="sc-toolbar">
+    <nav class="sc-views" aria-label="Visão do calendário">
+      {% for key, label in [('month', 'Mensal'), ('week', 'Semanal')] %}
+      {% set url = nav_url(key, anchor) %}
+      <a href="{{ url }}" hx-get="{{ url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true"
+         class="scope-tab {{ 'is-active' if view == key }}"{% if view == key %} aria-current="page"{% endif %}><span>{{ label }}</span></a>
+      {% endfor %}
+    </nav>
+    <nav class="sc-period" aria-label="Período">
+      {% set prev_url = nav_url(view, prev_date) %}{% set next_url = nav_url(view, next_date) %}{% set today_url = nav_url(view, today) %}
+      <a class="btn btn-outline-secondary" href="{{ prev_url }}" hx-get="{{ prev_url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true" aria-label="Período anterior">{{ icon('chevron-left') }}</a>
+      <strong class="sc-period-title" aria-live="polite">{{ title_period }}</strong>
+      <a class="btn btn-outline-secondary" href="{{ next_url }}" hx-get="{{ next_url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true" aria-label="Próximo período">{{ icon('chevron-right') }}</a>
+      <a class="btn btn-outline-primary" href="{{ today_url }}" hx-get="{{ today_url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true">Hoje</a>
+    </nav>
+  </div>
+
+  <div class="sc-loading htmx-indicator" role="status">Carregando cirurgias…</div>
+
+  {% if error %}
+  <div class="alert alert-danger" role="alert">{{ icon('unlink', extra_class='me-2') }}<strong>{{ error.message }}</strong> {{ error.hint }}</div>
+  {% else %}
+  {% for warning in warnings %}<div class="alert alert-warning" role="status">{{ icon('info', extra_class='me-2') }}{{ warning }}</div>{% endfor %}
+
+  <section class="sc-kpis" aria-label="Indicadores do período">
+    <div class="sc-kpi"><span>Total no período</span><strong>{{ counts.total }}</strong></div>
+    <div class="sc-kpi sc-kpi--sem_resposta"><span>Sem resposta do bloco</span><strong>{{ counts.sem_resposta }}</strong></div>
+    <div class="sc-kpi sc-kpi--realizada"><span>Realizadas</span><strong>{{ counts.realizada }}</strong></div>
+    <div class="sc-kpi sc-kpi--cancelada"><span>Canceladas</span><strong>{{ counts.cancelada }}</strong></div>
+    {% if counts.desconhecido %}<div class="sc-kpi sc-kpi--desconhecido"><span>Status desconhecido</span><strong>{{ counts.desconhecido }}</strong></div>{% endif %}
+  </section>
+
+  {% if undated_total %}
+  <div class="alert alert-warning" role="status">{{ icon('calendar-x', extra_class='me-2') }}
+    <strong>{{ undated_total }} cirurgia{{ '' if undated_total == 1 else 's' }} sem data programada (ou com data inválida)</strong> —
+    não aparece{{ '' if undated_total == 1 else 'm' }} no calendário nem nos indicadores do período.
+    {% set undated_url = url_for('surgery_control.index', view=view, date=anchor.isoformat(), sem_data=1) %}
+    <a href="{{ undated_url }}" hx-get="{{ undated_url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true">Ver lista</a>
+  </div>
+  {% endif %}
+
+  <section class="pending-surface sc-section" aria-label="Calendário">
+    {% include "surgery_control/_calendar.html" %}
+  </section>
+  <div id="scDayPanel" class="sc-day-panel" aria-live="polite"></div>
+
+  {% include "surgery_control/_list.html" %}
+  {% include "surgery_control/_suspensions.html" %}
+  {% endif %}
+</div>

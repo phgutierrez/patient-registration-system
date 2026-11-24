@@ -21,6 +21,7 @@ export const ENTRIES = [
   'procedures',
   'pending',
   'today',
+  'surgery-control',
 ];
 
 export default defineConfig(({ mode }) => ({

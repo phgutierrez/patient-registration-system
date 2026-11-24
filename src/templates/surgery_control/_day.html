@@ -1,0 +1,21 @@
+{% from "surgery_control/_macros.html" import status_badge, procedure, suspension %}
+<section class="sc-day" aria-labelledby="scDayTitle" tabindex="-1">
+  <h2 id="scDayTitle" class="h5">{{ weekdays[day.weekday()] }}, {{ day.strftime('%d/%m/%Y') }}</h2>
+  {% if error %}
+  <div class="alert alert-danger" role="alert"><strong>{{ error.message }}</strong> {{ error.hint }}</div>
+  {% elif rows %}
+  <ul class="sc-day-list">
+    {% for row in rows %}
+    <li class="sc-day-item">
+      <div class="sc-day-head"><strong>{{ row.paciente or 'Paciente sem nome' }}</strong> {{ status_badge(row) }}</div>
+      <div class="sc-meta">Prontuário {{ row.prontuario or '—' }}{% if row.medico %} · {{ row.medico }}{% endif %}</div>
+      <div>{{ procedure(row) }}</div>
+      {% if row.observacoes %}<div class="sc-obs">{{ row.observacoes }}</div>{% endif %}
+      {{ suspension(row) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="sc-empty-inline">Nenhuma cirurgia programada para este dia.</p>
+  {% endif %}
+</section>

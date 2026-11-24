@@ -1,7 +1,7 @@
 {
   "name": "patient-registration-system-frontend",
   "private": true,
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Bundles locais (Vite) do Sistema de Solicitação de Cirurgia. Sem CDN em tempo de execução.",
   "type": "module",
   "scripts": {

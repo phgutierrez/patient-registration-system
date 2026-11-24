@@ -1,0 +1,24 @@
+<section class="pending-surface sc-section" aria-labelledby="scSuspTitle">
+  <header class="sc-section-head"><h2 id="scSuspTitle" class="h5">Motivos de cancelamento no período</h2>
+    <span class="badge-soft">{{ suspensions.total }} cancelada{{ '' if suspensions.total == 1 else 's' }}</span></header>
+  {% if suspensions.total == 0 %}
+  <p class="sc-empty-inline">Nenhuma cirurgia cancelada no período.</p>
+  {% else %}
+  <div class="sc-susp">
+    {% for group in suspensions.groups %}
+    <details class="sc-group">
+      <summary><span>{{ group.grupo }}</span><strong>{{ group.count }}</strong></summary>
+      <ul>
+        {% for row in group.cases %}
+        <li><span class="sc-meta">{{ row.programada.strftime('%d/%m/%Y') }} · {{ row.paciente }} (prontuário {{ row.prontuario }})</span>
+          <span>{{ row.vinculo.descricao or 'Sem descrição informada' }}</span></li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+    {% if suspensions.ambiguous %}<p class="sc-reason sc-reason--warn">{{ suspensions.ambiguous }} suspensão(ões) com vínculo ambíguo — nenhum motivo foi confirmado.</p>{% endif %}
+    {% if suspensions.missing %}<p class="sc-reason sc-reason--warn">{{ suspensions.missing }} suspensão(ões) sem motivo localizado.</p>{% endif %}
+    {% if suspensions.unavailable %}<p class="sc-reason sc-reason--warn">{{ suspensions.unavailable }} suspensão(ões) sem motivo: tabela de suspensões indisponível.</p>{% endif %}
+  </div>
+  {% endif %}
+</section>

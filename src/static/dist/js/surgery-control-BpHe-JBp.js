@@ -1,0 +1,1 @@
+/* empty css                       */import"./chunks/htmx-setup-Cne41TUS.js";(function(){document.addEventListener(`htmx:afterSwap`,e=>{let t=e.detail&&e.detail.target;if(!t||t.id!==`scDayPanel`)return;let n=t.querySelector(`.sc-day`);n&&(n.focus({preventScroll:!0}),n.scrollIntoView({block:`nearest`,behavior:`smooth`}))})})();

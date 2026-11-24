@@ -104,6 +104,19 @@
       "assets/surgery-confirmation-BUzohagq.css"
     ]
   },
+  "frontend/entries/surgery-control.js": {
+    "file": "js/surgery-control-BpHe-JBp.js",
+    "name": "surgery-control",
+    "src": "frontend/entries/surgery-control.js",
+    "isEntry": true,
+    "imports": [
+      "_htmx-setup-Cne41TUS.js"
+    ],
+    "css": [
+      "assets/surgery-control-tIx-k5vc.css",
+      "assets/pending-B-fQVWAE.css"
+    ]
+  },
   "frontend/entries/surgery-request.js": {
     "file": "js/surgery-request-2wli3V8J.js",
     "name": "surgery-request",

@@ -1,0 +1,46 @@
+{% from "surgery_control/_macros.html" import status_badge, procedure, suspension %}
+<section class="pending-surface sc-section" aria-labelledby="scListTitle">
+  <header class="sc-section-head">
+    <h2 id="scListTitle" class="h5">{{ 'Cirurgias sem data programada' if only_undated else 'Cirurgias do período' }}</h2>
+    <span class="badge-soft">{{ list_rows|length }}</span>
+  </header>
+  <form class="sc-filters" method="get" action="{{ url_for('surgery_control.index') }}"
+        hx-get="{{ url_for('surgery_control.index') }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true">
+    <input type="hidden" name="view" value="{{ view }}"><input type="hidden" name="date" value="{{ anchor.isoformat() }}">
+    {% if only_undated %}<input type="hidden" name="sem_data" value="1">{% endif %}
+    <label class="visually-hidden" for="scStatus">Status</label>
+    <select id="scStatus" name="status" class="form-select">
+      <option value="">Todos os status</option>
+      {% for key in ['sem_resposta', 'cancelada', 'realizada', 'desconhecido'] %}
+      <option value="{{ key }}"{{ ' selected' if status_filter == key }}>{{ status_labels[key] }}</option>{% endfor %}
+    </select>
+    <label class="visually-hidden" for="scQuery">Buscar paciente ou prontuário</label>
+    <input id="scQuery" name="q" type="search" class="form-control" maxlength="80" placeholder="Paciente ou prontuário" value="{{ query }}">
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+  {% if undated_truncated %}<p class="sc-reason sc-reason--warn">Exibindo apenas as primeiras {{ list_rows|length }} cirurgias sem data. Refine o filtro.</p>{% endif %}
+  {% if list_rows %}
+  <div class="table-responsive">
+    <table class="table sc-table">
+      <thead><tr><th>Prontuário</th><th>Paciente</th><th>Cadastro</th><th>Médico</th><th>Procedimento</th>
+        <th>Programada</th><th>Observações</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for row in list_rows %}
+        <tr>
+          <td>{{ row.prontuario or '—' }}</td>
+          <td>{{ row.paciente or '—' }}</td>
+          <td>{{ row.cadastro.strftime('%d/%m/%Y') if row.cadastro else '—' }}</td>
+          <td>{{ row.medico or '—' }}</td>
+          <td>{{ procedure(row) }}</td>
+          <td>{% if row.programada %}{{ row.programada.strftime('%d/%m/%Y') }}{% else %}<span class="sc-note">Sem data (fora do calendário)</span>{% endif %}</td>
+          <td class="sc-obs-cell">{{ row.observacoes or '—' }}</td>
+          <td>{{ status_badge(row) }}{{ suspension(row) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="sc-empty-inline">Nenhuma cirurgia encontrada com os filtros atuais.</p>
+  {% endif %}
+</section>

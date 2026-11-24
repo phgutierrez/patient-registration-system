@@ -27,7 +27,7 @@ GREENLET_WHEEL = ROOT / 'build_support' / 'greenlet-2.0.2-cp311-cp311-win32.whl'
 GREENLET_WHEEL_SHA256 = 'e3c43e42f4bdf29cc18e569b4097f948c0547b0a81c78a291e29169315a3b941'
 CRYPTO_WHEEL = ROOT / 'build_support' / 'pycryptodome-3.23.0-cp37-abi3-win32.whl'
 CRYPTO_WHEEL_SHA256 = '507dbead45474b62b2bbe318eb1c4c8ee641077532067fec9c1aa82c31f84886'
-BUILD_VERSION = '2.9.0'
+BUILD_VERSION = '3.0.0'
 LAST_BUILD_FILE = BUILD_ROOT.parent / 'last_build_32bits.txt'
 NETWORK_LAUNCHER_FILES = (
     (ROOT / 'Iniciar_Sistema_Rede.bat', 'Iniciar_Sistema_Rede.bat'),
