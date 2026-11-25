@@ -105,7 +105,7 @@
     ]
   },
   "frontend/entries/surgery-control.js": {
-    "file": "js/surgery-control-BpHe-JBp.js",
+    "file": "js/surgery-control-DuWWOwwk.js",
     "name": "surgery-control",
     "src": "frontend/entries/surgery-control.js",
     "isEntry": true,
@@ -113,7 +113,7 @@
       "_htmx-setup-Cne41TUS.js"
     ],
     "css": [
-      "assets/surgery-control-tIx-k5vc.css",
+      "assets/surgery-control-V-K8cNfM.css",
       "assets/pending-B-fQVWAE.css"
     ]
   },

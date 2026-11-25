@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableExtensions
-title Sistema de Ortopedia v3.0.0 - Inicializacao local
+title Sistema de Ortopedia v3.0.1 - Inicializacao local
 
 set "LAUNCHER_ROOT=%~dp0"
 set "LAUNCHER_PS1=%LAUNCHER_ROOT%launcher_network.ps1"
 
 echo.
 echo ============================================================
-echo   Sistema de Ortopedia v3.0.0 - copia local segura
+echo   Sistema de Ortopedia v3.0.1 - copia local segura
 echo ============================================================
 echo.
 

@@ -2,7 +2,7 @@
 <section class="pending-surface sc-section" aria-labelledby="scListTitle">
   <header class="sc-section-head">
     <h2 id="scListTitle" class="h5">{{ 'Cirurgias sem data programada' if only_undated else 'Cirurgias do período' }}</h2>
-    <span class="badge-soft">{{ list_rows|length }}</span>
+    <span class="badge-soft">{{ list_total }}</span>
   </header>
   <form class="sc-filters" method="get" action="{{ url_for('surgery_control.index') }}"
         hx-get="{{ url_for('surgery_control.index') }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true">
@@ -18,7 +18,7 @@
     <input id="scQuery" name="q" type="search" class="form-control" maxlength="80" placeholder="Paciente ou prontuário" value="{{ query }}">
     <button type="submit" class="btn btn-primary">Filtrar</button>
   </form>
-  {% if undated_truncated %}<p class="sc-reason sc-reason--warn">Exibindo apenas as primeiras {{ list_rows|length }} cirurgias sem data. Refine o filtro.</p>{% endif %}
+  {% if list_total > list_rows|length %}<p class="sc-reason sc-reason--warn">Exibindo as primeiras {{ list_rows|length }} de {{ list_total }} cirurgias. Use os filtros para refinar.</p>{% endif %}
   {% if list_rows %}
   <div class="table-responsive">
     <table class="table sc-table">

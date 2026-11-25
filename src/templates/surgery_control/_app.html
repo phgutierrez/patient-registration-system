@@ -1,6 +1,7 @@
 {# #scApp: página completa e resposta parcial HTMX (troca outerHTML). Somente administradores. #}
 {% macro nav_url(v, d) %}{{ url_for('surgery_control.index', view=v, date=d.isoformat(), status=status_filter or None, q=query or None) }}{% endmacro %}
-<div id="scApp" class="container-fluid sc-page" data-hx-error-region>
+<div id="scApp" class="container-fluid sc-page" data-hx-error-region{% if polling %}
+     hx-get="{{ self_url }}" hx-trigger="every {{ poll_seconds }}s" hx-target="this" hx-swap="outerHTML"{% endif %}>
   <header class="app-page-header page-heading">
     <div>
       <span class="eyebrow">Ortopedia · somente leitura</span>
@@ -8,10 +9,16 @@
       <p>Cirurgias lidas do banco Access do CPAM, organizadas pela data programada.</p>
     </div>
     <div class="sc-sync">
-      <a class="btn btn-outline-primary" href="{{ url_for('surgery_control.index', view=view, date=anchor.isoformat(), sync=1) }}"
-         hx-get="{{ url_for('surgery_control.index', view=view, date=anchor.isoformat(), sync=1) }}" hx-target="#scApp" hx-swap="outerHTML" hx-disabled-elt="this">
-        {{ icon('refresh-cw') }}<span>Sincronizar agora</span></a>
-      <small>{% if synced_at %}Atualizado às {{ synced_at.strftime('%H:%M') }}{% else %}Sem dados carregados{% endif %}</small>
+      <form method="post" action="{{ url_for('surgery_control.refresh') }}"
+            hx-post="{{ url_for('surgery_control.refresh') }}" hx-target="#scApp" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="view" value="{{ view }}"><input type="hidden" name="date" value="{{ anchor.isoformat() }}">
+        <input type="hidden" name="status" value="{{ status_filter }}"><input type="hidden" name="q" value="{{ query }}">
+        {% if only_undated %}<input type="hidden" name="sem_data" value="1">{% endif %}
+        <button type="submit" class="btn btn-outline-primary" hx-disabled-elt="this"{% if polling %} disabled{% endif %}>
+          {{ icon('refresh-cw') }}<span>Atualizar agora</span></button>
+      </form>
+      <small>{% if synced_at %}Atualizado às {{ synced_at.strftime('%H:%M') }}{% if age_minutes %} (há {{ age_minutes }} min){% endif %}{% if origin == 'cópia local' %} · cópia local do banco{% endif %}{% else %}Sem dados carregados{% endif %}</small>
     </div>
   </header>
 
@@ -34,9 +41,21 @@
 
   <div class="sc-loading htmx-indicator" role="status">Carregando cirurgias…</div>
 
-  {% if error %}
-  <div class="alert alert-danger" role="alert">{{ icon('unlink', extra_class='me-2') }}<strong>{{ error.message }}</strong> {{ error.hint }}</div>
+  {% if load_state == 'loading' %}
+  {% include "surgery_control/_loading.html" %}
+  {% elif load_state == 'error' %}
+  <div class="alert alert-danger" role="alert">{{ icon('unlink', extra_class='me-2') }}<strong>{{ error.message if error else 'Não foi possível carregar as cirurgias.' }}</strong> {{ error.hint if error else 'Tente novamente.' }}</div>
+  <form method="post" action="{{ url_for('surgery_control.refresh') }}"
+        hx-post="{{ url_for('surgery_control.refresh') }}" hx-target="#scApp" hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="view" value="{{ view }}"><input type="hidden" name="date" value="{{ anchor.isoformat() }}">
+        <input type="hidden" name="status" value="{{ status_filter }}"><input type="hidden" name="q" value="{{ query }}">
+        {% if only_undated %}<input type="hidden" name="sem_data" value="1">{% endif %}
+    <button type="submit" class="btn btn-primary" hx-disabled-elt="this">{{ icon('refresh-cw') }}<span>Tentar novamente</span></button>
+  </form>
   {% else %}
+  {% if refreshing %}<div class="alert alert-info" role="status">{{ icon('refresh-cw', extra_class='me-2') }}Atualizando em segundo plano ({{ phase or 'preparando' }}). Os dados abaixo são da última leitura.</div>{% endif %}
+  {% if refresh_error %}<div class="alert alert-warning" role="status">{{ icon('info', extra_class='me-2') }}Não foi possível atualizar: {{ refresh_error.message }} {{ refresh_error.hint }} Exibindo a última leitura.</div>{% endif %}
   {% for warning in warnings %}<div class="alert alert-warning" role="status">{{ icon('info', extra_class='me-2') }}{{ warning }}</div>{% endfor %}
 
   <section class="sc-kpis" aria-label="Indicadores do período">
@@ -51,6 +70,7 @@
   <div class="alert alert-warning" role="status">{{ icon('calendar-x', extra_class='me-2') }}
     <strong>{{ undated_total }} cirurgia{{ '' if undated_total == 1 else 's' }} sem data programada (ou com data inválida)</strong> —
     não aparece{{ '' if undated_total == 1 else 'm' }} no calendário nem nos indicadores do período.
+    {% if undated_since %}Considera apenas cirurgias cadastradas desde {{ undated_since.strftime('%m/%Y') }}.{% endif %}
     {% set undated_url = url_for('surgery_control.index', view=view, date=anchor.isoformat(), sem_data=1) %}
     <a href="{{ undated_url }}" hx-get="{{ undated_url }}" hx-target="#scApp" hx-swap="outerHTML" hx-push-url="true">Ver lista</a>
   </div>

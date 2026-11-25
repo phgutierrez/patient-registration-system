@@ -40,7 +40,13 @@ Este sistema otimiza o fluxo de trabalho hospitalar para gerenciar pacientes ort
 - 🔒 **Seguro** - Proteção CSRF e autenticação de usuário
 - 💾 **Armazenamento Confiável** - SQLite local, outbox transacional, checkpoints e histórico restaurável
 
-### 🆕 Versão 3.0.0 (Novembro/2026)
+### 🆕 Versão 3.0.1 (Novembro/2026)
+
+- 🛠️ **Controle de cirurgias não trava mais:** a tela abre na hora e lê o Access em segundo plano (conexão própria, consultas filtradas, 12 meses por padrão) com atualização automática e botão *Atualizar agora*
+- ⚡ **Cópia local do banco no modo rede** (`instance/access_cache`), configurável por `SURGERY_LOCAL_COPY*`
+- 📘 **Como atualizar:** [docs/ATUALIZACAO_V3.0.1.md](docs/ATUALIZACAO_V3.0.1.md) · [Notas de versão](RELEASE_NOTES_3.0.1.md)
+
+### Versão 3.0.0 (Novembro/2026)
 
 - ✅ **Controle de cirurgias (somente administradores):** cirurgias de ortopedia lidas do Access (`Ocorrencias_SS`), com calendário mensal/semanal pela data programada, indicadores (canceladas/realizadas/sem resposta do bloco), lista filtrável e resumo dos motivos de cancelamento
 - ✅ Somente leitura: nada é gravado no Access; vínculos de suspensão ausentes ou ambíguos são sinalizados

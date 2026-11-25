@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Sistema de Ortopedia v3.0.0 - Modo local
+title Sistema de Ortopedia v3.0.1 - Modo local
 cd /d "%~dp0"
 
 if not exist ".venv\Scripts\python.exe" (

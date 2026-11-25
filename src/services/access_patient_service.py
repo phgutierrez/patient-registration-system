@@ -7,6 +7,7 @@ import threading
 import time
 import unicodedata
 from collections import OrderedDict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path, PureWindowsPath
@@ -222,14 +223,23 @@ class AccessPatientService:
         self._connection = None
 
     def _prepare(self, config: AccessConfig):
-        validate_access_config(config)
-        if not config.enabled:
-            raise AccessLookupError('ACCESS_DISABLED', 'A busca no banco do CPAM está desativada.', 'Um administrador pode ativá-la em Configurações.', 503)
+        self._require_enabled(config)
         if self._signature != config.signature:
             self.invalidate()
             self._signature = config.signature
 
+    @staticmethod
+    def _require_enabled(config: AccessConfig) -> None:
+        validate_access_config(config)
+        if not config.enabled:
+            raise AccessLookupError('ACCESS_DISABLED', 'A busca no banco do CPAM está desativada.', 'Um administrador pode ativá-la em Configurações.', 503)
+
     def _connect(self, config: AccessConfig):
+        self._connection = self._open(config)
+        return self._connection
+
+    def _open(self, config: AccessConfig):
+        """Abre uma conexão somente leitura nova (sem guardá-la no serviço)."""
         if pyodbc is None:
             raise AccessLookupError('ACCESS_DRIVER_MISSING', 'Integração com Microsoft Access indisponível.', 'Instale pyodbc e o Microsoft Access Database Engine compatível.', 503)
         drivers = {driver.lower() for driver in pyodbc.drivers()}
@@ -246,13 +256,13 @@ class AccessPatientService:
         connection_string = f'DRIVER={{{ACCESS_DRIVER}}};DBQ={config.database_path};READONLY=TRUE;'
         started = self.clock()
         try:
-            self._connection = pyodbc.connect(connection_string, timeout=5, autocommit=True)
+            connection = pyodbc.connect(connection_string, timeout=5, autocommit=True)
             logger.info(
                 'Conexão Access somente leitura aberta em %.1f ms (origem=%s)',
                 (self.clock() - started) * 1000,
                 source,
             )
-            return self._connection
+            return connection
         except Exception as exc:
             raise self._classify_error(exc, config) from exc
 
@@ -302,27 +312,32 @@ class AccessPatientService:
             for token in ('could not find', 'cannot find', 'não foi possível encontrar', 'tabela inexistente')
         )
 
-    def run_read(self, config: AccessConfig, operation, stage: str = 'consulta'):
-        """Executa uma leitura com a conexão somente leitura compartilhada.
+    @contextmanager
+    def open_readonly(self, config: AccessConfig, query_timeout: int = 120):
+        """Conexão somente leitura **própria** para leituras longas.
 
-        ``operation(connection)`` deve apenas consultar. Reaproveita validação de
-        configuração, conexão, uma nova tentativa e classificação de erros.
+        Não usa nem bloqueia a conexão/lock compartilhados (busca de prontuário e
+        Pacientes do dia continuam respondendo) e é fechada ao sair. Erros do
+        driver/arquivo são classificados como nas demais consultas.
         """
-        with self._lock:
-            self._prepare(config)
-            for attempt in range(2):
-                try:
-                    connection = self._connection or self._connect(config)
-                    return operation(connection)
-                except AccessLookupError:
-                    raise
-                except Exception as exc:
-                    self._log_odbc_failure(stage, exc, attempt + 1)
-                    self._close_connection()
-                    self._columns, self._occ_columns = None, None
-                    if attempt == 1:
-                        raise self._classify_error(exc, config) from exc
-        raise AssertionError('unreachable')
+        self._require_enabled(config)
+        connection = self._open(config)
+        try:
+            try:
+                connection.timeout = query_timeout  # tempo máximo por consulta (segundos)
+            except Exception:
+                logger.debug('O driver Access não aceitou definir o tempo limite da consulta.')
+            yield connection
+        except AccessLookupError:
+            raise
+        except Exception as exc:
+            self._log_odbc_failure('leitura_dedicada', exc)
+            raise self._classify_error(exc, config) from exc
+        finally:
+            try:
+                connection.close()
+            except Exception:
+                pass
 
     def _discover_columns(self, connection) -> dict[str, str]:
         if self._columns is not None:

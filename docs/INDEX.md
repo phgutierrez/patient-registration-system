@@ -38,6 +38,7 @@ Guia central da documentação do **Sistema de Registro de Pacientes e Gerenciam
 
 ### Produto e histórico
 - [CHANGELOG_V2.7.md](CHANGELOG_V2.7.md)
+- [ATUALIZACAO_V3.0.1.md](ATUALIZACAO_V3.0.1.md) — v3.0.1: Controle de cirurgias em segundo plano e cópia local do Access (rede, EXE local, Python)
 - [ATUALIZACAO_V3.0.md](ATUALIZACAO_V3.0.md) — v3.0.0: Controle de cirurgias (admin, Access somente leitura) (rede, EXE local, Python)
 - [ATUALIZACAO_V2.9.md](ATUALIZACAO_V2.9.md) — v2.9.0: Pacientes do dia (Access Ocorrencias), diagnóstico/CID no pedido (rede, EXE local, Python)
 - [ATUALIZACAO_V2.8.md](ATUALIZACAO_V2.8.md) — v2.8.0: excluir solicitação, pendências, formulário (rede, EXE local, Python)

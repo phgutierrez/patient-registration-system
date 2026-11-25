@@ -71,3 +71,7 @@
   .sc-calendar--month .sc-cell{min-height:60px}
   .sc-calendar--month .sc-counts .sc-dot{min-width:1.2rem;padding:0 .25rem}
 }
+.sc-loading-panel{display:flex;align-items:center;gap:1rem}
+.sc-spinner{flex:none;width:2rem;height:2rem;border:3px solid #dbe3ee;border-top-color:#2563eb;border-radius:50%;animation:sc-spin 1s linear infinite}
+@keyframes sc-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sc-spinner{animation:none}}

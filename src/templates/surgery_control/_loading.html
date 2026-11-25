@@ -1,0 +1,9 @@
+<section class="pending-surface sc-section sc-loading-panel" role="status" aria-live="polite">
+  <span class="sc-spinner" aria-hidden="true"></span>
+  <div>
+    <h2 class="h5">{{ 'Carregando o período anterior' if period_pending else 'Carregando as cirurgias do banco do CPAM' }}</h2>
+    <p class="mb-1">{{ phase or 'Preparando' }}{% if elapsed %} · {{ elapsed }} s{% endif %}</p>
+    <p class="sc-meta mb-0">A leitura acontece em segundo plano e pode levar alguns minutos na primeira vez
+      (ou quando o banco é grande). Esta tela atualiza sozinha e você pode navegar para outras páginas.</p>
+  </div>
+</section>

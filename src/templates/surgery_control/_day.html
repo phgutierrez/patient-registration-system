@@ -3,6 +3,8 @@
   <h2 id="scDayTitle" class="h5">{{ weekdays[day.weekday()] }}, {{ day.strftime('%d/%m/%Y') }}</h2>
   {% if error %}
   <div class="alert alert-danger" role="alert"><strong>{{ error.message }}</strong> {{ error.hint }}</div>
+  {% elif notice %}
+  <p class="sc-empty-inline">{{ notice }}</p>
   {% elif rows %}
   <ul class="sc-day-list">
     {% for row in rows %}
